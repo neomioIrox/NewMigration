@@ -1,0 +1,1495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DB Migration Helper - Project Table</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: white;
+            text-align: center;
+            margin-bottom: 30px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .panel {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+        }
+
+        .panel h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+        }
+
+        .table-selector {
+            margin-bottom: 20px;
+        }
+
+        .table-selector label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #495057;
+        }
+
+        .table-selector select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            font-size: 14px;
+            background: white;
+            cursor: pointer;
+        }
+
+        .table-selector select:focus {
+            outline: none;
+            border-color: #764ba2;
+        }
+
+        .table-card {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-left: 4px solid #667eea;
+        }
+
+        .table-card h3 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+
+        .table-card.old-db {
+            border-left-color: #764ba2;
+        }
+
+        .columns-list {
+            background: white;
+            border-radius: 4px;
+            padding: 10px;
+            margin-top: 10px;
+        }
+
+        .column-item {
+            padding: 8px 12px;
+            margin: 5px 0;
+            background: #e9ecef;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .column-row {
+            padding: 12px;
+            margin: 8px 0;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+        }
+
+        .column-name {
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .mapping-selectors {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .mapping-selectors select {
+            padding: 8px;
+            border: 2px solid #667eea;
+            border-radius: 6px;
+            font-size: 13px;
+            background: white;
+            cursor: pointer;
+        }
+
+        .mapping-selectors select:focus {
+            outline: none;
+            border-color: #764ba2;
+        }
+
+        .mapping-selectors input {
+            padding: 8px;
+            border: 2px solid #6c757d;
+            border-radius: 6px;
+            font-size: 13px;
+            background: #f8f9fa;
+            grid-column: 1 / -1;
+        }
+
+        .mapping-selectors input:focus {
+            outline: none;
+            border-color: #495057;
+            background: white;
+        }
+
+        .const-label {
+            grid-column: 1 / -1;
+            font-size: 12px;
+            color: #6c757d;
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+
+        .default-value-input {
+            grid-column: 1 / -1;
+            margin-top: 8px;
+            padding: 6px;
+            border: 1px dashed #6c757d;
+            border-radius: 4px;
+            background: #f9f9f9;
+        }
+
+        .default-value-input label {
+            font-size: 11px;
+            color: #6c757d;
+            margin-bottom: 4px;
+            display: block;
+        }
+
+        .default-value-input input {
+            width: 100%;
+            padding: 6px;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        .fk-mapping-section {
+            grid-column: 1 / -1;
+            margin-top: 8px;
+            padding: 8px;
+            background: #e9ecef;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .fk-mapping-section label {
+            font-size: 12px;
+            color: #495057;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+        }
+
+        .fk-mapping-section input[type="checkbox"] {
+            cursor: pointer;
+        }
+
+        .fk-mapping-btn {
+            padding: 4px 12px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .fk-mapping-btn:hover {
+            background: #5568d3;
+        }
+
+        .fk-mapping-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .column-item:hover {
+            background: #d3d7db;
+            transform: translateX(5px);
+        }
+
+        .column-item.selectable:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .column-item.selected {
+            background: #28a745;
+            color: white;
+            font-weight: bold;
+        }
+
+        .fk-badge {
+            display: inline-block;
+            background: #ffc107;
+            color: #333;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            margin-left: 8px;
+            font-weight: bold;
+        }
+
+        .section {
+            margin-bottom: 20px;
+        }
+
+        .section-title {
+            color: #495057;
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: white;
+            font-size: 18px;
+        }
+
+        .scrollable {
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        .scrollable::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .scrollable::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+
+        .scrollable::-webkit-scrollbar-thumb {
+            background: #667eea;
+            border-radius: 4px;
+        }
+
+        .no-data {
+            padding: 20px;
+            text-align: center;
+            color: #6c757d;
+            font-style: italic;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #218838;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(40, 167, 69, 0.3);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(108, 117, 125, 0.3);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+        }
+
+        .modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-header h2 {
+            color: #667eea;
+            margin: 0;
+        }
+
+        .close-btn {
+            font-size: 28px;
+            font-weight: bold;
+            color: #aaa;
+            cursor: pointer;
+            border: none;
+            background: none;
+        }
+
+        .close-btn:hover {
+            color: #000;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #495057;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #dee2e6;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .connection-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .connection-section h3 {
+            color: #495057;
+            margin-bottom: 15px;
+        }
+
+        .status-message {
+            padding: 10px;
+            border-radius: 6px;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+
+        .status-message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status-message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .migration-section {
+            border-top: 2px solid #dee2e6;
+            padding-top: 20px;
+            margin-top: 20px;
+        }
+
+        .fk-modal {
+            z-index: 2000;
+        }
+
+        .fk-modal .modal-content {
+            max-width: 90%;
+            width: 1200px;
+        }
+
+        .fk-table-container {
+            max-height: 500px;
+            overflow: auto;
+            margin-top: 20px;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+        }
+
+        .fk-mapping-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        .fk-mapping-table th {
+            position: sticky;
+            top: 0;
+            background: #667eea;
+            color: white;
+            padding: 10px;
+            text-align: left;
+            font-weight: 600;
+            z-index: 10;
+        }
+
+        .fk-mapping-table td {
+            padding: 8px 10px;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .fk-mapping-table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .fk-mapping-table input[type="text"] {
+            width: 100%;
+            padding: 4px 8px;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+        }
+
+        .fk-mapping-table input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Database Migration Helper - Project Table Analysis</h1>
+
+        <div class="action-buttons">
+            <button class="btn btn-primary" onclick="openConnectionModal()">הגדרות חיבור ומיגרציה</button>
+            <button class="btn btn-success" onclick="openSaveMappingModal()">שמור מיפוי</button>
+            <button class="btn btn-warning" onclick="openLoadMappingModal()">טען מיפוי</button>
+            <button class="btn btn-secondary" onclick="clearLogs()">רוקן קובץ לוג</button>
+        </div>
+
+        <div id="loading" class="loading">Loading project table data...</div>
+
+        <div id="content" style="display: none;">
+            <div class="main-grid">
+                <!-- New DB Panel - Full Width -->
+                <div class="panel" style="grid-column: 1 / -1;">
+                    <h2>Project Table - Field Mapping</h2>
+                    <div class="scrollable">
+                        <div id="newDbContent"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- FK Mapping Modal -->
+    <div id="fkMappingModal" class="modal fk-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>מיפוי FK לשדה: <span id="fkModalColumnName"></span></h2>
+                <button class="close-btn" onclick="closeFkMappingModal()">&times;</button>
+            </div>
+
+            <div class="form-group">
+                <label>בחר טבלה מבסיס הנתונים הישן:</label>
+                <select id="fkSourceTable" onchange="onFkSourceTableChange()">
+                    <option value="">-- Select Table --</option>
+                </select>
+            </div>
+
+            <div class="form-group" id="fkKeyColumnGroup" style="display: none;">
+                <label>בחר שדה מזהה (להשוואה עם הערך הישן):</label>
+                <select id="fkKeyColumn" onchange="loadFkTableData()">
+                    <option value="">-- Select Column --</option>
+                </select>
+            </div>
+
+            <div id="fkTableDataContainer" class="fk-table-container" style="display: none;">
+                <table class="fk-mapping-table" id="fkDataTable">
+                    <thead id="fkTableHead"></thead>
+                    <tbody id="fkTableBody"></tbody>
+                </table>
+            </div>
+
+            <div style="margin-top: 20px; display: flex; gap: 10px; justify-content: flex-end;">
+                <button class="btn btn-secondary" onclick="closeFkMappingModal()">ביטול</button>
+                <button class="btn btn-success" onclick="saveFkMapping()">שמור מיפוי</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Connection Settings Modal -->
+    <div id="connectionModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>הגדרות חיבור ומיגרציה</h2>
+                <button class="close-btn" onclick="closeConnectionModal()">&times;</button>
+            </div>
+
+            <!-- MSSQL Connection -->
+            <div class="connection-section">
+                <h3>פרטי חיבור ל-MSSQL (מסד נתונים ישן)</h3>
+                <div class="form-group">
+                    <label>Server:</label>
+                    <input type="text" id="mssqlServer" placeholder="localhost">
+                </div>
+                <div class="form-group">
+                    <label>Database:</label>
+                    <input type="text" id="mssqlDatabase" placeholder="OldDatabase">
+                </div>
+                <div class="form-group">
+                    <label>Username:</label>
+                    <input type="text" id="mssqlUser" placeholder="sa">
+                </div>
+                <div class="form-group">
+                    <label>Password:</label>
+                    <input type="password" id="mssqlPassword">
+                </div>
+                <button class="btn btn-primary" onclick="testMSSQLConnection()">בדיקת חיבור ל-MSSQL</button>
+                <div id="mssqlStatus"></div>
+            </div>
+
+            <!-- MySQL Connection -->
+            <div class="connection-section">
+                <h3>פרטי חיבור ל-MySQL (מסד נתונים חדש)</h3>
+                <div class="form-group">
+                    <label>Host:</label>
+                    <input type="text" id="mysqlHost" placeholder="localhost">
+                </div>
+                <div class="form-group">
+                    <label>Database:</label>
+                    <input type="text" id="mysqlDatabase" placeholder="NewDatabase">
+                </div>
+                <div class="form-group">
+                    <label>Username:</label>
+                    <input type="text" id="mysqlUser" placeholder="root">
+                </div>
+                <div class="form-group">
+                    <label>Password:</label>
+                    <input type="password" id="mysqlPassword">
+                </div>
+                <button class="btn btn-primary" onclick="testMySQLConnection()">בדיקת חיבור ל-MySQL</button>
+                <div id="mysqlStatus"></div>
+            </div>
+
+            <!-- Migration Section -->
+            <div class="migration-section">
+                <h3>ביצוע מיגרציה</h3>
+                <p style="color: #6c757d; margin-bottom: 15px;">
+                    המיגרציה תעביר נתונים מהמסד הישן לחדש לפי המיפוי שהגדרת במסך הראשי.
+                </p>
+                <button class="btn btn-success" onclick="executeMigration()">בצע מיגרציה</button>
+                <div id="migrationStatus"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Save Mapping Modal -->
+    <div id="saveMappingModal" class="modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h2>שמירת מיפוי</h2>
+                <button class="close-btn" onclick="closeSaveMappingModal()">&times;</button>
+            </div>
+
+            <div class="form-group">
+                <label>שם קובץ המיפוי:</label>
+                <input type="text" id="mappingFilename" placeholder="הכנס שם (לדוגמה: project_mapping_v1)">
+                <p style="color: #6c757d; font-size: 13px; margin-top: 5px;">
+                    הקובץ יישמר בתיקיית mappings עם סיומת .json
+                </p>
+            </div>
+
+            <div style="margin-top: 20px; display: flex; gap: 10px; justify-content: flex-end;">
+                <button class="btn btn-secondary" onclick="closeSaveMappingModal()">ביטול</button>
+                <button class="btn btn-success" onclick="saveCurrentMapping()">שמור</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Load Mapping Modal -->
+    <div id="loadMappingModal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2>טעינת מיפוי</h2>
+                <button class="close-btn" onclick="closeLoadMappingModal()">&times;</button>
+            </div>
+
+            <div id="mappingFilesList" style="max-height: 400px; overflow-y: auto;">
+                <p style="text-align: center; color: #6c757d;">טוען רשימת קבצים...</p>
+            </div>
+
+            <div style="margin-top: 20px; display: flex; gap: 10px; justify-content: flex-end;">
+                <button class="btn btn-secondary" onclick="closeLoadMappingModal()">סגור</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let allOldTables = [];
+        let oldTablesData = {};
+        let columnMappings = {};
+        let currentFkColumn = null;
+        let fkMappings = {};  // Store FK mappings per column
+        let fkTableData = {};  // Store loaded table data
+
+        async function loadData() {
+            try {
+                // Load project table data
+                const response = await fetch('/api/analyze/project');
+                const data = await response.json();
+
+                // Load all old table names
+                const tablesResponse = await fetch('/api/old-tables');
+                const tablesData = await tablesResponse.json();
+                allOldTables = tablesData.tables;
+
+                // Render New DB section
+                await renderNewDB(data);
+
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('content').style.display = 'block';
+            } catch (error) {
+                document.getElementById('loading').innerHTML =
+                    '<p style="color: white;">Error loading data: ' + error.message + '</p>';
+            }
+        }
+
+
+        async function renderNewDB(data) {
+            const container = document.getElementById('newDbContent');
+            let html = '';
+
+            // Create mapping lookup - prioritize loaded mappings over CSV data
+            const mappingLookup = {};
+
+            // First, load from CSV data (default)
+            if (data.mappings) {
+                data.mappings.forEach(m => {
+                    if (m.newColumn) {
+                        mappingLookup[m.newColumn] = {
+                            convertType: m.convertType,
+                            oldTable: m.oldTable ? m.oldTable.toLowerCase() : '',
+                            oldColumn: m.oldColumn || '',
+                            value: m.comments || '',
+                            defaultValue: null,
+                            useFkMapping: false
+                        };
+                    }
+                });
+            }
+
+            // Then, override with loaded columnMappings if they exist
+            Object.keys(columnMappings).forEach(colName => {
+                const cm = columnMappings[colName];
+                mappingLookup[colName] = {
+                    convertType: cm.convertType,
+                    oldTable: cm.oldTable ? cm.oldTable.toLowerCase() : '',
+                    oldColumn: cm.oldColumn || '',
+                    value: cm.value || '',
+                    defaultValue: cm.defaultValue || null,
+                    useFkMapping: cm.useFkMapping || false
+                };
+            });
+
+            // Main project table - show only columns with mapping selectors
+            if (data.newDB.table) {
+                html += '<div class="table-card"><h3>Project Table - Field Mapping</h3>';
+
+                data.newDB.table.columns.forEach(col => {
+                    const mapping = mappingLookup[col.name];
+                    const isConst = mapping && mapping.convertType === 'const';
+
+                    html += `
+                        <div class="column-row">
+                            <div class="column-name">${col.name}: ${col.type}</div>
+                            <div class="mapping-selectors">
+                    `;
+
+                    if (isConst) {
+                        // For const type - show input field with value
+                        html += `
+                                <div class="const-label">Constant Value:</div>
+                                <input type="text" id="value_${col.name}" value="${mapping.value}"
+                                    onchange="onConstValueChanged('${col.name}', this.value)"
+                                    placeholder="Enter constant value">
+                        `;
+                    } else {
+                        // For direct type - show dropdowns
+                        html += `
+                                <select id="table_${col.name}" onchange="onTableSelected('${col.name}')">
+                                    <option value="">-- Select Old Table --</option>
+                                    ${allOldTables.map(table =>
+                                        `<option value="${table}" ${mapping && mapping.oldTable === table ? 'selected' : ''}>${table}</option>`
+                                    ).join('')}
+                                </select>
+                                <select id="column_${col.name}" ${mapping && mapping.oldTable ? '' : 'disabled'}>
+                                    <option value="">-- Select Column --</option>
+                                </select>
+                        `;
+                    }
+
+                    // Add default value input for all columns
+                    const defaultVal = mapping && mapping.defaultValue ? mapping.defaultValue : '';
+                    html += `
+                                <div class="default-value-input">
+                                    <label>Default Value (if source is NULL):</label>
+                                    <input type="text" id="default_${col.name}" value="${defaultVal}"
+                                        onchange="onDefaultValueChanged('${col.name}', this.value)"
+                                        placeholder="Optional - only used when source value is NULL">
+                                </div>
+                    `;
+
+                    // Add FK mapping section for non-const fields
+                    if (!isConst) {
+                        const useFk = mapping && mapping.useFkMapping ? 'checked' : '';
+                        const btnDisabled = mapping && mapping.useFkMapping ? '' : 'disabled';
+                        html += `
+                                <div class="fk-mapping-section">
+                                    <label>
+                                        <input type="checkbox" id="useFkMapping_${col.name}" ${useFk}
+                                            onchange="onFkMappingToggle('${col.name}')">
+                                        השתמש במיפוי FK
+                                    </label>
+                                    <button class="fk-mapping-btn" id="fkMappingBtn_${col.name}"
+                                        ${btnDisabled} onclick="openFkMappingModal('${col.name}')">
+                                        ...
+                                    </button>
+                                </div>
+                        `;
+                    }
+
+                    html += `
+                            </div>
+                        </div>
+                    `;
+                });
+
+                html += '</div>';
+            }
+
+            container.innerHTML = html;
+
+            // Load columns for pre-selected tables and store mappings
+            for (const col of data.newDB.table.columns) {
+                const mapping = mappingLookup[col.name];
+                if (mapping) {
+                    if (mapping.convertType === 'const') {
+                        // Store const mapping
+                        if (!columnMappings[col.name]) {
+                            columnMappings[col.name] = {};
+                        }
+                        columnMappings[col.name].convertType = 'const';
+                        columnMappings[col.name].value = mapping.value;
+                        if (mapping.defaultValue) {
+                            columnMappings[col.name].defaultValue = mapping.defaultValue;
+                        }
+                    } else if (mapping.oldTable && mapping.oldColumn) {
+                        // Load dropdown for direct mappings and store in columnMappings
+                        await loadColumnDropdown(col.name, mapping.oldTable, mapping.oldColumn);
+
+                        // Ensure all loaded mapping data is in columnMappings
+                        if (!columnMappings[col.name]) {
+                            columnMappings[col.name] = {};
+                        }
+                        if (mapping.defaultValue) {
+                            columnMappings[col.name].defaultValue = mapping.defaultValue;
+                        }
+                        if (mapping.useFkMapping) {
+                            columnMappings[col.name].useFkMapping = mapping.useFkMapping;
+                        }
+                    }
+                }
+            }
+        }
+
+        async function loadColumnDropdown(projectColumn, selectedTable, preselectedColumn = null) {
+            const columnSelect = document.getElementById(`column_${projectColumn}`);
+
+            // Load table data if not cached
+            if (!oldTablesData[selectedTable]) {
+                try {
+                    const response = await fetch(`/api/old-table/${selectedTable}`);
+                    oldTablesData[selectedTable] = await response.json();
+                } catch (error) {
+                    console.error('Error loading table:', error);
+                    return;
+                }
+            }
+
+            // Populate column dropdown
+            const tableData = oldTablesData[selectedTable];
+            columnSelect.disabled = false;
+            columnSelect.innerHTML = '<option value="">-- Select Column --</option>' +
+                tableData.columns.map(col =>
+                    `<option value="${col.name}" ${preselectedColumn === col.name ? 'selected' : ''}>${col.name}: ${col.type}</option>`
+                ).join('');
+
+            // Store mapping
+            if (preselectedColumn) {
+                if (!columnMappings[projectColumn]) {
+                    columnMappings[projectColumn] = {};
+                }
+                columnMappings[projectColumn].convertType = 'direct';
+                columnMappings[projectColumn].oldTable = selectedTable;
+                columnMappings[projectColumn].oldColumn = preselectedColumn;
+            }
+
+            // Set up onchange handler
+            columnSelect.onchange = () => {
+                if (columnSelect.value) {
+                    if (!columnMappings[projectColumn]) {
+                        columnMappings[projectColumn] = {};
+                    }
+                    // Preserve defaultValue if it exists
+                    const existingDefault = columnMappings[projectColumn].defaultValue;
+                    columnMappings[projectColumn].convertType = 'direct';
+                    columnMappings[projectColumn].oldTable = selectedTable;
+                    columnMappings[projectColumn].oldColumn = columnSelect.value;
+                    if (existingDefault) {
+                        columnMappings[projectColumn].defaultValue = existingDefault;
+                    }
+                    console.log('Current mappings:', columnMappings);
+                }
+            };
+        }
+
+        async function onTableSelected(projectColumn) {
+            const tableSelect = document.getElementById(`table_${projectColumn}`);
+            const columnSelect = document.getElementById(`column_${projectColumn}`);
+            const selectedTable = tableSelect.value;
+
+            if (!selectedTable) {
+                columnSelect.disabled = true;
+                columnSelect.innerHTML = '<option value="">-- Select Column --</option>';
+                return;
+            }
+
+            await loadColumnDropdown(projectColumn, selectedTable);
+        }
+
+        function onConstValueChanged(projectColumn, value) {
+            if (!columnMappings[projectColumn]) {
+                columnMappings[projectColumn] = {};
+            }
+            columnMappings[projectColumn].convertType = 'const';
+            columnMappings[projectColumn].value = value;
+            console.log('Current mappings:', columnMappings);
+        }
+
+        function onDefaultValueChanged(projectColumn, value) {
+            if (!columnMappings[projectColumn]) {
+                columnMappings[projectColumn] = {};
+            }
+            columnMappings[projectColumn].defaultValue = value || null;
+            console.log('Current mappings:', columnMappings);
+        }
+
+        // FK Mapping functions
+        function onFkMappingToggle(columnName) {
+            const checkbox = document.getElementById(`useFkMapping_${columnName}`);
+            const button = document.getElementById(`fkMappingBtn_${columnName}`);
+            button.disabled = !checkbox.checked;
+
+            // Store FK mapping enabled state
+            if (!columnMappings[columnName]) {
+                columnMappings[columnName] = {};
+            }
+            columnMappings[columnName].useFkMapping = checkbox.checked;
+        }
+
+        function openFkMappingModal(columnName) {
+            currentFkColumn = columnName;
+            document.getElementById('fkModalColumnName').textContent = columnName;
+            document.getElementById('fkMappingModal').classList.add('active');
+
+            // Populate source table dropdown
+            const select = document.getElementById('fkSourceTable');
+            select.innerHTML = '<option value="">-- Select Table --</option>' +
+                allOldTables.map(table => `<option value="${table}">${table}</option>`).join('');
+
+            // Load existing FK mapping if available
+            loadExistingFkMapping(columnName);
+        }
+
+        function closeFkMappingModal() {
+            document.getElementById('fkMappingModal').classList.remove('active');
+            document.getElementById('fkTableDataContainer').style.display = 'none';
+            document.getElementById('fkSourceTable').value = '';
+            currentFkColumn = null;
+        }
+
+        async function onFkSourceTableChange() {
+            const tableName = document.getElementById('fkSourceTable').value;
+            const keyColumnSelect = document.getElementById('fkKeyColumn');
+            const keyColumnGroup = document.getElementById('fkKeyColumnGroup');
+
+            if (!tableName) {
+                keyColumnGroup.style.display = 'none';
+                document.getElementById('fkTableDataContainer').style.display = 'none';
+                return;
+            }
+
+            try {
+                // Load table structure to get columns
+                const response = await fetch(`/api/old-table/${tableName}`);
+                const tableData = await response.json();
+
+                // Populate key column dropdown
+                keyColumnSelect.innerHTML = '<option value="">-- Select Column --</option>' +
+                    tableData.columns.map(col => `<option value="${col.name}">${col.name}: ${col.type}</option>`).join('');
+
+                keyColumnGroup.style.display = 'block';
+                document.getElementById('fkTableDataContainer').style.display = 'none';
+            } catch (error) {
+                alert('שגיאה בטעינת עמודות: ' + error.message);
+            }
+        }
+
+        async function loadExistingFkMapping(columnName) {
+            try {
+                const response = await fetch(`/api/fk-mapping/${columnName}`);
+                const result = await response.json();
+
+                if (result.success && result.exists) {
+                    const mapping = result.mapping;
+                    document.getElementById('fkSourceTable').value = mapping.sourceTable;
+
+                    // Load columns for the table first
+                    await onFkSourceTableChange();
+
+                    // Set the key column if it exists
+                    if (mapping.keyColumn) {
+                        document.getElementById('fkKeyColumn').value = mapping.keyColumn;
+                    }
+
+                    fkMappings[columnName] = mapping.mappings;
+                    await loadFkTableData();
+                }
+            } catch (error) {
+                console.error('Error loading FK mapping:', error);
+            }
+        }
+
+        async function loadFkTableData() {
+            const tableName = document.getElementById('fkSourceTable').value;
+            if (!tableName) {
+                document.getElementById('fkTableDataContainer').style.display = 'none';
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/table-data', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ tableName })
+                });
+
+                const result = await response.json();
+                if (!result.success) {
+                    alert('שגיאה בטעינת נתונים: ' + result.message);
+                    return;
+                }
+
+                fkTableData = result.data;
+                renderFkTable(result.data);
+                document.getElementById('fkTableDataContainer').style.display = 'block';
+            } catch (error) {
+                alert('שגיאה: ' + error.message);
+            }
+        }
+
+        function renderFkTable(data) {
+            if (!data || data.length === 0) {
+                document.getElementById('fkTableDataContainer').style.display = 'none';
+                return;
+            }
+
+            const thead = document.getElementById('fkTableHead');
+            const tbody = document.getElementById('fkTableBody');
+            const keyColumn = document.getElementById('fkKeyColumn').value;
+
+            // Get columns from first row
+            const columns = Object.keys(data[0]);
+
+            // Render header
+            let headerHtml = '<tr>';
+            columns.forEach(col => {
+                headerHtml += `<th>${col}</th>`;
+            });
+            headerHtml += '<th>ערך חדש</th></tr>';
+            thead.innerHTML = headerHtml;
+
+            // Render body
+            let bodyHtml = '';
+            data.forEach((row, idx) => {
+                bodyHtml += '<tr>';
+                columns.forEach(col => {
+                    bodyHtml += `<td>${row[col] !== null ? row[col] : '(NULL)'}</td>`;
+                });
+
+                // Get existing mapping value using the key column value
+                const keyValue = row[keyColumn];
+                const existingValue = fkMappings[currentFkColumn]?.[keyValue] || '';
+                bodyHtml += `<td><input type="text" id="fkMap_${idx}" value="${existingValue}" placeholder="הכנס ערך חדש"></td>`;
+                bodyHtml += '</tr>';
+            });
+            tbody.innerHTML = bodyHtml;
+        }
+
+        async function saveFkMapping() {
+            const tableName = document.getElementById('fkSourceTable').value;
+            const keyColumn = document.getElementById('fkKeyColumn').value;
+
+            if (!tableName) {
+                alert('נא לבחור טבלה');
+                return;
+            }
+
+            if (!keyColumn) {
+                alert('נא לבחור שדה מזהה');
+                return;
+            }
+
+            // Collect mappings - use key column value as the mapping key
+            const mappings = {};
+            fkTableData.forEach((row, idx) => {
+                const newValue = document.getElementById(`fkMap_${idx}`)?.value;
+                if (newValue) {
+                    const keyValue = row[keyColumn];
+                    mappings[keyValue] = newValue;
+                }
+            });
+
+            try {
+                const response = await fetch(`/api/fk-mapping/${currentFkColumn}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        sourceTable: tableName,
+                        keyColumn: keyColumn,
+                        mappings: mappings
+                    })
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    alert('✓ מיפוי נשמר בהצלחה!');
+                    fkMappings[currentFkColumn] = mappings;
+                    closeFkMappingModal();
+                } else {
+                    alert('✗ שגיאה בשמירה: ' + result.message);
+                }
+            } catch (error) {
+                alert('✗ שגיאה: ' + error.message);
+            }
+        }
+
+        // Clear logs function
+        async function clearLogs() {
+            if (!confirm('האם אתה בטוח שברצונך לרוקן את קובץ הלוג? פעולה זו בלתי הפיכה.')) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/clear-logs', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    alert('✓ קובץ הלוג רוקן בהצלחה!');
+                } else {
+                    alert('✗ שגיאה: ' + result.message);
+                }
+            } catch (error) {
+                alert('✗ שגיאה: ' + error.message);
+            }
+        }
+
+        // Load data on page load
+        loadData();
+
+        // Modal functions
+        function openConnectionModal() {
+            document.getElementById('connectionModal').classList.add('active');
+            loadSavedConnections();
+        }
+
+        function closeConnectionModal() {
+            document.getElementById('connectionModal').classList.remove('active');
+        }
+
+        // Save connection details to localStorage
+        function saveConnectionDetails() {
+            const connections = {
+                mssql: {
+                    server: document.getElementById('mssqlServer').value,
+                    database: document.getElementById('mssqlDatabase').value,
+                    user: document.getElementById('mssqlUser').value,
+                    password: document.getElementById('mssqlPassword').value
+                },
+                mysql: {
+                    host: document.getElementById('mysqlHost').value,
+                    database: document.getElementById('mysqlDatabase').value,
+                    user: document.getElementById('mysqlUser').value,
+                    password: document.getElementById('mysqlPassword').value
+                }
+            };
+            localStorage.setItem('dbConnections', JSON.stringify(connections));
+        }
+
+        // Load saved connection details from localStorage
+        function loadSavedConnections() {
+            const saved = localStorage.getItem('dbConnections');
+            if (saved) {
+                try {
+                    const connections = JSON.parse(saved);
+
+                    // Load MSSQL
+                    if (connections.mssql) {
+                        document.getElementById('mssqlServer').value = connections.mssql.server || '';
+                        document.getElementById('mssqlDatabase').value = connections.mssql.database || '';
+                        document.getElementById('mssqlUser').value = connections.mssql.user || '';
+                        document.getElementById('mssqlPassword').value = connections.mssql.password || '';
+                    }
+
+                    // Load MySQL
+                    if (connections.mysql) {
+                        document.getElementById('mysqlHost').value = connections.mysql.host || '';
+                        document.getElementById('mysqlDatabase').value = connections.mysql.database || '';
+                        document.getElementById('mysqlUser').value = connections.mysql.user || '';
+                        document.getElementById('mysqlPassword').value = connections.mysql.password || '';
+                    }
+                } catch (e) {
+                    console.error('Error loading saved connections:', e);
+                }
+            }
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('connectionModal');
+            if (event.target === modal) {
+                closeConnectionModal();
+            }
+        }
+
+        // Test MSSQL Connection
+        async function testMSSQLConnection() {
+            const statusDiv = document.getElementById('mssqlStatus');
+            statusDiv.innerHTML = '<div class="status-message">בודק חיבור...</div>';
+
+            const config = {
+                server: document.getElementById('mssqlServer').value,
+                database: document.getElementById('mssqlDatabase').value,
+                user: document.getElementById('mssqlUser').value,
+                password: document.getElementById('mssqlPassword').value
+            };
+
+            try {
+                const response = await fetch('/api/test-mssql', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(config)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    statusDiv.innerHTML = `<div class="status-message success">${result.message}</div>`;
+                    saveConnectionDetails(); // Save on successful connection
+                } else {
+                    statusDiv.innerHTML = `<div class="status-message error">${result.message}</div>`;
+                }
+            } catch (error) {
+                statusDiv.innerHTML = `<div class="status-message error">שגיאה: ${error.message}</div>`;
+            }
+        }
+
+        // Test MySQL Connection
+        async function testMySQLConnection() {
+            const statusDiv = document.getElementById('mysqlStatus');
+            statusDiv.innerHTML = '<div class="status-message">בודק חיבור...</div>';
+
+            const config = {
+                host: document.getElementById('mysqlHost').value,
+                database: document.getElementById('mysqlDatabase').value,
+                user: document.getElementById('mysqlUser').value,
+                password: document.getElementById('mysqlPassword').value
+            };
+
+            try {
+                const response = await fetch('/api/test-mysql', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(config)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    statusDiv.innerHTML = `<div class="status-message success">${result.message}</div>`;
+                    saveConnectionDetails(); // Save on successful connection
+                } else {
+                    statusDiv.innerHTML = `<div class="status-message error">${result.message}</div>`;
+                }
+            } catch (error) {
+                statusDiv.innerHTML = `<div class="status-message error">שגיאה: ${error.message}</div>`;
+            }
+        }
+
+        // Execute Migration
+        async function executeMigration() {
+            const statusDiv = document.getElementById('migrationStatus');
+
+            if (Object.keys(columnMappings).length === 0) {
+                statusDiv.innerHTML = '<div class="status-message error">לא נמצא מיפוי. אנא הגדר מיפוי תחילה במסך הראשי.</div>';
+                return;
+            }
+
+            console.log('Sending mappings:', columnMappings);
+            statusDiv.innerHTML = '<div class="status-message">מתחיל מיגרציה... אנא המתן</div>';
+
+            try {
+                const response = await fetch('/api/migrate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        tableName: 'project',
+                        mappings: columnMappings
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    let errorDetails = '';
+                    if (result.errors && result.errors.length > 0) {
+                        errorDetails = `<br><strong>שגיאות (${result.errors.length} ראשונות):</strong><br>`;
+                        result.errors.forEach(err => {
+                            errorDetails += `- [Row ID: ${err.rowId}] ${err.error}<br>`;
+                        });
+                    }
+                    statusDiv.innerHTML = `<div class="status-message success">
+                        ${result.message}<br>
+                        נכנסו ${result.insertedCount} מתוך ${result.totalRows} רשומות
+                        ${errorDetails}
+                    </div>`;
+                } else {
+                    statusDiv.innerHTML = `<div class="status-message error">${result.message}</div>`;
+                }
+            } catch (error) {
+                statusDiv.innerHTML = `<div class="status-message error">שגיאה: ${error.message}</div>`;
+            }
+        }
+
+        // ===== Mapping Save/Load Functions =====
+
+        function openSaveMappingModal() {
+            document.getElementById('mappingFilename').value = '';
+            document.getElementById('saveMappingModal').classList.add('active');
+        }
+
+        function closeSaveMappingModal() {
+            document.getElementById('saveMappingModal').classList.remove('active');
+        }
+
+        async function saveCurrentMapping() {
+            const filename = document.getElementById('mappingFilename').value.trim();
+
+            if (!filename) {
+                alert('נא להזין שם לקובץ המיפוי');
+                return;
+            }
+
+            if (Object.keys(columnMappings).length === 0) {
+                alert('אין מיפוי לשמור. אנא הגדר מיפוי תחילה.');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/save-mapping', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        filename: filename,
+                        columnMappings: columnMappings,
+                        fkMappings: fkMappings
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    alert(`✓ המיפוי נשמר בהצלחה!\nשם קובץ: ${result.filename}.json`);
+                    closeSaveMappingModal();
+                } else {
+                    alert('✗ שגיאה בשמירה: ' + result.message);
+                }
+            } catch (error) {
+                alert('✗ שגיאה: ' + error.message);
+            }
+        }
+
+        async function openLoadMappingModal() {
+            document.getElementById('loadMappingModal').classList.add('active');
+            await loadMappingFilesList();
+        }
+
+        function closeLoadMappingModal() {
+            document.getElementById('loadMappingModal').classList.remove('active');
+        }
+
+        async function loadMappingFilesList() {
+            const listDiv = document.getElementById('mappingFilesList');
+            listDiv.innerHTML = '<p style="text-align: center; color: #6c757d;">טוען רשימת קבצים...</p>';
+
+            try {
+                const response = await fetch('/api/mappings');
+                const result = await response.json();
+
+                if (!result.success) {
+                    listDiv.innerHTML = '<p style="text-align: center; color: #dc3545;">שגיאה בטעינת הרשימה</p>';
+                    return;
+                }
+
+                if (result.mappings.length === 0) {
+                    listDiv.innerHTML = '<p style="text-align: center; color: #6c757d;">אין קבצי מיפוי שמורים</p>';
+                    return;
+                }
+
+                let html = '<div style="display: flex; flex-direction: column; gap: 10px;">';
+                result.mappings.forEach(mapping => {
+                    const date = new Date(mapping.savedAt).toLocaleString('he-IL');
+                    const sizeKB = (mapping.size / 1024).toFixed(2);
+                    html += `
+                        <div style="border: 1px solid #dee2e6; border-radius: 8px; padding: 15px; cursor: pointer; transition: all 0.2s;"
+                             onmouseover="this.style.borderColor='#667eea'; this.style.background='#f8f9fa';"
+                             onmouseout="this.style.borderColor='#dee2e6'; this.style.background='white';"
+                             onclick="loadMappingFromFile('${mapping.filename}')">
+                            <div style="font-weight: bold; font-size: 16px; margin-bottom: 5px;">${mapping.filename}</div>
+                            <div style="font-size: 13px; color: #6c757d;">
+                                נשמר: ${date} | גודל: ${sizeKB} KB
+                            </div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+
+                listDiv.innerHTML = html;
+            } catch (error) {
+                listDiv.innerHTML = '<p style="text-align: center; color: #dc3545;">שגיאה: ' + error.message + '</p>';
+            }
+        }
+
+        async function loadMappingFromFile(filename) {
+            if (!confirm(`האם לטעון את המיפוי "${filename}"?\nהמיפוי הנוכחי יוחלף.`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/load-mapping/${filename}`);
+                const result = await response.json();
+
+                if (!result.success) {
+                    alert('✗ שגיאה בטעינה: ' + result.message);
+                    return;
+                }
+
+                // Load column mappings
+                columnMappings = result.mapping.columnMappings || {};
+                fkMappings = result.mapping.fkMappings || {};
+
+                // Refresh the UI to reflect loaded mappings
+                await loadData();
+
+                closeLoadMappingModal();
+                alert(`✓ המיפוי נטען בהצלחה!\nנטענו ${Object.keys(columnMappings).length} מיפויי שדות`);
+            } catch (error) {
+                alert('✗ שגיאה: ' + error.message);
+            }
+        }
+    </script>
+</body>
+</html>

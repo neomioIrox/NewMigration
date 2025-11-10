@@ -1,0 +1,68 @@
+{
+  "filename": "ProjectMapping",
+  "columnMappings": {
+    "Name": {
+      "convertType": "direct",
+      "oldTable": "products",
+      "oldColumn": "Name"
+    },
+    "ProjectType": {
+      "convertType": "const",
+      "value": "2"
+    },
+    "KupatFundNo": {
+      "convertType": "direct",
+      "oldTable": "products",
+      "oldColumn": "ProjectNumber"
+    },
+    "DisplayAsSelfView": {
+      "convertType": "direct",
+      "oldTable": "products",
+      "oldColumn": "WithoutKupatView"
+    },
+    "RecordStatus": {
+      "convertType": "const",
+      "value": "2 "
+    },
+    "StatusChangedAt": {
+      "convertType": "const",
+      "value": "GETDATE()"
+    },
+    "StatusChangedBy": {
+      "convertType": "const",
+      "value": "-1"
+    },
+    "CreatedAt": {
+      "convertType": "direct",
+      "oldTable": "products",
+      "oldColumn": "DateCreated",
+      "defaultValue": "GETDATE()"
+    },
+    "CreatedBy": {
+      "convertType": "const",
+      "value": "-1"
+    },
+    "UpdatedAt": {
+      "convertType": "const",
+      "value": "GETDATE()"
+    },
+    "UpdatedBy": {
+      "convertType": "const",
+      "value": "-1"
+    },
+    "TerminalId": {
+      "convertType": "direct",
+      "oldTable": "products",
+      "oldColumn": "Terminal",
+      "defaultValue": "1",
+      "useFkMapping": true
+    }
+  },
+  "fkMappings": {
+    "TerminalId": {
+      "1": "1",
+      "4": "2"
+    }
+  },
+  "savedAt": "2025-11-10T20:58:39.351Z"
+}

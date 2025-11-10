@@ -1,0 +1,10 @@
+{
+  "columnName": "TerminalId",
+  "sourceTable": "terminals",
+  "keyColumn": "TerminalId",
+  "mappings": {
+    "1": "1",
+    "4": "2"
+  },
+  "updatedAt": "2025-11-10T20:57:58.758Z"
+}
