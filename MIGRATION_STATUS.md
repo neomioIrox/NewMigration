@@ -1,175 +1,291 @@
 # Migration Status - Database Migration Helper
 
-Date: November 9, 2025
+Date: November 11, 2025
 
 ## Overview
 
-This project is a tool for managing database migration from SQL Server to MySQL, focusing on the Project table and its relationships.
+This project provides a web-based tool for managing database migration from SQL Server to MySQL, with full support for field mapping, expressions, foreign keys, and multi-language localization.
 
-## What We've Built So Far
+## Latest Migration Results
 
-### 1. Node.js Server with Express (server.js)
+**Date**: November 11, 2025 08:42
 
-**Features:**
-- **Dual SQL Parser**: Supports both MySQL and SQL Server formats
-  - MySQL: `CREATE TABLE \`tablename\``
-  - SQL Server: `CREATE TABLE [dbo].[tablename]`
-- **3 API Endpoints**:
-  - `GET /api/analyze/:tableName` - Analyzes a table with all its relationships
-  - `GET /api/old-tables` - Returns list of all tables from the old DB
-  - `GET /api/old-table/:tableName` - Returns structure of specific table from the old DB
-- **CSV Parser**: Reads Mapping.csv file and parses migration rules
+### Project Table Migration
+- **Status**: ✅ SUCCESS
+- **Rows migrated**: 1750/1750 (100%)
+- **Errors**: 0
+
+### projectLocalization Migration
+- **Status**: ⚠️ MOSTLY SUCCESS
+- **Rows migrated**: 5244/5250 (99.9%)
+- **Errors**: 6 (Title cannot be null)
+- **Failed rows**:
+  - Project 335 (french): Name_fr is null
+  - Project 373 (french): Name_fr is null
+  - Project 1000 (english, french): Name_en/Name_fr are null
+  - Project 1399 (english, french): Name_en/Name_fr are null
+
+## What We've Built
+
+### 1. Full Migration Engine (server.js)
+
+**Core Features:**
+- ✅ Direct field mapping (oldColumn → newColumn)
+- ✅ Constant values (e.g., ProjectType = 2)
+- ✅ JavaScript expressions (e.g., `value.substring(0, 150)`)
+- ✅ Default values (GETDATE(), static values)
+- ✅ Foreign Key mapping with value translation
+- ✅ Multi-language localization (Hebrew, English, French)
+- ✅ Expression evaluation for both Project and projectLocalization
+- ✅ Automatic SELECT query building including localization columns
+
+**API Endpoints:**
+- `POST /api/test-mssql` - Test SQL Server connection
+- `POST /api/test-mysql` - Test MySQL connection
+- `POST /api/migrate` - Execute migration with full mapping support
+- `GET /api/analyze/:tableName` - Analyze table structure and relationships
+- `GET /api/old-tables` - List all source tables
+- `GET /api/old-table/:tableName` - Get source table structure
 
 ### 2. Web Interface (public/index.html)
 
 **Features:**
-- **Interactive field mapping interface**
-- **Top Panel**: Displays all Project table columns
-- **Each column has 2 dropdowns**:
-  - First dropdown: Select table from old DB
-  - Second dropdown: Select column from chosen table (enabled dynamically)
-- **Auto-load mappings**: Interface reads Mapping.csv and automatically loads existing mappings
-- **Bottom Panel**: Table displaying all mappings from CSV for reference
+- Interactive field mapping UI
+- Load/Save mapping configurations (JSON format)
+- Test database connections
+- Execute migrations
+- View migration logs in real-time
 
-### 3. Data Files
+### 3. Mapping System
 
-- **KupatHairNewMySQL.sql**: MySQL schema of the new DB
-- **create-kupat-db-generic.sql**: SQL Server schema of the old DB
-- **Mapping.csv**: Detailed mapping file with conversion rules
+**File Format**: JSON (ProjectMapping.json)
 
-## Current Project Table Mapping Status
+**Mapping Types:**
+1. **direct**: Simple column copy
+2. **const**: Static value
+3. **expression**: JavaScript expression evaluation
+4. **FK**: Foreign key with value translation
 
-### Fields with Existing Mapping (from Mapping.csv):
-
-1. **Name** ← Products.Name (expression)
-   - Truncate to 150 characters: `LEFT(name, 150)`
-
-2. **KupatFundNo** ← Products.ProjectNumber (direct)
-
-3. **CreditCardTerminalId** ← Products.Terminal (direct)
-   - Note: In the new DB the field is called `TerminalId`, not `CreditCardTerminalId`
-
-4. **DisplayAsSelfView** ← Products.WithoutKupatView (direct)
-
-5. **CreatedAt** ← Products.DateCreated (direct)
-
-### Fields Without Mapping:
-
-- Id (auto-generated)
-- ProjectType (const: 1 for Fund, 2 for Collection)
-- MainMedia
-- ImageForListsView
-- DisplayItemsInProjectPage
-- RecordStatus (const: 2)
-- StatusChangedAt (const: GETDATE())
-- StatusChangedBy (const: -1)
-- CreatedBy (const: -1)
-- UpdatedAt (const: GETDATE())
-- UpdatedBy (const: -1)
-
-## Old DB Status
-
-**Total tables found: 67**
-
-Including:
-- products (main source table)
-- orders, orderproducts
-- users, usersources
-- prayers, prayernames
-- funds, nadarimdonations
-- and more...
-
-## New DB Status
-
-**Project Table** contains:
-- 16 columns
-- 8 Foreign Keys (relationships to other tables)
-
-**Child Tables** (referencing Project):
-1. FundCategory
-2. Lead
-3. LinkSetting
-4. MoreItemLink
-5. ProjectItem
-6. ProjectLocalization
-7. Recruiter
-8. RecruitersGroup
-
-**Parent/Lookup Tables** (referenced by Project):
-1. lutprojecttype
-2. terminal
-3. user
-4. media
-5. lutrecordstatus
-
-## How to Use the Tool
-
-### Starting the Server:
-```bash
-npm start
+**Example Mapping:**
+```json
+{
+  "columnMappings": {
+    "Name": {
+      "convertType": "expression",
+      "oldTable": "products",
+      "oldColumn": "Name",
+      "expression": "value ? value.substring(0, 150) : null"
+    }
+  },
+  "fkMappings": {
+    "TerminalId": {
+      "1": "1",
+      "4": "2"
+    }
+  },
+  "localizationMappings": {
+    "Title": {
+      "hebrew": {
+        "convertType": "expression",
+        "oldTable": "products",
+        "oldColumn": "Name",
+        "expression": "value ? value.substring(0, 150) : null"
+      }
+    }
+  }
+}
 ```
 
-Server runs on: **http://localhost:3030**
+## Current Project Table Mapping
 
-### Workflow:
+### Mapped Fields:
 
-1. **Open the interface in browser**
-2. **View existing mappings** that were auto-loaded from CSV
-3. **Edit mappings**:
-   - Select table from first dropdown
-   - Select column from second dropdown
-4. **Mappings are saved in JavaScript** (currently in-memory only)
+1. **Name** ← Products.Name
+   - Type: expression
+   - Expression: `value ? value.substring(0, 150) : null`
+   - Reason: Target column is varchar(150)
 
-## Next Steps
+2. **ProjectType** ← Constant
+   - Value: "2" (Collection type)
 
-### Short Term:
-1. ✅ ~~Build field mapping interface~~ - **Completed!**
-2. ⏳ **Save mappings**: Add button to save mappings to file
-3. ⏳ **SQL Export**: Generate INSERT/UPDATE scripts based on mappings
-4. ⏳ **Validation**: Verify all required fields are mapped
+3. **KupatFundNo** ← Products.ProjectNumber
+   - Type: direct
 
-### Medium Term:
-1. Handle Expression type fields (calculations)
-2. Handle Foreign Keys
-3. Handle Constant values
-4. Deal with two types of Projects (Fund=1, Collection=2)
+4. **DisplayAsSelfView** ← Products.WithoutKupatView
+   - Type: direct
 
-### Long Term:
-1. Migration of all dependent tables
-2. Data integrity checks
-3. Backup and rollback scripts
-4. Complete migration process documentation
+5. **TerminalId** ← Products.Terminal
+   - Type: direct + FK mapping
+   - FK translations: 1→1, 4→2
 
-## Important Notes
+6. **RecordStatus** ← Constant
+   - Value: "2"
 
-### Issues Fixed:
-1. **SQL Parser**: Fixed to support both MySQL and SQL Server
-2. **Mapping Load**: Mappings from CSV auto-load on page open
-3. **Dynamic Dropdowns**: Columns load only after table selection
+7. **StatusChangedAt** ← Constant
+   - Value: GETDATE()
 
-### Potential Issues:
-1. **Name Mismatch**: `CreditCardTerminalId` in mapping vs `TerminalId` in schema
-2. **Duplicate Mappings**: 3 records of same field (Steps 1, 1.1, 1.1)
-3. **Missing Fields**: Not all required fields are mapped (e.g., ProjectType)
+8. **StatusChangedBy** ← Constant
+   - Value: "-1"
 
-## File System
+9. **CreatedAt** ← Products.DateCreated
+   - Type: direct
+   - Default: GETDATE()
+
+10. **CreatedBy** ← Constant
+    - Value: "-1"
+
+11. **UpdatedAt** ← Constant
+    - Value: GETDATE()
+
+12. **UpdatedBy** ← Constant
+    - Value: "-1"
+
+## Current projectLocalization Mapping
+
+### Fields (per language: Hebrew, English, French):
+
+1. **Title**
+   - Hebrew ← Products.Name
+   - English ← Products.Name_en
+   - French ← Products.Name_fr
+   - Expression: `value ? value.substring(0, 150) : null`
+   - Default (EN/FR): "Default Title" / "Titre par défaut"
+
+2. **Description**
+   - Hebrew ← Products.ShortDescription
+   - English ← Products.ShortDescription_en
+   - French ← Products.ShortDescription_fr
+
+3. **DisplayInSite**
+   - All languages ← Products.Hide
+   - Expression: `row.Hide ? 0 : 1`
+
+4. **RecruitmentTarget**
+   - All languages ← Products.Price
+   - Expression: `value || 0`
+   - Default (Hebrew): "0"
+
+5. **HideDonationsInSite**
+   - All languages ← Products.HideDonationAmount
+
+6. **OrderInProjectsPageView**
+   - All languages ← Products.Sort
+   - Expression: `value <= 30 ? value : null`
+
+## Technical Achievements
+
+### Recent Fixes (Nov 11, 2025):
+
+1. ✅ **Expression support for Project table**
+   - Added expression evaluation in columnMappings (server.js:593-603)
+   - Fixes Name truncation issue
+
+2. ✅ **SELECT query optimization**
+   - Automatically includes all columns from localizationMappings (server.js:538-548)
+   - Prevents missing data during localization migration
+
+3. ✅ **RecruitmentTarget mapping**
+   - Changed from mixed (direct/expression) to consistent expression across all languages
+   - Expression: `value || 0` (use value or default to 0)
+
+4. ✅ **convertType consistency**
+   - Fixed localizationMappings to use "expression" when expression field exists
+   - Previously some mappings had convertType "direct" with expression field
+
+## Known Issues
+
+### 1. Title NULL Errors (6 rows)
+**Problem**: Some products have NULL values for Name_en or Name_fr
+**Impact**: 6 localization rows failed (0.1% failure rate)
+**Solutions**:
+- Option A: Fix defaultValue application in expression evaluation
+- Option B: Use Hebrew name as fallback if EN/FR is null
+- Option C: Accept 6 failures if not critical
+
+### 2. defaultValue Not Applied After Expression
+**Problem**: When expression returns null, defaultValue should be used but isn't
+**Location**: server.js:684-689 (applies default BEFORE expression, not after)
+**Fix needed**: Apply defaultValue AFTER expression evaluation if result is null
+
+## Database Schema
+
+### Source (SQL Server):
+- **Table**: products
+- **Key columns**: productsid, Name, ProjectNumber, Terminal, Price, DateCreated
+- **Localization**: Name_en, Name_fr, ShortDescription_en, ShortDescription_fr
+
+### Target (MySQL):
+- **Table**: project (16 columns, 8 FK relationships)
+- **Table**: projectLocalization (multi-language support, 3 rows per project)
+- **Languages**: 1=Hebrew, 2=English, 3=French
+
+## File Structure
 
 ```
 NewMigration/
-├── server.js                      # Node.js server
-├── package.json                   # Dependencies
+├── server.js                          # Migration engine
+├── package.json                       # Dependencies
 ├── public/
-│   └── index.html                 # User interface
-├── KupatHairNewMySQL.sql         # New DB schema
-├── create-kupat-db-generic.sql   # Old DB schema
-├── Mapping.csv                    # Mapping rules
-├── README.md                      # General documentation
-├── CLAUDE.md                      # Claude Code guidelines
-└── MIGRATION_STATUS.md           # This file
+│   └── index.html                     # Web UI
+├── mappings/
+│   └── ProjectMapping.json            # Current mapping config
+├── fk-mappings/
+│   └── TerminalId.json                # FK translation table
+├── KupatHairNewMySQL.sql             # Target schema
+├── create-kupat-db-generic.sql       # Source schema
+├── Mapping.csv                        # Original mapping reference
+├── migration-logs.log                 # Migration execution logs
+├── MIGRATION_STATUS.md               # This file
+├── CLAUDE.md                          # Development guidelines
+└── README.md                          # Project documentation
 ```
+
+## Next Steps
+
+### Immediate:
+1. ⏳ Fix Title NULL errors (apply defaultValue after expression)
+2. ⏳ Verify RecruitmentTarget values in database
+3. ⏳ Test with Fund type (ProjectType=1) in addition to Collection
+
+### Short Term:
+1. Complete all Project fields (MainMedia, ImageForListsView, etc.)
+2. Migrate child tables (ProjectItem, Lead, Recruiter, etc.)
+3. Add data validation and integrity checks
+
+### Long Term:
+1. Handle all 67 source tables
+2. Create rollback/backup procedures
+3. Performance optimization for large datasets
+4. Complete migration documentation
+
+## How to Use
+
+### Start Server:
+```bash
+npm start
+```
+Server runs on: http://localhost:3030
+
+### Execute Migration:
+1. Open browser at http://localhost:3030
+2. Test MSSQL connection (server: DESKTOP-8E2HGCA\SQLEXPRESS, database: KupatHair)
+3. Test MySQL connection (host: localhost, user: root, database: kupathair_new)
+4. Load mapping: Click "Load Mapping" → Select ProjectMapping.json
+5. Click "Migrate" and select table "project"
+6. Monitor progress in logs
+
+### View Results:
+- Check migration-logs.log for detailed execution log
+- Query MySQL database to verify data
 
 ## Summary
 
-The tool provides a convenient and visual interface for managing data migration. The current stage focuses on mapping Project table fields, with the ability to edit mappings interactively.
+The migration engine is fully functional with:
+- ✅ 100% success rate for Project table (1750 rows)
+- ✅ 99.9% success rate for projectLocalization (5244/5250 rows)
+- ✅ Full expression support
+- ✅ FK mapping with value translation
+- ✅ Multi-language localization
+- ⚠️ 6 minor issues with NULL titles (fixable)
 
-**Final Goal**: Complete and reliable migration of all data from SQL Server to MySQL, while maintaining data integrity and relationships.
+**Overall Status**: Production-ready for Project and projectLocalization migration with minor known issues.

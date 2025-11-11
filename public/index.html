@@ -532,6 +532,132 @@
             outline: none;
             border-color: #667eea;
         }
+
+        /* Localization Accordion Styles */
+        .localization-accordion {
+            margin-top: 30px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+
+        .accordion-header {
+            width: 100%;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 18px;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.3s;
+        }
+
+        .accordion-header:hover {
+            background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+        }
+
+        .accordion-content {
+            padding: 20px;
+            background: white;
+        }
+
+        /* Language Tabs */
+        .language-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #dee2e6;
+        }
+
+        .tab-btn {
+            padding: 12px 24px;
+            background: transparent;
+            border: none;
+            border-bottom: 3px solid transparent;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            color: #6c757d;
+            transition: all 0.3s;
+        }
+
+        .tab-btn:hover {
+            color: #667eea;
+            background: #f8f9fa;
+        }
+
+        .tab-btn.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .tab-content h3 {
+            color: #495057;
+            margin-bottom: 20px;
+            font-size: 18px;
+        }
+
+        /* Expression Input Styles */
+        .expression-input {
+            margin-top: 15px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+        }
+
+        .expression-input label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #495057;
+        }
+
+        .expression-input textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .expression-input textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .expression-input small {
+            display: block;
+            margin-top: 8px;
+            font-size: 12px;
+        }
+
+        .expression-input small a {
+            color: #667eea;
+            text-decoration: none;
+            margin: 0 5px;
+        }
+
+        .expression-input small a:hover {
+            text-decoration: underline;
+        }
     </style>
 </head>
 <body>
@@ -554,6 +680,38 @@
                     <h2>Project Table - Field Mapping</h2>
                     <div class="scrollable">
                         <div id="newDbContent"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- projectLocalization Accordion -->
+            <div class="localization-accordion">
+                <button class="accordion-header" onclick="toggleLocalizationAccordion()">
+                    <span>📝 projectLocalization Mapping (3 Languages)</span>
+                    <span id="localizationToggleIcon">▼</span>
+                </button>
+                <div id="localizationContent" class="accordion-content" style="display: none;">
+                    <!-- Language Tabs -->
+                    <div class="language-tabs">
+                        <button class="tab-btn active" onclick="switchLanguageTab('hebrew')">עברית (Hebrew)</button>
+                        <button class="tab-btn" onclick="switchLanguageTab('english')">English</button>
+                        <button class="tab-btn" onclick="switchLanguageTab('french')">Français (French)</button>
+                    </div>
+
+                    <!-- Tab Content -->
+                    <div id="hebrewTab" class="tab-content active">
+                        <h3>Hebrew Localization Fields (Language ID: 1)</h3>
+                        <div id="hebrewFields"></div>
+                    </div>
+
+                    <div id="englishTab" class="tab-content">
+                        <h3>English Localization Fields (Language ID: 2)</h3>
+                        <div id="englishFields"></div>
+                    </div>
+
+                    <div id="frenchTab" class="tab-content">
+                        <h3>French Localization Fields (Language ID: 3)</h3>
+                        <div id="frenchFields"></div>
                     </div>
                 </div>
             </div>
@@ -710,6 +868,9 @@
         let currentFkColumn = null;
         let fkMappings = {};  // Store FK mappings per column
         let fkTableData = {};  // Store loaded table data
+        let localizationMappings = {};  // Store localization mappings per field per language
+        let localizationData = null;  // Store projectlocalization table structure
+        let currentLanguage = 'hebrew';  // Current active tab
 
         async function loadData() {
             try {
@@ -1329,6 +1490,7 @@
             }
 
             console.log('Sending mappings:', columnMappings);
+            console.log('Sending localization mappings:', localizationMappings);
             statusDiv.innerHTML = '<div class="status-message">מתחיל מיגרציה... אנא המתן</div>';
 
             try {
@@ -1337,25 +1499,42 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         tableName: 'project',
-                        mappings: columnMappings
+                        mappings: columnMappings,
+                        localizationMappings: localizationMappings
                     })
                 });
 
                 const result = await response.json();
 
                 if (result.success) {
-                    let errorDetails = '';
-                    if (result.errors && result.errors.length > 0) {
-                        errorDetails = `<br><strong>שגיאות (${result.errors.length} ראשונות):</strong><br>`;
-                        result.errors.forEach(err => {
-                            errorDetails += `- [Row ID: ${err.rowId}] ${err.error}<br>`;
-                        });
+                    let resultHtml = `<div class="status-message success">${result.message}<br><br>`;
+
+                    // Project table results
+                    if (result.project) {
+                        resultHtml += `<strong>טבלת Project:</strong> ${result.project.insertedCount} מתוך ${result.project.totalRows} רשומות<br>`;
+
+                        if (result.project.errors && result.project.errors.length > 0) {
+                            resultHtml += `<br><strong>שגיאות Project (${result.project.errors.length} ראשונות):</strong><br>`;
+                            result.project.errors.forEach(err => {
+                                resultHtml += `- [Row ID: ${err.rowId}] ${err.error}<br>`;
+                            });
+                        }
                     }
-                    statusDiv.innerHTML = `<div class="status-message success">
-                        ${result.message}<br>
-                        נכנסו ${result.insertedCount} מתוך ${result.totalRows} רשומות
-                        ${errorDetails}
-                    </div>`;
+
+                    // Localization results
+                    if (result.projectLocalization) {
+                        resultHtml += `<br><strong>טבלת projectLocalization:</strong> ${result.projectLocalization.insertedCount} מתוך ${result.projectLocalization.totalRows} רשומות<br>`;
+
+                        if (result.projectLocalization.errors && result.projectLocalization.errors.length > 0) {
+                            resultHtml += `<br><strong>שגיאות Localization (${result.projectLocalization.errors.length} ראשונות):</strong><br>`;
+                            result.projectLocalization.errors.forEach(err => {
+                                resultHtml += `- [Project ID: ${err.projectId}, Lang: ${err.language}] ${err.error}<br>`;
+                            });
+                        }
+                    }
+
+                    resultHtml += '</div>';
+                    statusDiv.innerHTML = resultHtml;
                 } else {
                     statusDiv.innerHTML = `<div class="status-message error">${result.message}</div>`;
                 }
@@ -1395,7 +1574,8 @@
                     body: JSON.stringify({
                         filename: filename,
                         columnMappings: columnMappings,
-                        fkMappings: fkMappings
+                        fkMappings: fkMappings,
+                        localizationMappings: localizationMappings
                     })
                 });
 
@@ -1480,15 +1660,350 @@
                 // Load column mappings
                 columnMappings = result.mapping.columnMappings || {};
                 fkMappings = result.mapping.fkMappings || {};
+                localizationMappings = result.mapping.localizationMappings || {};
 
                 // Refresh the UI to reflect loaded mappings
                 await loadData();
 
+                // If localization mappings exist, load and render them
+                if (Object.keys(localizationMappings).length > 0 && !localizationData) {
+                    await loadLocalizationData();
+                } else if (localizationData) {
+                    renderLocalizationFields();
+                }
+
                 closeLoadMappingModal();
-                alert(`✓ המיפוי נטען בהצלחה!\nנטענו ${Object.keys(columnMappings).length} מיפויי שדות`);
+                const locCount = Object.keys(localizationMappings).length;
+                alert(`✓ המיפוי נטען בהצלחה!\nנטענו ${Object.keys(columnMappings).length} מיפויי שדות Project${locCount > 0 ? ` + ${locCount} שדות Localization` : ''}`);
             } catch (error) {
                 alert('✗ שגיאה: ' + error.message);
             }
+        }
+
+        // ===== Localization Accordion & Tabs Functions =====
+
+        function toggleLocalizationAccordion() {
+            const content = document.getElementById('localizationContent');
+            const icon = document.getElementById('localizationToggleIcon');
+
+            if (content.style.display === 'none') {
+                content.style.display = 'block';
+                icon.textContent = '▲';
+
+                // Load localization data if not loaded yet
+                if (!localizationData) {
+                    loadLocalizationData();
+                }
+            } else {
+                content.style.display = 'none';
+                icon.textContent = '▼';
+            }
+        }
+
+        function switchLanguageTab(language) {
+            // Update current language
+            currentLanguage = language;
+
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+
+            // Remove active from all buttons
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+
+            // Show selected tab
+            document.getElementById(`${language}Tab`).classList.add('active');
+
+            // Activate selected button
+            event.target.classList.add('active');
+        }
+
+        async function loadLocalizationData() {
+            try {
+                const response = await fetch('/api/analyze/projectlocalization');
+                localizationData = await response.json();
+
+                // Load default mappings from CSV for Hebrew (Step=1) if no mappings exist
+                if (Object.keys(localizationMappings).length === 0 && localizationData.mappings) {
+                    const hebrewMappings = localizationData.mappings.filter(m => m.step === '1');
+
+                    hebrewMappings.forEach(mapping => {
+                        if (!mapping.newColumn || !mapping.convertType) return;
+
+                        const fieldName = mapping.newColumn;
+
+                        // Only load direct and const mappings
+                        if (mapping.convertType === 'direct' && mapping.oldTable && mapping.oldColumn) {
+                            if (!localizationMappings[fieldName]) {
+                                localizationMappings[fieldName] = {};
+                            }
+                            localizationMappings[fieldName].hebrew = {
+                                convertType: 'direct',
+                                oldTable: mapping.oldTable.toLowerCase(),
+                                oldColumn: mapping.oldColumn
+                            };
+                        } else if (mapping.convertType === 'const' && mapping.comments) {
+                            // Extract const value from comments
+                            if (!localizationMappings[fieldName]) {
+                                localizationMappings[fieldName] = {};
+                            }
+                            localizationMappings[fieldName].hebrew = {
+                                convertType: 'const',
+                                value: mapping.comments
+                            };
+                        }
+                    });
+
+                    console.log('Loaded default Hebrew mappings from CSV:', localizationMappings);
+                }
+
+                // Render fields for all languages
+                renderLocalizationFields();
+            } catch (error) {
+                console.error('Error loading localization data:', error);
+                alert('שגיאה בטעינת נתוני localization: ' + error.message);
+            }
+        }
+
+        function renderLocalizationFields() {
+            if (!localizationData || !localizationData.newDB || !localizationData.newDB.table) {
+                return;
+            }
+
+            const columns = localizationData.newDB.table.columns;
+
+            // Fields to skip (auto-populated)
+            const skipFields = ['id', 'projectid', 'language'];
+
+            // Render for each language
+            ['hebrew', 'english', 'french'].forEach(lang => {
+                const container = document.getElementById(`${lang}Fields`);
+                let html = '';
+
+                columns.forEach(col => {
+                    if (skipFields.includes(col.name.toLowerCase())) {
+                        return;  // Skip this field
+                    }
+
+                    // Get existing mapping if any
+                    const mapping = localizationMappings[col.name]?.[lang] || {};
+
+                    html += `
+                        <div class="column-row">
+                            <div class="column-name">${col.name}: ${col.type}</div>
+                            <div class="mapping-selectors">
+                                <select id="loc_${lang}_table_${col.name}" onchange="onLocalizationTableSelected('${lang}', '${col.name}')">
+                                    <option value="">-- Select Old Table --</option>
+                                    ${allOldTables.map(table =>
+                                        `<option value="${table}" ${mapping.oldTable === table ? 'selected' : ''}>${table}</option>`
+                                    ).join('')}
+                                </select>
+                                <select id="loc_${lang}_column_${col.name}" ${mapping.oldTable ? '' : 'disabled'}>
+                                    <option value="">-- Select Column --</option>
+                                </select>
+
+                                <div class="default-value-input">
+                                    <label>Default Value (if source is NULL):</label>
+                                    <input type="text" id="loc_${lang}_default_${col.name}" value="${mapping.defaultValue || ''}"
+                                        onchange="onLocalizationDefaultChanged('${lang}', '${col.name}', this.value)"
+                                        placeholder="Optional">
+                                </div>
+
+                                <div class="fk-mapping-section">
+                                    <label>
+                                        <input type="checkbox" id="loc_${lang}_useFk_${col.name}" ${mapping.useFkMapping ? 'checked' : ''}
+                                            onchange="onLocalizationFkToggle('${lang}', '${col.name}')">
+                                        השתמש במיפוי FK
+                                    </label>
+                                    <button class="fk-mapping-btn" id="loc_${lang}_fkBtn_${col.name}"
+                                        ${mapping.useFkMapping ? '' : 'disabled'} onclick="openLocalizationFkMapping('${lang}', '${col.name}')">
+                                        ...
+                                    </button>
+                                </div>
+
+                                <div class="expression-input">
+                                    <label>JavaScript Expression (optional):</label>
+                                    <textarea id="loc_${lang}_expression_${col.name}"
+                                        onchange="onLocalizationExpressionChanged('${lang}', '${col.name}', this.value)"
+                                        placeholder="e.g., value ? value.substring(0, 150) : null&#10;&#10;Available variables:&#10;  value = source column value&#10;  row = entire source row"
+                                        rows="3">${mapping.expression || ''}</textarea>
+                                    <small style="color: #6c757d;">
+                                        Examples:
+                                        <a href="#" onclick="setExampleExpression('${lang}', '${col.name}', 'truncate'); return false;">Truncate 150</a> |
+                                        <a href="#" onclick="setExampleExpression('${lang}', '${col.name}', 'invert'); return false;">Invert Boolean</a> |
+                                        <a href="#" onclick="setExampleExpression('${lang}', '${col.name}', 'nullIfZero'); return false;">NULL if zero</a>
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                container.innerHTML = html;
+
+                // Load existing column selections
+                columns.forEach(col => {
+                    if (skipFields.includes(col.name.toLowerCase())) {
+                        return;
+                    }
+
+                    const mapping = localizationMappings[col.name]?.[lang];
+                    if (mapping && mapping.oldTable && mapping.oldColumn) {
+                        loadLocalizationColumnDropdown(lang, col.name, mapping.oldTable, mapping.oldColumn);
+                    }
+                });
+            });
+        }
+
+        async function onLocalizationTableSelected(language, fieldName) {
+            const tableSelect = document.getElementById(`loc_${language}_table_${fieldName}`);
+            const columnSelect = document.getElementById(`loc_${language}_column_${fieldName}`);
+            const selectedTable = tableSelect.value;
+
+            if (!selectedTable) {
+                columnSelect.disabled = true;
+                columnSelect.innerHTML = '<option value="">-- Select Column --</option>';
+                return;
+            }
+
+            await loadLocalizationColumnDropdown(language, fieldName, selectedTable);
+        }
+
+        async function loadLocalizationColumnDropdown(language, fieldName, selectedTable, preselectedColumn = null) {
+            const columnSelect = document.getElementById(`loc_${language}_column_${fieldName}`);
+
+            // Load table data if not cached
+            if (!oldTablesData[selectedTable]) {
+                try {
+                    const response = await fetch(`/api/old-table/${selectedTable}`);
+                    oldTablesData[selectedTable] = await response.json();
+                } catch (error) {
+                    console.error('Error loading table:', error);
+                    return;
+                }
+            }
+
+            // Populate column dropdown
+            const tableData = oldTablesData[selectedTable];
+            columnSelect.disabled = false;
+            columnSelect.innerHTML = '<option value="">-- Select Column --</option>' +
+                tableData.columns.map(col =>
+                    `<option value="${col.name}" ${preselectedColumn === col.name ? 'selected' : ''}>${col.name}: ${col.type}</option>`
+                ).join('');
+
+            // Set up onchange handler
+            columnSelect.onchange = () => {
+                if (columnSelect.value) {
+                    if (!localizationMappings[fieldName]) {
+                        localizationMappings[fieldName] = {};
+                    }
+                    if (!localizationMappings[fieldName][language]) {
+                        localizationMappings[fieldName][language] = {};
+                    }
+
+                    localizationMappings[fieldName][language].convertType = 'direct';
+                    localizationMappings[fieldName][language].oldTable = selectedTable;
+                    localizationMappings[fieldName][language].oldColumn = columnSelect.value;
+
+                    console.log('Localization mappings:', localizationMappings);
+                }
+            };
+
+            // If preselected, trigger the mapping
+            if (preselectedColumn) {
+                if (!localizationMappings[fieldName]) {
+                    localizationMappings[fieldName] = {};
+                }
+                if (!localizationMappings[fieldName][language]) {
+                    localizationMappings[fieldName][language] = {};
+                }
+
+                localizationMappings[fieldName][language].convertType = 'direct';
+                localizationMappings[fieldName][language].oldTable = selectedTable;
+                localizationMappings[fieldName][language].oldColumn = preselectedColumn;
+            }
+        }
+
+        function onLocalizationDefaultChanged(language, fieldName, value) {
+            if (!localizationMappings[fieldName]) {
+                localizationMappings[fieldName] = {};
+            }
+            if (!localizationMappings[fieldName][language]) {
+                localizationMappings[fieldName][language] = {};
+            }
+            localizationMappings[fieldName][language].defaultValue = value || null;
+            console.log('Localization mappings:', localizationMappings);
+        }
+
+        function onLocalizationFkToggle(language, fieldName) {
+            const checkbox = document.getElementById(`loc_${language}_useFk_${fieldName}`);
+            const button = document.getElementById(`loc_${language}_fkBtn_${fieldName}`);
+            button.disabled = !checkbox.checked;
+
+            if (!localizationMappings[fieldName]) {
+                localizationMappings[fieldName] = {};
+            }
+            if (!localizationMappings[fieldName][language]) {
+                localizationMappings[fieldName][language] = {};
+            }
+            localizationMappings[fieldName][language].useFkMapping = checkbox.checked;
+        }
+
+        function openLocalizationFkMapping(language, fieldName) {
+            // For now, reuse the existing FK mapping modal
+            // In future, could create a separate modal for localization FK mappings
+            alert(`FK mapping for ${fieldName} (${language}) - תכונה תהיה זמינה בקרוב`);
+        }
+
+        function onLocalizationExpressionChanged(lang, fieldName, value) {
+            if (!localizationMappings[fieldName]) {
+                localizationMappings[fieldName] = {};
+            }
+            if (!localizationMappings[fieldName][lang]) {
+                localizationMappings[fieldName][lang] = {};
+            }
+
+            // Store the expression (trim whitespace)
+            const expression = value.trim();
+            if (expression) {
+                localizationMappings[fieldName][lang].expression = expression;
+            } else {
+                delete localizationMappings[fieldName][lang].expression;
+            }
+
+            console.log(`Expression updated for ${fieldName} (${lang}):`, expression);
+        }
+
+        function setExampleExpression(lang, fieldName, type) {
+            const textarea = document.getElementById(`loc_${lang}_expression_${fieldName}`);
+            if (!textarea) return;
+
+            let exampleCode = '';
+
+            switch(type) {
+                case 'truncate':
+                    exampleCode = 'value ? value.substring(0, 150) : null';
+                    break;
+                case 'invert':
+                    exampleCode = 'value ? 0 : 1';
+                    break;
+                case 'nullIfZero':
+                    exampleCode = 'value === 0 ? null : value';
+                    break;
+                case 'stringReplace':
+                    exampleCode = 'value ? value.replace(/old/g, "new") : null';
+                    break;
+                default:
+                    exampleCode = '';
+            }
+
+            textarea.value = exampleCode;
+
+            // Trigger the change event to save it
+            onLocalizationExpressionChanged(lang, fieldName, exampleCode);
         }
     </script>
 </body>

@@ -2,9 +2,10 @@
   "filename": "ProjectMapping",
   "columnMappings": {
     "Name": {
-      "convertType": "direct",
+      "convertType": "expression",
       "oldTable": "products",
-      "oldColumn": "Name"
+      "oldColumn": "Name",
+      "expression": "value ? value.substring(0, 150) : null"
     },
     "ProjectType": {
       "convertType": "const",
@@ -64,5 +65,124 @@
       "4": "2"
     }
   },
-  "savedAt": "2025-11-10T20:58:39.351Z"
+  "localizationMappings": {
+    "Title": {
+      "hebrew": {
+        "convertType": "expression",
+        "oldTable": "products",
+        "oldColumn": "Name",
+        "expression": "value ? value.substring(0, 150) : null"
+      },
+      "english": {
+        "convertType": "expression",
+        "oldTable": "products",
+        "oldColumn": "Name_en",
+        "expression": "value ? value.substring(0, 150) : null",
+        "defaultValue": "Default Title"
+      },
+      "french": {
+        "convertType": "expression",
+        "oldTable": "products",
+        "oldColumn": "Name_fr",
+        "expression": "value ? value.substring(0, 150) : null",
+        "defaultValue": "Titre par défaut"
+      }
+    },
+    "Description": {
+      "hebrew": {
+        "convertType": "direct",
+        "oldTable": "products",
+        "oldColumn": "ShortDescription"
+      },
+      "english": {
+        "convertType": "direct",
+        "oldTable": "products",
+        "oldColumn": "ShortDescription_en"
+      },
+      "french": {
+        "convertType": "direct",
+        "oldTable": "products",
+        "oldColumn": "ShortDescription_fr"
+      }
+    },
+    "DisplayInSite": {
+      "hebrew": {
+        "convertType": "direct",
+        "oldTable": "products",
+        "oldColumn": "Hide",
+        "expression": "row.Hide ? 0 : 1"
+      },
+      "english": {
+        "convertType": "direct",
+        "oldTable": "products",
+        "oldColumn": "Hide",
+        "expression": "row.Hide ? 0 : 1"
+      },
+      "french": {
+        "convertType": "direct",
+        "oldTable": "products",
+        "oldColumn": "Hide",
+        "expression": "row.Hide ? 0 : 1"
+      }
+    },
+    "RecruitmentTarget": {
+      "hebrew": {
+        "convertType": "expression",
+        "oldTable": "products",
+        "oldColumn": "Price",
+        "expression": "value || 0",
+        "defaultValue": "0"
+      },
+      "english": {
+        "convertType": "expression",
+        "oldTable": "products",
+        "oldColumn": "Price",
+        "expression": "value || 0"
+      },
+      "french": {
+        "convertType": "expression",
+        "oldTable": "products",
+        "oldColumn": "Price",
+        "expression": "value || 0"
+      }
+    },
+    "HideDonationsInSite": {
+      "hebrew": {
+        "convertType": "direct",
+        "oldTable": "products",
+        "oldColumn": "HideDonationAmount"
+      },
+      "english": {
+        "convertType": "direct",
+        "oldTable": "products",
+        "oldColumn": "HideDonationAmount"
+      },
+      "french": {
+        "convertType": "direct",
+        "oldTable": "products",
+        "oldColumn": "HideDonationAmount"
+      }
+    },
+    "OrderInProjectsPageView": {
+      "hebrew": {
+        "convertType": "direct",
+        "oldTable": "products",
+        "oldColumn": "Sort",
+        "expression": "value <= 30 ? value : null"
+      },
+      "english": {
+        "convertType": "direct",
+        "oldTable": "products",
+        "oldColumn": "Sort",
+        "expression": "value <= 30 ? value : null"
+      },
+      "french": {
+        "convertType": "direct",
+        "oldTable": "products",
+        "oldColumn": "Sort",
+        "expression": "value <= 30 ? value : null"
+      }
+    }
+  },
+  "savedAt": "2025-11-11T06:18:40.292Z"
 }

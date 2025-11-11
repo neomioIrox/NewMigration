@@ -358,10 +358,10 @@ app.get('/api/fk-mapping/:columnName', (req, res) => {
   }
 });
 
-// Save complete mapping (column mappings + FK mappings)
+// Save complete mapping (column mappings + FK mappings + localization mappings)
 app.post('/api/save-mapping', (req, res) => {
   try {
-    const { filename, columnMappings, fkMappings } = req.body;
+    const { filename, columnMappings, fkMappings, localizationMappings } = req.body;
 
     if (!filename) {
       return res.status(400).json({ success: false, message: 'Filename is required' });
@@ -381,6 +381,7 @@ app.post('/api/save-mapping', (req, res) => {
       filename: safeFilename,
       columnMappings,
       fkMappings,
+      localizationMappings: localizationMappings || {},
       savedAt: new Date().toISOString()
     };
 
@@ -444,6 +445,7 @@ app.get('/api/load-mapping/:filename', (req, res) => {
       mapping: {
         columnMappings: mappingData.columnMappings || {},
         fkMappings: mappingData.fkMappings || {},
+        localizationMappings: mappingData.localizationMappings || {},
         savedAt: mappingData.savedAt
       }
     });
@@ -526,12 +528,29 @@ app.post('/api/migrate', async (req, res) => {
     }
 
     let rows = [];
+    let sourceTable = null;
 
     if (sourceColumns.length > 0) {
       // For now, we'll assume all source columns are from the same table (first mapping's table)
-      const sourceTable = sourceColumns[0].table;
-      const selectColumns = sourceColumns.map(c => c.source).join(', ');
-      const selectQuery = `SELECT ${selectColumns} FROM ${sourceTable}`;
+      sourceTable = sourceColumns[0].table;
+      const selectColumnsSet = new Set(sourceColumns.map(c => c.source));
+
+      // Also include columns from localizationMappings
+      const localizationMappings = req.body.localizationMappings;
+      if (localizationMappings) {
+        for (const fieldMappings of Object.values(localizationMappings)) {
+          for (const langMapping of Object.values(fieldMappings)) {
+            if (langMapping.oldColumn && langMapping.oldTable === sourceTable) {
+              selectColumnsSet.add(langMapping.oldColumn);
+            }
+          }
+        }
+      }
+
+      const selectColumns = Array.from(selectColumnsSet).join(', ');
+
+      // Always include the source table's ID column for tracking
+      const selectQuery = `SELECT productsid, ${selectColumns} FROM ${sourceTable}`;
 
       logger.info('Executing query: ' + selectQuery);
 
@@ -546,6 +565,7 @@ app.post('/api/migrate', async (req, res) => {
 
     let insertedCount = 0;
     let errors = [];
+    let idMappings = {};  // Store oldId -> newId mappings
 
     logger.info(`Starting to insert ${rows.length} rows into ${tableName}...`);
 
@@ -583,6 +603,18 @@ app.post('/api/migrate', async (req, res) => {
           } else {
             insertData[col.target] = sourceValue;
           }
+
+          // Apply JavaScript expression if provided
+          if (mapping && mapping.expression) {
+            try {
+              const expressionFunc = new Function('value', 'row', `return ${mapping.expression}`);
+              insertData[col.target] = expressionFunc(insertData[col.target], row);
+              logger.debug(`Applied expression for ${col.target}: ${mapping.expression} => ${insertData[col.target]}`);
+            } catch (exprErr) {
+              logger.error(`Expression evaluation failed for ${col.target}: ${exprErr.message}`);
+              // Continue with current value if expression fails
+            }
+          }
         }
 
         // Add const values
@@ -600,7 +632,17 @@ app.post('/api/migrate', async (req, res) => {
         const values = Object.values(insertData);
 
         const insertQuery = `INSERT INTO ${tableName} (${columns}) VALUES (${placeholders})`;
-        await mysqlConnection.execute(insertQuery, values);
+        const [result] = await mysqlConnection.execute(insertQuery, values);
+
+        // Capture the generated ID
+        const newProjectId = result.insertId;
+        const oldProductId = row.productsid;
+
+        if (oldProductId && newProjectId) {
+          idMappings[oldProductId] = newProjectId;
+          logger.debug(`Mapped old ID ${oldProductId} -> new ID ${newProjectId}`);
+        }
+
         insertedCount++;
       } catch (err) {
         // Try to find row ID for logging
@@ -609,6 +651,110 @@ app.post('/api/migrate', async (req, res) => {
         logger.error(`Row data: ${JSON.stringify(row)}`);
         errors.push({ row, rowId, error: err.message });
       }
+    }
+
+    // ===== projectLocalization Migration =====
+    let localizationInsertedCount = 0;
+    let localizationErrors = [];
+
+    // Check if localizationMappings were provided
+    const localizationMappings = req.body.localizationMappings;
+
+    if (localizationMappings && Object.keys(localizationMappings).length > 0) {
+      logger.info('='.repeat(60));
+      logger.info('Starting projectLocalization migration...');
+      logger.info(`Will create ${Object.keys(idMappings).length * 3} localization rows (3 languages per project)`);
+
+      // Language mapping: hebrew=1, english=2, french=3
+      const languageIds = { hebrew: 1, english: 2, french: 3 };
+
+      for (const [oldProductId, newProjectId] of Object.entries(idMappings)) {
+        const sourceRow = rows.find(r => r.productsid === parseInt(oldProductId));
+
+        if (!sourceRow) {
+          logger.warn(`Source row not found for oldProductId: ${oldProductId}`);
+          continue;
+        }
+
+        // Insert for each language
+        for (const [langKey, languageId] of Object.entries(languageIds)) {
+          try {
+            const locData = {
+              ProjectId: newProjectId,
+              Language: languageId
+            };
+
+            // Map fields from localizationMappings
+            for (const [fieldName, langMappings] of Object.entries(localizationMappings)) {
+              const langMapping = langMappings[langKey];
+
+              if (!langMapping || !langMapping.oldColumn) {
+                continue;  // Skip if no mapping for this language
+              }
+
+              let sourceValue = sourceRow[langMapping.oldColumn];
+
+              // Apply default value if source is NULL
+              if ((sourceValue === null || sourceValue === undefined) && langMapping.defaultValue) {
+                if (langMapping.defaultValue === 'GETDATE()' || langMapping.defaultValue === 'NOW()') {
+                  sourceValue = new Date();
+                } else {
+                  sourceValue = langMapping.defaultValue;
+                }
+              }
+
+              // Apply JavaScript expression if provided
+              if (langMapping.expression) {
+                try {
+                  // Create a function with 'value' and 'row' parameters
+                  const expressionFunc = new Function('value', 'row', `return ${langMapping.expression}`);
+                  sourceValue = expressionFunc(sourceValue, sourceRow);
+                  logger.debug(`Applied expression for ${fieldName} (${langKey}): ${langMapping.expression} => ${sourceValue}`);
+                } catch (exprErr) {
+                  logger.error(`Expression evaluation failed for ${fieldName} (${langKey}): ${exprErr.message}`);
+                  // Continue with original value if expression fails
+                }
+              }
+
+              // Convert undefined to null (MySQL doesn't accept undefined)
+              if (sourceValue === undefined) {
+                sourceValue = null;
+              }
+
+              locData[fieldName] = sourceValue;
+            }
+
+            // Add audit fields (required in schema)
+            locData.CreatedAt = new Date();
+            locData.CreatedBy = -1;  // System user
+            locData.UpdatedAt = new Date();
+            locData.UpdatedBy = -1;
+
+            const locColumns = Object.keys(locData).join(', ');
+            const locPlaceholders = Object.keys(locData).map(() => '?').join(', ');
+            const locValues = Object.values(locData);
+
+            const locInsertQuery = `INSERT INTO projectlocalization (${locColumns}) VALUES (${locPlaceholders})`;
+            await mysqlConnection.execute(locInsertQuery, locValues);
+            localizationInsertedCount++;
+
+            logger.debug(`Inserted localization for Project ${newProjectId}, Language ${languageId} (${langKey})`);
+          } catch (err) {
+            logger.error(`Error inserting localization [Project: ${newProjectId}, Lang: ${langKey}]: ${err.message}`);
+            localizationErrors.push({
+              projectId: newProjectId,
+              language: langKey,
+              error: err.message
+            });
+          }
+        }
+      }
+
+      logger.info(`Localization migration completed: ${localizationInsertedCount}/${Object.keys(idMappings).length * 3} rows inserted`);
+      if (localizationErrors.length > 0) {
+        logger.warn(`Localization errors: ${localizationErrors.length}`);
+      }
+      logger.info('='.repeat(60));
     }
 
     await mssqlPool.close();
@@ -627,13 +773,27 @@ app.post('/api/migrate', async (req, res) => {
     }
     logger.info('='.repeat(60));
 
-    res.json({
+    const response = {
       success: true,
       message: `Migration completed! Inserted ${insertedCount} out of ${rows.length} rows.`,
-      insertedCount,
-      totalRows: rows.length,
-      errors: errors.slice(0, 10) // Return first 10 errors
-    });
+      project: {
+        insertedCount,
+        totalRows: rows.length,
+        errors: errors.slice(0, 10) // Return first 10 errors
+      }
+    };
+
+    // Add localization stats if applicable
+    if (localizationInsertedCount > 0 || localizationErrors.length > 0) {
+      response.projectLocalization = {
+        insertedCount: localizationInsertedCount,
+        totalRows: Object.keys(idMappings).length * 3,
+        errors: localizationErrors.slice(0, 10)
+      };
+      response.message += ` + ${localizationInsertedCount} localization rows.`;
+    }
+
+    res.json(response);
 
   } catch (error) {
     logger.error('Migration failed with error: ' + error.message);
