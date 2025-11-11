@@ -77,15 +77,13 @@
         "convertType": "expression",
         "oldTable": "products",
         "oldColumn": "Name_en",
-        "expression": "value ? value.substring(0, 150) : null",
-        "defaultValue": "Default Title"
+        "expression": "(value ? value.substring(0, 150) : (row.Name ? row.Name.substring(0, 150) : null))"
       },
       "french": {
         "convertType": "expression",
         "oldTable": "products",
         "oldColumn": "Name_fr",
-        "expression": "value ? value.substring(0, 150) : null",
-        "defaultValue": "Titre par défaut"
+        "expression": "(value ? value.substring(0, 150) : (row.Name ? row.Name.substring(0, 150) : null))"
       }
     },
     "Description": {
@@ -107,22 +105,22 @@
     },
     "DisplayInSite": {
       "hebrew": {
-        "convertType": "direct",
+        "convertType": "expression",
         "oldTable": "products",
         "oldColumn": "Hide",
         "expression": "row.Hide ? 0 : 1"
       },
       "english": {
-        "convertType": "direct",
+        "convertType": "expression",
         "oldTable": "products",
-        "oldColumn": "Hide",
-        "expression": "row.Hide ? 0 : 1"
+        "oldColumn": "Hide_en",
+        "expression": "(!row.Hide_en && row.ShowMainPage) ? 1 : 0"
       },
       "french": {
-        "convertType": "direct",
+        "convertType": "expression",
         "oldTable": "products",
-        "oldColumn": "Hide",
-        "expression": "row.Hide ? 0 : 1"
+        "oldColumn": "Hide_fr",
+        "expression": "(!row.Hide_fr && row.ShowMainPage) ? 1 : 0"
       }
     },
     "RecruitmentTarget": {
@@ -130,20 +128,20 @@
         "convertType": "expression",
         "oldTable": "products",
         "oldColumn": "Price",
-        "expression": "value || 0",
+        "expression": "(value === 0 || value === null) ? null : value",
         "defaultValue": "0"
       },
       "english": {
         "convertType": "expression",
         "oldTable": "products",
-        "oldColumn": "Price",
-        "expression": "value || 0"
+        "oldColumn": "Price_en",
+        "expression": "(value === 0 || value === null) ? null : value"
       },
       "french": {
         "convertType": "expression",
         "oldTable": "products",
-        "oldColumn": "Price",
-        "expression": "value || 0"
+        "oldColumn": "Price_fr",
+        "expression": "(value === 0 || value === null) ? null : value"
       }
     },
     "HideDonationsInSite": {
@@ -184,5 +182,5 @@
       }
     }
   },
-  "savedAt": "2025-11-11T06:18:40.292Z"
+  "savedAt": "2025-11-11T08:00:00.000Z"
 }
