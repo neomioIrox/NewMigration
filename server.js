@@ -543,6 +543,17 @@ app.post('/api/migrate', async (req, res) => {
             if (langMapping.oldColumn && langMapping.oldTable === sourceTable) {
               selectColumnsSet.add(langMapping.oldColumn);
             }
+
+            // Extract columns from expressions (e.g., row.ShowMainPage)
+            if (langMapping.expression) {
+              const rowFieldMatches = langMapping.expression.match(/row\.(\w+)/g);
+              if (rowFieldMatches) {
+                rowFieldMatches.forEach(match => {
+                  const fieldName = match.replace('row.', '');
+                  selectColumnsSet.add(fieldName);
+                });
+              }
+            }
           }
         }
       }
@@ -701,6 +712,7 @@ app.post('/api/migrate', async (req, res) => {
                 } else {
                   sourceValue = langMapping.defaultValue;
                 }
+                logger.debug(`Applied defaultValue for ${fieldName} (${langKey}): ${langMapping.defaultValue}`);
               }
 
               // Apply JavaScript expression if provided
@@ -708,12 +720,23 @@ app.post('/api/migrate', async (req, res) => {
                 try {
                   // Create a function with 'value' and 'row' parameters
                   const expressionFunc = new Function('value', 'row', `return ${langMapping.expression}`);
+                  const beforeValue = sourceValue;
                   sourceValue = expressionFunc(sourceValue, sourceRow);
-                  logger.debug(`Applied expression for ${fieldName} (${langKey}): ${langMapping.expression} => ${sourceValue}`);
+                  logger.debug(`Applied expression for ${fieldName} (${langKey}): ${langMapping.expression} | before: ${beforeValue} => after: ${sourceValue}`);
                 } catch (exprErr) {
                   logger.error(`Expression evaluation failed for ${fieldName} (${langKey}): ${exprErr.message}`);
                   // Continue with original value if expression fails
                 }
+              }
+
+              // Apply defaultValue AGAIN if expression returned null and defaultValue exists
+              if ((sourceValue === null || sourceValue === undefined) && langMapping.defaultValue) {
+                if (langMapping.defaultValue === 'GETDATE()' || langMapping.defaultValue === 'NOW()') {
+                  sourceValue = new Date();
+                } else {
+                  sourceValue = langMapping.defaultValue;
+                }
+                logger.info(`Re-applied defaultValue after expression for ${fieldName} (${langKey}): ${langMapping.defaultValue}`);
               }
 
               // Convert undefined to null (MySQL doesn't accept undefined)
