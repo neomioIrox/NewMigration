@@ -2,6 +2,8 @@
 
 This tool helps visualize and manage the migration from SQL Server to MySQL, focusing on the Project table and its relationships.
 
+**🚀 For AI-assisted development**: See [PROMPT.md](PROMPT.md) for the master prompt system and detailed mapping documentation.
+
 ## Quick Start
 
 The server is currently running at: **http://localhost:3000**

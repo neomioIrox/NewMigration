@@ -1,0 +1,244 @@
+{
+  "filename": "ProjectMapping_Funds",
+  "whereClause": "ISNULL(Certificate,0) != 1 AND NOT EXISTS (SELECT 1 FROM ProductGroup g WHERE g.ParentProductId=products.productsid)",
+  "columnMappings": {
+    "Name": {
+      "convertType": "expression",
+      "oldTable": "products",
+      "oldColumn": "Name",
+      "expression": "value ? String(value).substring(0, 145) : null"
+    },
+    "ProjectType": {
+      "convertType": "const",
+      "value": "1"
+    },
+    "KupatFundNo": {
+      "convertType": "direct",
+      "oldTable": "products",
+      "oldColumn": "ProjectNumber"
+    },
+    "DisplayAsSelfView": {
+      "convertType": "direct",
+      "oldTable": "products",
+      "oldColumn": "WithoutKupatView"
+    },
+    "RecordStatus": {
+      "convertType": "const",
+      "value": "2"
+    },
+    "StatusChangedAt": {
+      "convertType": "const",
+      "value": "GETDATE()"
+    },
+    "StatusChangedBy": {
+      "convertType": "const",
+      "value": "-1"
+    },
+    "CreatedAt": {
+      "convertType": "direct",
+      "oldTable": "products",
+      "oldColumn": "DateCreated",
+      "defaultValue": "GETDATE()"
+    },
+    "CreatedBy": {
+      "convertType": "const",
+      "value": "-1"
+    },
+    "UpdatedAt": {
+      "convertType": "const",
+      "value": "GETDATE()"
+    },
+    "UpdatedBy": {
+      "convertType": "const",
+      "value": "-1"
+    },
+    "TerminalId": {
+      "convertType": "direct",
+      "oldTable": "products",
+      "oldColumn": "Terminal",
+      "defaultValue": "1",
+      "useFkMapping": true
+    }
+  },
+  "fkMappings": {
+    "TerminalId": {
+      "1": "1",
+      "4": "2"
+    }
+  },
+  "localizationMappings": {
+    "Title": {
+      "hebrew": {
+        "convertType": "expression",
+        "oldTable": "products",
+        "oldColumn": "Name",
+        "expression": "value ? value.substring(0, 150) : null"
+      },
+      "english": {
+        "convertType": "expression",
+        "oldTable": "products",
+        "oldColumn": "Name_en",
+        "expression": "(value ? value.substring(0, 150) : (row.Name ? row.Name.substring(0, 150) : null))"
+      },
+      "french": {
+        "convertType": "expression",
+        "oldTable": "products",
+        "oldColumn": "Name_fr",
+        "expression": "(value ? value.substring(0, 150) : (row.Name ? row.Name.substring(0, 150) : null))"
+      }
+    },
+    "Description": {
+      "hebrew": {
+        "convertType": "direct",
+        "oldTable": "products",
+        "oldColumn": "ShortDescription"
+      },
+      "english": {
+        "convertType": "direct",
+        "oldTable": "products",
+        "oldColumn": "ShortDescription_en"
+      },
+      "french": {
+        "convertType": "direct",
+        "oldTable": "products",
+        "oldColumn": "ShortDescription_fr"
+      }
+    },
+    "DisplayInSite": {
+      "hebrew": {
+        "convertType": "expression",
+        "oldTable": "products",
+        "oldColumn": "Hide",
+        "expression": "row.Hide ? 0 : 1"
+      },
+      "english": {
+        "convertType": "expression",
+        "oldTable": "products",
+        "oldColumn": "Hide_en",
+        "expression": "(!row.Hide_en && row.ShowMainPage) ? 1 : 0"
+      },
+      "french": {
+        "convertType": "expression",
+        "oldTable": "products",
+        "oldColumn": "Hide_fr",
+        "expression": "(!row.Hide_fr && row.ShowMainPage) ? 1 : 0"
+      }
+    },
+    "RecruitmentTarget": {
+      "hebrew": {
+        "convertType": "expression",
+        "oldTable": "products",
+        "oldColumn": "Price",
+        "expression": "(value === 0 || value === null) ? null : value",
+        "defaultValue": "0"
+      },
+      "english": {
+        "convertType": "expression",
+        "oldTable": "products",
+        "oldColumn": "Price_en",
+        "expression": "(value === 0 || value === null) ? null : value"
+      },
+      "french": {
+        "convertType": "expression",
+        "oldTable": "products",
+        "oldColumn": "Price_fr",
+        "expression": "(value === 0 || value === null) ? null : value"
+      }
+    },
+    "HideDonationsInSite": {
+      "hebrew": {
+        "convertType": "direct",
+        "oldTable": "products",
+        "oldColumn": "HideDonationAmount"
+      },
+      "english": {
+        "convertType": "direct",
+        "oldTable": "products",
+        "oldColumn": "HideDonationAmount"
+      },
+      "french": {
+        "convertType": "direct",
+        "oldTable": "products",
+        "oldColumn": "HideDonationAmount"
+      }
+    },
+    "OrderInProjectsPageView": {
+      "hebrew": {
+        "convertType": "direct",
+        "oldTable": "products",
+        "oldColumn": "Sort",
+        "expression": "value <= 30 ? value : null"
+      },
+      "english": {
+        "convertType": "direct",
+        "oldTable": "products",
+        "oldColumn": "Sort",
+        "expression": "value <= 30 ? value : null"
+      },
+      "french": {
+        "convertType": "direct",
+        "oldTable": "products",
+        "oldColumn": "Sort",
+        "expression": "value <= 30 ? value : null"
+      }
+    }
+  },
+  "projectItemMappings": {
+    "funds": {
+      "ItemName": {
+        "convertType": "expression",
+        "oldTable": "products",
+        "oldColumn": "Name",
+        "expression": "value ? String(value).substring(0, 145) : null"
+      },
+      "ItemType": {
+        "convertType": "const",
+        "value": "5"
+      },
+      "PriceType": {
+        "convertType": "const",
+        "value": "2"
+      },
+      "HasEngravingName": {
+        "convertType": "const",
+        "value": "0"
+      },
+      "AllowFreeAddPrayerNames": {
+        "convertType": "expression",
+        "oldTable": "products",
+        "oldColumn": "ShowPrayerNames",
+        "expression": "value === null || value === undefined ? 0 : (value ? 1 : 0)",
+        "defaultValue": "0"
+      },
+      "RecordStatus": {
+        "convertType": "const",
+        "value": "2"
+      },
+      "StatusChangedAt": {
+        "convertType": "const",
+        "value": "GETDATE()"
+      },
+      "StatusChangedBy": {
+        "convertType": "const",
+        "value": "-1"
+      },
+      "CreatedAt": {
+        "convertType": "const",
+        "value": "GETDATE()"
+      },
+      "CreatedBy": {
+        "convertType": "const",
+        "value": "-1"
+      },
+      "UpdatedAt": {
+        "convertType": "const",
+        "value": "GETDATE()"
+      },
+      "UpdatedBy": {
+        "convertType": "const",
+        "value": "-1"
+      }
+    }
+  },
+  "savedAt": "2025-11-11T12:00:00.000Z"
+}

@@ -112,21 +112,34 @@ Migration order matters: parent tables must be migrated before children due to f
 - These are source files for parsing - do not modify unless changing actual schemas
 - Parser now supports both MySQL (backticks) and SQL Server (brackets) syntax
 
-## Important Files
+## Documentation Structure
 
-- **MIGRATION_STATUS.md** - Detailed status report of the migration project, including:
-  - What has been built so far
-  - Current mapping status
-  - Known issues and next steps
-  - Complete file inventory
+**For AI-assisted development, start here:**
+- **PROMPT.md** - Master prompt with project context, rules, mapping patterns, and usage instructions
+- **docs/INDEX.md** - Documentation navigation guide with use cases and quick search
 
-- **Mapping.csv** - Source of truth for field mappings
-  - Contains Steps 1 and 1.1 for Project table (Fund vs Collection)
-  - Some fields appear multiple times (duplicates to address)
+**Technical reference:**
+- **docs/TECHNICAL_PATTERNS.md** - Code patterns, common pitfalls, and best practices
+- **docs/mappings/mapping-project.md** - Project table mapping details (75% complete)
+- **docs/mappings/mapping-projectlocalization.md** - Multi-language localization mapping (55% complete)
+- **docs/mappings/mapping-projectitem.md** - ProjectItem mapping with variable cardinality (59% complete)
 
-## Current State (As of Nov 9, 2025)
+**Status and tracking:**
+- **MIGRATION_STATUS.md** - Current migration status, results, and known issues
+- **mapping-reports/Mapping-Coverage.html** - Visual progress report (127/3,137 lines = 4%)
+- **migration-logs.log** - Migration execution logs
+
+**Configuration:**
+- **mappings/ProjectMapping.json** - Active mapping configuration
+- **fk-mappings/*.json** - Foreign key translation tables
+- **Mapping.csv** - Original mapping reference (3,137 lines)
+
+## Current State (As of Nov 11, 2025)
+
+**Migration Results:**
+- project: 1,750/1,750 rows (100% ✅)
+- projectLocalization: 5,244/5,250 rows (99.9% ⚠️ - 6 NULL title errors)
+- projectItem: Implementation complete, testing pending
 
 **Server:** Running on port 3030
-**UI:** Fully functional field mapper with auto-load from CSV
-**Mappings:** 5 fields currently mapped (Name, KupatFundNo, CreditCardTerminalId, DisplayAsSelfView, CreatedAt)
-**Next Steps:** Add save functionality, generate SQL INSERT scripts
+**Progress:** 127/3,137 CSV lines (4%)

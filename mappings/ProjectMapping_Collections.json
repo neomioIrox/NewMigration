@@ -1,137 +1,69 @@
 {
-  "filename": "ProjectMapping",
-  "projectMappings": {
-    "funds": {
-      "Name": {
-        "convertType": "expression",
-        "oldTable": "products",
-        "oldColumn": "Name",
-        "expression": "value ? value.substring(0, 150) : null"
-      },
-      "ProjectType": {
-        "convertType": "const",
-        "value": "1"
-      },
-      "KupatFundNo": {
-        "convertType": "direct",
-        "oldTable": "products",
-        "oldColumn": "ProjectNumber"
-      },
-      "DisplayAsSelfView": {
-        "convertType": "direct",
-        "oldTable": "products",
-        "oldColumn": "WithoutKupatView"
-      },
-      "RecordStatus": {
-        "convertType": "const",
-        "value": "2"
-      },
-      "StatusChangedAt": {
-        "convertType": "const",
-        "value": "GETDATE()"
-      },
-      "StatusChangedBy": {
-        "convertType": "const",
-        "value": "-1"
-      },
-      "CreatedAt": {
-        "convertType": "direct",
-        "oldTable": "products",
-        "oldColumn": "DateCreated",
-        "defaultValue": "GETDATE()"
-      },
-      "CreatedBy": {
-        "convertType": "const",
-        "value": "-1"
-      },
-      "UpdatedAt": {
-        "convertType": "const",
-        "value": "GETDATE()"
-      },
-      "UpdatedBy": {
-        "convertType": "const",
-        "value": "-1"
-      },
-      "TerminalId": {
-        "convertType": "direct",
-        "oldTable": "products",
-        "oldColumn": "Terminal",
-        "defaultValue": "1",
-        "useFkMapping": true
-      }
+  "filename": "ProjectMapping_Collections",
+  "whereClause": "Certificate = 1 OR EXISTS (SELECT 1 FROM ProductGroup g WHERE g.ParentProductId=products.productsid)",
+  "columnMappings": {
+    "Name": {
+      "convertType": "expression",
+      "oldTable": "products",
+      "oldColumn": "Name",
+      "expression": "value ? value.substring(0, 150) : null"
     },
-    "collections": {
-      "Name": {
-        "convertType": "expression",
-        "oldTable": "products",
-        "oldColumn": "Name",
-        "expression": "value ? value.substring(0, 150) : null"
-      },
-      "ProjectType": {
-        "convertType": "const",
-        "value": "2"
-      },
-      "KupatFundNo": {
-        "convertType": "direct",
-        "oldTable": "products",
-        "oldColumn": "ProjectNumber"
-      },
-      "DisplayAsSelfView": {
-        "convertType": "direct",
-        "oldTable": "products",
-        "oldColumn": "WithoutKupatView"
-      },
-      "RecordStatus": {
-        "convertType": "const",
-        "value": "2"
-      },
-      "StatusChangedAt": {
-        "convertType": "const",
-        "value": "GETDATE()"
-      },
-      "StatusChangedBy": {
-        "convertType": "const",
-        "value": "-1"
-      },
-      "CreatedAt": {
-        "convertType": "direct",
-        "oldTable": "products",
-        "oldColumn": "DateCreated",
-        "defaultValue": "GETDATE()"
-      },
-      "CreatedBy": {
-        "convertType": "const",
-        "value": "-1"
-      },
-      "UpdatedAt": {
-        "convertType": "const",
-        "value": "GETDATE()"
-      },
-      "UpdatedBy": {
-        "convertType": "const",
-        "value": "-1"
-      },
-      "TerminalId": {
-        "convertType": "direct",
-        "oldTable": "products",
-        "oldColumn": "Terminal",
-        "defaultValue": "1",
-        "useFkMapping": true
-      }
+    "ProjectType": {
+      "convertType": "const",
+      "value": "2"
+    },
+    "KupatFundNo": {
+      "convertType": "direct",
+      "oldTable": "products",
+      "oldColumn": "ProjectNumber"
+    },
+    "DisplayAsSelfView": {
+      "convertType": "direct",
+      "oldTable": "products",
+      "oldColumn": "WithoutKupatView"
+    },
+    "RecordStatus": {
+      "convertType": "const",
+      "value": "2"
+    },
+    "StatusChangedAt": {
+      "convertType": "const",
+      "value": "GETDATE()"
+    },
+    "StatusChangedBy": {
+      "convertType": "const",
+      "value": "-1"
+    },
+    "CreatedAt": {
+      "convertType": "direct",
+      "oldTable": "products",
+      "oldColumn": "DateCreated",
+      "defaultValue": "GETDATE()"
+    },
+    "CreatedBy": {
+      "convertType": "const",
+      "value": "-1"
+    },
+    "UpdatedAt": {
+      "convertType": "const",
+      "value": "GETDATE()"
+    },
+    "UpdatedBy": {
+      "convertType": "const",
+      "value": "-1"
+    },
+    "TerminalId": {
+      "convertType": "direct",
+      "oldTable": "products",
+      "oldColumn": "Terminal",
+      "defaultValue": "1",
+      "useFkMapping": true
     }
   },
   "fkMappings": {
-    "funds": {
-      "TerminalId": {
-        "1": "1",
-        "4": "2"
-      }
-    },
-    "collections": {
-      "TerminalId": {
-        "1": "1",
-        "4": "2"
-      }
+    "TerminalId": {
+      "1": "1",
+      "4": "2"
     }
   },
   "localizationMappings": {
@@ -252,61 +184,6 @@
     }
   },
   "projectItemMappings": {
-    "funds": {
-      "ItemName": {
-        "convertType": "expression",
-        "oldTable": "products",
-        "oldColumn": "Name",
-        "expression": "value ? value.substring(0, 150) : null"
-      },
-      "ItemType": {
-        "convertType": "const",
-        "value": "5"
-      },
-      "PriceType": {
-        "convertType": "const",
-        "value": "2"
-      },
-      "HasEngravingName": {
-        "convertType": "const",
-        "value": "0"
-      },
-      "AllowFreeAddPrayerNames": {
-        "convertType": "expression",
-        "oldTable": "products",
-        "oldColumn": "ShowPrayerNames",
-        "expression": "value || 0",
-        "defaultValue": "0"
-      },
-      "RecordStatus": {
-        "convertType": "const",
-        "value": "2"
-      },
-      "StatusChangedAt": {
-        "convertType": "const",
-        "value": "GETDATE()"
-      },
-      "StatusChangedBy": {
-        "convertType": "const",
-        "value": "-1"
-      },
-      "CreatedAt": {
-        "convertType": "const",
-        "value": "GETDATE()"
-      },
-      "CreatedBy": {
-        "convertType": "const",
-        "value": "-1"
-      },
-      "UpdatedAt": {
-        "convertType": "const",
-        "value": "GETDATE()"
-      },
-      "UpdatedBy": {
-        "convertType": "const",
-        "value": "-1"
-      }
-    },
     "collections": {
       "certificate": {
         "ItemName": {
@@ -424,5 +301,5 @@
       }
     }
   },
-  "savedAt": "2025-11-11T08:00:00.000Z"
+  "savedAt": "2025-11-11T12:00:00.000Z"
 }

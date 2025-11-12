@@ -259,8 +259,24 @@ app.get('/api/analyze/:tableName', (req, res) => {
 // Test MSSQL connection
 app.post('/api/test-mssql', async (req, res) => {
   try {
-    const { server, database, user, password } = req.body;
-    mssqlConfig = { server, database, user, password, options: { encrypt: true, trustServerCertificate: true } };
+    const { server, database, user, password, options, authentication } = req.body;
+
+    // Build config - support both SQL Auth and Windows Auth
+    mssqlConfig = {
+      server,
+      database,
+      options: options || { encrypt: true, trustServerCertificate: true }
+    };
+
+    // Add authentication if provided
+    if (authentication) {
+      mssqlConfig.authentication = authentication;
+    } else if (user || password) {
+      // SQL Authentication
+      mssqlConfig.user = user;
+      mssqlConfig.password = password;
+    }
+    // If neither authentication nor user/password provided, will use Windows Auth
 
     const pool = await sql.connect(mssqlConfig);
     await pool.close();
@@ -358,10 +374,10 @@ app.get('/api/fk-mapping/:columnName', (req, res) => {
   }
 });
 
-// Save complete mapping (column mappings + FK mappings + localization mappings)
+// Save complete mapping (column mappings + FK mappings + localization mappings + projectItem mappings)
 app.post('/api/save-mapping', (req, res) => {
   try {
-    const { filename, columnMappings, fkMappings, localizationMappings } = req.body;
+    const { filename, columnMappings, fkMappings, localizationMappings, projectItemMappings, whereClause } = req.body;
 
     if (!filename) {
       return res.status(400).json({ success: false, message: 'Filename is required' });
@@ -382,6 +398,8 @@ app.post('/api/save-mapping', (req, res) => {
       columnMappings,
       fkMappings,
       localizationMappings: localizationMappings || {},
+      projectItemMappings: projectItemMappings || {},
+      whereClause: whereClause || null,
       savedAt: new Date().toISOString()
     };
 
@@ -446,6 +464,8 @@ app.get('/api/load-mapping/:filename', (req, res) => {
         columnMappings: mappingData.columnMappings || {},
         fkMappings: mappingData.fkMappings || {},
         localizationMappings: mappingData.localizationMappings || {},
+        projectItemMappings: mappingData.projectItemMappings || {},
+        whereClause: mappingData.whereClause || null,
         savedAt: mappingData.savedAt
       }
     });
@@ -493,8 +513,8 @@ app.post('/api/migrate', async (req, res) => {
 
       if (mapping.convertType === 'const') {
         constValues[targetCol] = mapping.value;
-      } else if (mapping.convertType === 'direct' && mapping.oldTable && mapping.oldColumn) {
-        sourceColumns.push({ target: targetCol, source: mapping.oldColumn, table: mapping.oldTable });
+      } else if ((mapping.convertType === 'direct' || mapping.convertType === 'expression') && mapping.oldTable && mapping.oldColumn) {
+        sourceColumns.push({ target: targetCol, source: mapping.oldColumn, table: mapping.oldTable, expression: mapping.expression });
 
         // Check if FK mapping is enabled for this column
         if (mapping.useFkMapping) {
@@ -558,10 +578,46 @@ app.post('/api/migrate', async (req, res) => {
         }
       }
 
+      // Also include columns from projectItemMappings
+      const projectItemMappings = req.body.projectItemMappings;
+      if (projectItemMappings) {
+        // Handle both funds structure and collections structure
+        const itemMappings = projectItemMappings.funds || projectItemMappings.collections;
+        if (itemMappings) {
+          // If collections, it has nested certificate/donation
+          const mappingsToProcess = itemMappings.certificate ?
+            [...Object.values(itemMappings.certificate || {}), ...Object.values(itemMappings.donation || {})] :
+            Object.values(itemMappings);
+
+          for (const mapping of mappingsToProcess) {
+            if (mapping && mapping.oldColumn && mapping.oldTable === sourceTable) {
+              selectColumnsSet.add(mapping.oldColumn);
+            }
+
+            // Extract columns from expressions
+            if (mapping && mapping.expression) {
+              const rowFieldMatches = mapping.expression.match(/row\.(\w+)/g);
+              if (rowFieldMatches) {
+                rowFieldMatches.forEach(match => {
+                  const fieldName = match.replace('row.', '');
+                  selectColumnsSet.add(fieldName);
+                });
+              }
+            }
+          }
+        }
+      }
+
       const selectColumns = Array.from(selectColumnsSet).join(', ');
 
       // Always include the source table's ID column for tracking
-      const selectQuery = `SELECT productsid, ${selectColumns} FROM ${sourceTable}`;
+      let selectQuery = `SELECT productsid, ${selectColumns} FROM ${sourceTable}`;
+
+      // Add WHERE clause if provided in mapping
+      if (req.body.whereClause) {
+        selectQuery += ` WHERE ${req.body.whereClause}`;
+        logger.info('Applied WHERE clause: ' + req.body.whereClause);
+      }
 
       logger.info('Executing query: ' + selectQuery);
 
@@ -780,6 +836,325 @@ app.post('/api/migrate', async (req, res) => {
       logger.info('='.repeat(60));
     }
 
+    // ===== ProjectItem Migration =====
+    let projectItemInsertedCount = 0;
+    let projectItemErrors = [];
+    const projectItemIdMappings = {}; // Store oldProductId -> [newItemIds]
+
+    // Check if projectItemMappings were provided
+    const projectItemMappings = req.body.projectItemMappings;
+
+    if (projectItemMappings && (projectItemMappings.funds || projectItemMappings.collections)) {
+      logger.info('='.repeat(60));
+      logger.info('Starting ProjectItem migration...');
+
+      // Count expected items
+      let expectedItemCount = 0;
+      for (const [oldProductId, newProjectId] of Object.entries(idMappings)) {
+        const sourceRow = rows.find(r => r.productsid === parseInt(oldProductId));
+        if (!sourceRow) continue;
+
+        // Determine ProjectType from const mappings or row data
+        const projectTypeMapping = mappings['ProjectType'];
+        let projectType = 2; // Default to Collection
+        if (projectTypeMapping && projectTypeMapping.value) {
+          projectType = parseInt(projectTypeMapping.value);
+        }
+
+        if (projectType === 1) {
+          expectedItemCount += 1; // Fund: 1 item
+        } else if (projectType === 2) {
+          expectedItemCount += 2; // Collection: 2 items
+        }
+      }
+
+      logger.info(`Will create approximately ${expectedItemCount} ProjectItem rows`);
+
+      // Iterate through each project
+      for (const [oldProductId, newProjectId] of Object.entries(idMappings)) {
+        const sourceRow = rows.find(r => r.productsid === parseInt(oldProductId));
+
+        if (!sourceRow) {
+          logger.warn(`Source row not found for oldProductId: ${oldProductId}`);
+          continue;
+        }
+
+        // Determine ProjectType
+        const projectTypeMapping = mappings['ProjectType'];
+        let projectType = 2; // Default to Collection
+        if (projectTypeMapping && projectTypeMapping.value) {
+          projectType = parseInt(projectTypeMapping.value);
+        }
+
+        projectItemIdMappings[oldProductId] = [];
+
+        try {
+          if (projectType === 1 && projectItemMappings.funds) {
+            // Create 1 FundDonation item
+            const itemMapping = projectItemMappings.funds;
+            const itemData = { ProjectId: newProjectId };
+
+            // Apply mappings
+            for (const [fieldName, mapping] of Object.entries(itemMapping)) {
+              let value = null;
+
+              if (mapping.convertType === 'const') {
+                value = mapping.value;
+                if (value === 'GETDATE()' || value === 'NOW()') {
+                  value = new Date();
+                } else if (typeof value === 'string' && /^\d+$/.test(value)) {
+                  // Convert numeric strings to numbers
+                  value = parseInt(value, 10);
+                }
+              } else if (mapping.convertType === 'direct' && mapping.oldColumn) {
+                value = sourceRow[mapping.oldColumn];
+              } else if (mapping.convertType === 'expression' && mapping.oldColumn) {
+                value = sourceRow[mapping.oldColumn];
+
+                // Apply defaultValue if source is NULL
+                if ((value === null || value === undefined) && mapping.defaultValue) {
+                  if (mapping.defaultValue === 'GETDATE()' || mapping.defaultValue === 'NOW()') {
+                    value = new Date();
+                  } else {
+                    value = mapping.defaultValue;
+                    // Convert numeric strings to numbers
+                    if (typeof value === 'string' && /^\d+$/.test(value)) {
+                      value = parseInt(value, 10);
+                    }
+                  }
+                }
+
+                // Apply expression
+                if (mapping.expression) {
+                  try {
+                    const expressionFunc = new Function('value', 'row', `return ${mapping.expression}`);
+                    value = expressionFunc(value, sourceRow);
+                  } catch (exprErr) {
+                    logger.error(`Expression evaluation failed for ${fieldName} (funds): ${exprErr.message}`);
+                  }
+                }
+
+                // Re-apply defaultValue if expression returned null
+                if ((value === null || value === undefined) && mapping.defaultValue) {
+                  if (mapping.defaultValue === 'GETDATE()' || mapping.defaultValue === 'NOW()') {
+                    value = new Date();
+                  } else {
+                    value = mapping.defaultValue;
+                    // Convert numeric strings to numbers
+                    if (typeof value === 'string' && /^\d+$/.test(value)) {
+                      value = parseInt(value, 10);
+                    }
+                  }
+                }
+              }
+
+              // Convert undefined to null, and numeric strings to numbers for MySQL
+              if (value === undefined) {
+                value = null;
+              } else if (typeof value === 'string' && /^\d+$/.test(value)) {
+                value = parseInt(value, 10);
+              }
+              itemData[fieldName] = value;
+
+              // Debug logging for AllowFreeAddPrayerNames
+              if (fieldName === 'AllowFreeAddPrayerNames') {
+                logger.info(`AllowFreeAddPrayerNames for product ${oldProductId}: sourceValue=${sourceRow['ShowPrayerNames']}, finalValue=${value}, type=${typeof value}, expressionResult=${mapping.expression ? 'applied' : 'none'}`);
+              }
+            }
+
+            // Insert fund item
+            const columns = Object.keys(itemData).join(', ');
+            const placeholders = Object.keys(itemData).map(() => '?').join(', ');
+            const values = Object.values(itemData).map(v => v === undefined ? null : v);
+            const insertQuery = `INSERT INTO projectitem (${columns}) VALUES (${placeholders})`;
+
+            // Debug logging before INSERT
+            if (itemData.AllowFreeAddPrayerNames === null || itemData.AllowFreeAddPrayerNames === undefined) {
+              logger.warn(`About to INSERT with NULL AllowFreeAddPrayerNames for product ${oldProductId}`);
+            }
+
+            const [result] = await mysqlConnection.execute(insertQuery, values);
+            projectItemIdMappings[oldProductId].push(result.insertId);
+            projectItemInsertedCount++;
+            logger.debug(`Created FundDonation item for Project ${newProjectId} (oldProductId: ${oldProductId})`);
+
+          } else if (projectType === 2 && projectItemMappings.collections) {
+            // Create 2 items: Certificate + Donation
+            const collectionMappings = projectItemMappings.collections;
+
+            // Create Certificate item
+            if (collectionMappings.certificate) {
+              const itemMapping = collectionMappings.certificate;
+              const itemData = { ProjectId: newProjectId };
+
+              // Apply mappings (same logic as above)
+              for (const [fieldName, mapping] of Object.entries(itemMapping)) {
+                let value = null;
+
+                if (mapping.convertType === 'const') {
+                  value = mapping.value;
+                  if (value === 'GETDATE()' || value === 'NOW()') {
+                    value = new Date();
+                  } else if (typeof value === 'string' && /^\d+$/.test(value)) {
+                    // Convert numeric strings to numbers
+                    value = parseInt(value, 10);
+                  }
+                } else if (mapping.convertType === 'direct' && mapping.oldColumn) {
+                  value = sourceRow[mapping.oldColumn];
+                } else if (mapping.convertType === 'expression' && mapping.oldColumn) {
+                  value = sourceRow[mapping.oldColumn];
+
+                  if ((value === null || value === undefined) && mapping.defaultValue) {
+                    if (mapping.defaultValue === 'GETDATE()' || mapping.defaultValue === 'NOW()') {
+                      value = new Date();
+                    } else {
+                      value = mapping.defaultValue;
+                      // Convert numeric strings to numbers
+                      if (typeof value === 'string' && /^\d+$/.test(value)) {
+                        value = parseInt(value, 10);
+                      }
+                    }
+                  }
+
+                  if (mapping.expression) {
+                    try {
+                      const expressionFunc = new Function('value', 'row', `return ${mapping.expression}`);
+                      value = expressionFunc(value, sourceRow);
+                    } catch (exprErr) {
+                      logger.error(`Expression evaluation failed for ${fieldName} (certificate): ${exprErr.message}`);
+                    }
+                  }
+
+                  if ((value === null || value === undefined) && mapping.defaultValue) {
+                    if (mapping.defaultValue === 'GETDATE()' || mapping.defaultValue === 'NOW()') {
+                      value = new Date();
+                    } else {
+                      value = mapping.defaultValue;
+                      // Convert numeric strings to numbers
+                      if (typeof value === 'string' && /^\d+$/.test(value)) {
+                        value = parseInt(value, 10);
+                      }
+                    }
+                  }
+                }
+
+                // Convert undefined to null, and numeric strings to numbers for MySQL
+                if (value === undefined) {
+                  value = null;
+                } else if (typeof value === 'string' && /^\d+$/.test(value)) {
+                  value = parseInt(value, 10);
+                }
+                itemData[fieldName] = value;
+              }
+
+              const columns = Object.keys(itemData).join(', ');
+              const placeholders = Object.keys(itemData).map(() => '?').join(', ');
+              const values = Object.values(itemData).map(v => {
+                if (v === undefined) return null;
+                if (typeof v === 'string' && /^\d+$/.test(v)) return parseInt(v, 10);
+                return v;
+              });
+              const insertQuery = `INSERT INTO projectitem (${columns}) VALUES (${placeholders})`;
+
+              const [result] = await mysqlConnection.execute(insertQuery, values);
+              projectItemIdMappings[oldProductId].push(result.insertId);
+              projectItemInsertedCount++;
+              logger.debug(`Created Certificate item for Project ${newProjectId} (oldProductId: ${oldProductId})`);
+            }
+
+            // Create Donation item
+            if (collectionMappings.donation) {
+              const itemMapping = collectionMappings.donation;
+              const itemData = { ProjectId: newProjectId };
+
+              // Apply mappings (same logic as above)
+              for (const [fieldName, mapping] of Object.entries(itemMapping)) {
+                let value = null;
+
+                if (mapping.convertType === 'const') {
+                  value = mapping.value;
+                  if (value === 'GETDATE()' || value === 'NOW()') {
+                    value = new Date();
+                  } else if (typeof value === 'string' && /^\d+$/.test(value)) {
+                    // Convert numeric strings to numbers
+                    value = parseInt(value, 10);
+                  }
+                } else if (mapping.convertType === 'direct' && mapping.oldColumn) {
+                  value = sourceRow[mapping.oldColumn];
+                } else if (mapping.convertType === 'expression' && mapping.oldColumn) {
+                  value = sourceRow[mapping.oldColumn];
+
+                  if ((value === null || value === undefined) && mapping.defaultValue) {
+                    if (mapping.defaultValue === 'GETDATE()' || mapping.defaultValue === 'NOW()') {
+                      value = new Date();
+                    } else {
+                      value = mapping.defaultValue;
+                      // Convert numeric strings to numbers
+                      if (typeof value === 'string' && /^\d+$/.test(value)) {
+                        value = parseInt(value, 10);
+                      }
+                    }
+                  }
+
+                  if (mapping.expression) {
+                    try {
+                      const expressionFunc = new Function('value', 'row', `return ${mapping.expression}`);
+                      value = expressionFunc(value, sourceRow);
+                    } catch (exprErr) {
+                      logger.error(`Expression evaluation failed for ${fieldName} (donation): ${exprErr.message}`);
+                    }
+                  }
+
+                  if ((value === null || value === undefined) && mapping.defaultValue) {
+                    if (mapping.defaultValue === 'GETDATE()' || mapping.defaultValue === 'NOW()') {
+                      value = new Date();
+                    } else {
+                      value = mapping.defaultValue;
+                      // Convert numeric strings to numbers
+                      if (typeof value === 'string' && /^\d+$/.test(value)) {
+                        value = parseInt(value, 10);
+                      }
+                    }
+                  }
+                }
+
+                // Convert undefined to null, and numeric strings to numbers for MySQL
+                if (value === undefined) {
+                  value = null;
+                } else if (typeof value === 'string' && /^\d+$/.test(value)) {
+                  value = parseInt(value, 10);
+                }
+                itemData[fieldName] = value;
+              }
+
+              const columns = Object.keys(itemData).join(', ');
+              const placeholders = Object.keys(itemData).map(() => '?').join(', ');
+              const values = Object.values(itemData).map(v => {
+                if (v === undefined) return null;
+                if (typeof v === 'string' && /^\d+$/.test(v)) return parseInt(v, 10);
+                return v;
+              });
+              const insertQuery = `INSERT INTO projectitem (${columns}) VALUES (${placeholders})`;
+
+              const [result] = await mysqlConnection.execute(insertQuery, values);
+              projectItemIdMappings[oldProductId].push(result.insertId);
+              projectItemInsertedCount++;
+              logger.debug(`Created Donation item for Project ${newProjectId} (oldProductId: ${oldProductId})`);
+            }
+          }
+        } catch (err) {
+          logger.error(`Error creating ProjectItem for oldProductId ${oldProductId}: ${err.message}`);
+          projectItemErrors.push({ oldProductId, newProjectId, error: err.message });
+        }
+      }
+
+      logger.info(`ProjectItem migration completed: ${projectItemInsertedCount} items created`);
+      if (projectItemErrors.length > 0) {
+        logger.warn(`ProjectItem errors: ${projectItemErrors.length}`);
+      }
+      logger.info('='.repeat(60));
+    }
+
     await mssqlPool.close();
     await mysqlConnection.end();
 
@@ -816,11 +1191,78 @@ app.post('/api/migrate', async (req, res) => {
       response.message += ` + ${localizationInsertedCount} localization rows.`;
     }
 
+    // Add projectItem stats if applicable
+    if (projectItemInsertedCount > 0 || projectItemErrors.length > 0) {
+      response.projectItem = {
+        insertedCount: projectItemInsertedCount,
+        errors: projectItemErrors.slice(0, 10)
+      };
+      response.message += ` + ${projectItemInsertedCount} projectItem rows.`;
+    }
+
     res.json(response);
 
   } catch (error) {
     logger.error('Migration failed with error: ' + error.message);
     logger.error('Stack trace: ' + error.stack);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// Check projectItem table status
+app.get('/api/check-projectitem', async (req, res) => {
+  try {
+    if (!mysqlConfig) {
+      return res.status(400).json({ success: false, message: 'MySQL connection not configured' });
+    }
+
+    const connection = await mysql.createConnection(mysqlConfig);
+
+    try {
+      // Get total counts
+      const [countRows] = await connection.execute(`
+        SELECT
+          COUNT(*) as total_rows,
+          SUM(CASE WHEN AllowFreeAddPrayerNames IS NULL THEN 1 ELSE 0 END) as null_count,
+          SUM(CASE WHEN AllowFreeAddPrayerNames IS NOT NULL THEN 1 ELSE 0 END) as non_null_count
+        FROM projectItem
+      `);
+
+      // Get value distribution
+      const [distribution] = await connection.execute(`
+        SELECT
+          AllowFreeAddPrayerNames,
+          COUNT(*) as count
+        FROM projectItem
+        GROUP BY AllowFreeAddPrayerNames
+        ORDER BY AllowFreeAddPrayerNames
+      `);
+
+      // Get sample of NULL rows if any exist
+      let nullSamples = [];
+      if (countRows[0].null_count > 0) {
+        const [samples] = await connection.execute(`
+          SELECT ProjectId, ItemName, AllowFreeAddPrayerNames
+          FROM projectItem
+          WHERE AllowFreeAddPrayerNames IS NULL
+          LIMIT 10
+        `);
+        nullSamples = samples;
+      }
+
+      res.json({
+        success: true,
+        summary: countRows[0],
+        distribution: distribution,
+        nullSamples: nullSamples
+      });
+
+    } finally {
+      await connection.end();
+    }
+
+  } catch (error) {
+    logger.error('Check projectItem failed: ' + error.message);
     res.status(500).json({ success: false, message: error.message });
   }
 });

@@ -231,6 +231,10 @@ NewMigration/
 │   └── ProjectMapping.json            # Current mapping config
 ├── fk-mappings/
 │   └── TerminalId.json                # FK translation table
+├── mapping-reports/                   # Mapping coverage tracking
+│   ├── add-mapping-status.js          # Script to generate coverage reports
+│   ├── Mapping-WithStatus.csv         # CSV with status column (✅/⏳)
+│   └── Mapping-Coverage.html          # Color-coded HTML report
 ├── KupatHairNewMySQL.sql             # Target schema
 ├── create-kupat-db-generic.sql       # Source schema
 ├── Mapping.csv                        # Original mapping reference
@@ -240,16 +244,107 @@ NewMigration/
 └── README.md                          # Project documentation
 ```
 
+## Mapping Coverage Reports
+
+To track which CSV lines have been successfully migrated:
+
+### Generate Reports
+```bash
+cd mapping-reports
+node add-mapping-status.js
+```
+
+This generates two files:
+1. **Mapping-WithStatus.csv** - CSV with status column (✅ completed, ⏳ pending)
+2. **Mapping-Coverage.html** - Interactive color-coded HTML report
+   - Green rows: Implemented and tested
+   - Yellow rows: Not yet implemented
+   - Shows progress statistics
+
+### View Visual Report
+```bash
+start mapping-reports/Mapping-Coverage.html
+```
+
+The report shows:
+- Total completed vs pending mappings
+- Progress percentage
+- Color-coded table with all mapping details
+- Line numbers for easy reference back to Mapping.csv
+
+## CSV Mapping Coverage (Mapping.csv)
+
+### ✅ Completed Mappings
+
+#### Step 1 - Funds (ProjectType=1)
+**CSV Lines 145-254** - Project table for Funds
+- ✅ Line 149: Name → Products.Name (expression: truncate to 150)
+- ✅ Line 151: ProjectType → const "1"
+- ✅ Line 153: KupatFundNo → Products.ProjectNumber
+- ✅ Line 158: DisplayAsSelfView → Products.WithoutKupatView
+- ✅ Line 161: TerminalId → Products.Terminal (with FK mapping)
+- ✅ Lines 165-172: RecordStatus, StatusChangedAt/By (const values)
+- ✅ Lines 173-180: CreatedAt/By, UpdatedAt/By (audit fields)
+
+**CSV Lines 1827-1846** - ProjectItem for Funds
+- ✅ Line 1830: ItemName → Products.Name (expression: truncate to 150)
+- ✅ Line 1832: ItemType → const "5" (FundDonation)
+- ✅ Line 1833: PriceType → const "2" (Free)
+- ✅ Line 1835: HasEngravingName → const "0"
+- ✅ Line 1836: AllowFreeAddPrayerNames → Products.ShowPrayerNames
+- ✅ Lines 1840-1846: RecordStatus, audit fields
+
+**CSV Lines 1882-1925** - ProjectLocalization (Hebrew) for Funds
+- ✅ Line 1887: Title → Products.Name
+- ✅ Line 1901: Description → Products.ShortDescription
+- ✅ Line 1902: RecruitmentTarget → Products.Price (with defaultValue)
+- ✅ Line 1915: HideDonationsInSite → Products.HideDonationAmount
+- ✅ Line 1916: OrderInProjectsView → Products.Sort (expression: ≤30)
+
+#### Step 1.1 - Collections (ProjectType=2)
+**CSV Lines 383-534** - Project table for Collections
+- ✅ Same 12 fields as Funds (lines mirror Step 1 structure)
+
+**CSV Lines 2594-2611** - ProjectItem Certificate for Collections
+- ✅ Line 2597: ItemName → Products.Name (expression: truncate to 150)
+- ✅ Line 2599: ItemType → const "2" (Certificate)
+- ✅ Line 2600: PriceType → const "1" (Closed)
+- ✅ Line 2601: HasEngravingName → const "1"
+- ✅ Line 2603: DeliveryMethod → const "1" (Post)
+- ✅ Lines 2605-2611: RecordStatus, audit fields
+
+**CSV Lines 2613-2629** - ProjectItem Donation for Collections
+- ✅ Line 2616: ItemName → Products.Name (expression: truncate to 150)
+- ✅ Line 2618: ItemType → const "4" (Donation)
+- ✅ Line 2619: PriceType → const "2" (Free)
+- ✅ Line 2620: HasEngravingName → const "0"
+- ✅ Lines 2624-2629: RecordStatus, audit fields
+
+**CSV Lines 2097-2141** - ProjectLocalization (Hebrew) for Collections
+- ✅ Same 6 fields as Funds (+ English/French variants)
+
+### 📊 Coverage Statistics
+- **Project table**: 12/16 fields (75%) - Missing: MainMedia, ImageForListsView, Content, MediaForExecutePage
+- **ProjectLocalization**: 6/11 fields (55%) - Missing: Content, MainMedia, ImageForListsView, LinkSettings, OrderInNewsView
+- **ProjectItem**: 13/22 fields (59%) - Missing: KupatFundNo, AllowAddDedication, AllowSelfPickup, MainMedia, ImageForListsView, MediaForExecutePage
+
+### ⏳ Not Yet Implemented
+- Lines 255-382: Additional Project fields (MainMedia, Content, etc.)
+- Lines 1850-1881: Media table (Hebrew images/videos)
+- Lines 1958-1973: LinkSettings table
+- Lines 1975-2096: ProjectItemLocalization table
+- Lines 2142+: English/French specific fields
+
 ## Next Steps
 
 ### Immediate:
-1. ⏳ Fix Title NULL errors (apply defaultValue after expression)
-2. ⏳ Verify RecruitmentTarget values in database
-3. ⏳ Test with Fund type (ProjectType=1) in addition to Collection
+1. ✅ **DONE**: ProjectItem migration for Funds and Collections
+2. ⏳ Add ProjectItemLocalization (3 languages per item)
+3. ⏳ Add Media table migration (images/videos)
 
 ### Short Term:
-1. Complete all Project fields (MainMedia, ImageForListsView, etc.)
-2. Migrate child tables (ProjectItem, Lead, Recruiter, etc.)
+1. Complete remaining Project fields (MainMedia, ImageForListsView, Content)
+2. Add LinkSettings migration
 3. Add data validation and integrity checks
 
 ### Long Term:

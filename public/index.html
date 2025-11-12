@@ -715,6 +715,24 @@
                     </div>
                 </div>
             </div>
+
+            <!-- ProjectItem Accordion -->
+            <div class="localization-accordion" style="margin-top: 20px;">
+                <button class="accordion-header" onclick="toggleProjectItemAccordion()">
+                    <span>🔧 ProjectItem Mapping (Funds & Collections)</span>
+                    <span id="projectItemToggleIcon">▼</span>
+                </button>
+                <div id="projectItemContent" class="accordion-content" style="display: none;">
+                    <p style="color: #28a745; padding: 10px; background: #d4edda; border-radius: 4px; margin-bottom: 15px;">
+                        ✅ ProjectItem mappings loaded from JSON file<br>
+                        • <strong>Funds</strong> (ProjectType=1): Creates 1 FundDonation item per project<br>
+                        • <strong>Collections</strong> (ProjectType=2): Creates 2 items (Certificate + Donation) per project
+                    </p>
+
+                    <h3>ProjectItem Fields Mapping</h3>
+                    <div id="projectItemFields"></div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -871,6 +889,10 @@
         let localizationMappings = {};  // Store localization mappings per field per language
         let localizationData = null;  // Store projectlocalization table structure
         let currentLanguage = 'hebrew';  // Current active tab
+        let projectItemMappings = {};  // Store projectItem mappings (funds & collections)
+        let projectItemData = null;  // Store projectItem table structure
+        let currentItemType = 'funds';  // Current active item type tab
+        let whereClause = null;  // WHERE clause filter for source query
 
         async function loadData() {
             try {
@@ -1491,6 +1513,8 @@
 
             console.log('Sending mappings:', columnMappings);
             console.log('Sending localization mappings:', localizationMappings);
+            console.log('Sending projectItem mappings:', projectItemMappings);
+            console.log('Sending WHERE clause:', whereClause);
             statusDiv.innerHTML = '<div class="status-message">מתחיל מיגרציה... אנא המתן</div>';
 
             try {
@@ -1500,7 +1524,9 @@
                     body: JSON.stringify({
                         tableName: 'project',
                         mappings: columnMappings,
-                        localizationMappings: localizationMappings
+                        localizationMappings: localizationMappings,
+                        projectItemMappings: projectItemMappings,
+                        whereClause: whereClause
                     })
                 });
 
@@ -1529,6 +1555,18 @@
                             resultHtml += `<br><strong>שגיאות Localization (${result.projectLocalization.errors.length} ראשונות):</strong><br>`;
                             result.projectLocalization.errors.forEach(err => {
                                 resultHtml += `- [Project ID: ${err.projectId}, Lang: ${err.language}] ${err.error}<br>`;
+                            });
+                        }
+                    }
+
+                    // ProjectItem results
+                    if (result.projectItem) {
+                        resultHtml += `<br><strong>טבלת projectItem:</strong> ${result.projectItem.insertedCount} פריטים נוצרו<br>`;
+
+                        if (result.projectItem.errors && result.projectItem.errors.length > 0) {
+                            resultHtml += `<br><strong>שגיאות ProjectItem (${result.projectItem.errors.length} ראשונות):</strong><br>`;
+                            result.projectItem.errors.forEach(err => {
+                                resultHtml += `- [Project ID: ${err.newProjectId}] ${err.error}<br>`;
                             });
                         }
                     }
@@ -1575,7 +1613,9 @@
                         filename: filename,
                         columnMappings: columnMappings,
                         fkMappings: fkMappings,
-                        localizationMappings: localizationMappings
+                        localizationMappings: localizationMappings,
+                        projectItemMappings: projectItemMappings,
+                        whereClause: whereClause
                     })
                 });
 
@@ -1661,6 +1701,8 @@
                 columnMappings = result.mapping.columnMappings || {};
                 fkMappings = result.mapping.fkMappings || {};
                 localizationMappings = result.mapping.localizationMappings || {};
+                projectItemMappings = result.mapping.projectItemMappings || {};
+                whereClause = result.mapping.whereClause || null;
 
                 // Refresh the UI to reflect loaded mappings
                 await loadData();
@@ -1672,9 +1714,17 @@
                     renderLocalizationFields();
                 }
 
+                // If projectItem mappings exist, load and render them
+                if (Object.keys(projectItemMappings).length > 0 && !projectItemData) {
+                    await loadProjectItemData();
+                } else if (projectItemData) {
+                    renderProjectItemFields();
+                }
+
                 closeLoadMappingModal();
                 const locCount = Object.keys(localizationMappings).length;
-                alert(`✓ המיפוי נטען בהצלחה!\nנטענו ${Object.keys(columnMappings).length} מיפויי שדות Project${locCount > 0 ? ` + ${locCount} שדות Localization` : ''}`);
+                const itemCount = Object.keys(projectItemMappings).length;
+                alert(`✓ המיפוי נטען בהצלחה!\nנטענו ${Object.keys(columnMappings).length} מיפויי שדות Project${locCount > 0 ? ` + ${locCount} שדות Localization` : ''}${itemCount > 0 ? ` + ProjectItem mappings` : ''}`);
             } catch (error) {
                 alert('✗ שגיאה: ' + error.message);
             }
@@ -1693,6 +1743,24 @@
                 // Load localization data if not loaded yet
                 if (!localizationData) {
                     loadLocalizationData();
+                }
+            } else {
+                content.style.display = 'none';
+                icon.textContent = '▼';
+            }
+        }
+
+        function toggleProjectItemAccordion() {
+            const content = document.getElementById('projectItemContent');
+            const icon = document.getElementById('projectItemToggleIcon');
+
+            if (content.style.display === 'none') {
+                content.style.display = 'block';
+                icon.textContent = '▲';
+
+                // Load projectItem data if not loaded yet
+                if (!projectItemData) {
+                    loadProjectItemData();
                 }
             } else {
                 content.style.display = 'none';
@@ -2004,6 +2072,285 @@
 
             // Trigger the change event to save it
             onLocalizationExpressionChanged(lang, fieldName, exampleCode);
+        }
+
+        // ===== ProjectItem Functions =====
+
+        async function loadProjectItemData() {
+            try {
+                const response = await fetch('/api/analyze/projectitem');
+                projectItemData = await response.json();
+
+                // Load existing projectItemMappings structure if it doesn't exist
+                if (Object.keys(projectItemMappings).length === 0) {
+                    // Initialize structure
+                    projectItemMappings = {
+                        funds: {},
+                        collections: {
+                            certificate: {},
+                            donation: {}
+                        }
+                    };
+                }
+
+                // Render fields for all item types
+                renderProjectItemFields();
+            } catch (error) {
+                console.error('Error loading projectItem data:', error);
+                alert('שגיאה בטעינת נתוני projectItem: ' + error.message);
+            }
+        }
+
+        function renderProjectItemFields() {
+            if (!projectItemData || !projectItemData.newDB || !projectItemData.newDB.table) {
+                return;
+            }
+
+            const container = document.getElementById('projectItemFields');
+            const columns = projectItemData.newDB.table.columns;
+
+            // Fields to skip (auto-populated)
+            const skipFields = ['id', 'projectid'];
+
+            let html = '';
+
+            columns.forEach(col => {
+                if (skipFields.includes(col.name.toLowerCase())) {
+                    return;  // Skip this field
+                }
+
+                // Get existing mapping - support both old and new structure
+                // Try new flat structure first, then fall back to old hierarchical structure
+                let mapping = projectItemMappings.fields?.[col.name];
+                if (!mapping) {
+                    // Try to find in old structure (funds or collections)
+                    mapping = projectItemMappings.funds?.[col.name] ||
+                             projectItemMappings.collections?.certificate?.[col.name] ||
+                             projectItemMappings.collections?.donation?.[col.name] || {};
+                }
+
+                html += `
+                    <div class="column-row">
+                        <div class="column-name">${col.name}: ${col.type}</div>
+                        <div class="mapping-selectors">
+                            ${mapping.convertType === 'const' ? `
+                                <div class="const-label">Constant Value:</div>
+                                <input type="text" id="item_value_${col.name}" value="${mapping.value || ''}"
+                                    onchange="onProjectItemConstChanged('${col.name}', this.value)"
+                                    placeholder="Enter constant value">
+                            ` : `
+                                <select id="item_table_${col.name}" onchange="onProjectItemTableSelected('${col.name}')">
+                                    <option value="">-- Select Old Table --</option>
+                                    ${allOldTables.map(table =>
+                                        `<option value="${table}" ${mapping.oldTable === table ? 'selected' : ''}>${table}</option>`
+                                    ).join('')}
+                                </select>
+                                <select id="item_column_${col.name}" ${mapping.oldTable ? '' : 'disabled'}>
+                                    <option value="">-- Select Column --</option>
+                                </select>
+                            `}
+
+                            <div class="default-value-input">
+                                <label>Default Value (if source is NULL):</label>
+                                <input type="text" id="item_default_${col.name}" value="${mapping.defaultValue || ''}"
+                                    onchange="onProjectItemDefaultChanged('${col.name}', this.value)"
+                                    placeholder="Optional">
+                            </div>
+
+                            <div class="expression-input">
+                                <label>JavaScript Expression (optional):</label>
+                                <textarea id="item_expression_${col.name}"
+                                    onchange="onProjectItemExpressionChanged('${col.name}', this.value)"
+                                    placeholder="e.g., value ? value.substring(0, 150) : null&#10;&#10;Available variables:&#10;  value = source column value&#10;  row = entire source row"
+                                    rows="3">${mapping.expression || ''}</textarea>
+                                <small style="color: #6c757d;">
+                                    Examples:
+                                    <a href="#" onclick="setItemExampleExpression('${col.name}', 'truncate'); return false;">Truncate 150</a> |
+                                    <a href="#" onclick="setItemExampleExpression('${col.name}', 'nullIfZero'); return false;">NULL if zero</a>
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+
+            // Load existing column selections
+            columns.forEach(col => {
+                if (skipFields.includes(col.name.toLowerCase())) {
+                    return;
+                }
+
+                // Try new flat structure first, then fall back to old hierarchical structure
+                let mapping = projectItemMappings.fields?.[col.name];
+                if (!mapping) {
+                    mapping = projectItemMappings.funds?.[col.name] ||
+                             projectItemMappings.collections?.certificate?.[col.name] ||
+                             projectItemMappings.collections?.donation?.[col.name] || {};
+                }
+
+                if (mapping && mapping.oldTable && mapping.oldColumn && mapping.convertType !== 'const') {
+                    loadProjectItemColumnDropdown(col.name, mapping.oldTable, mapping.oldColumn);
+                }
+            });
+        }
+
+        async function onProjectItemTableSelected(fieldName) {
+            const tableSelect = document.getElementById(`item_table_${fieldName}`);
+            const columnSelect = document.getElementById(`item_column_${fieldName}`);
+            const selectedTable = tableSelect.value;
+
+            if (!selectedTable) {
+                columnSelect.disabled = true;
+                columnSelect.innerHTML = '<option value="">-- Select Column --</option>';
+                return;
+            }
+
+            await loadProjectItemColumnDropdown(fieldName, selectedTable);
+        }
+
+        async function loadProjectItemColumnDropdown(fieldName, selectedTable, preselectedColumn = null) {
+            const columnSelect = document.getElementById(`item_column_${fieldName}`);
+
+            // Load table data if not cached
+            if (!oldTablesData[selectedTable]) {
+                try {
+                    const response = await fetch(`/api/old-table/${selectedTable}`);
+                    oldTablesData[selectedTable] = await response.json();
+                } catch (error) {
+                    console.error('Error loading table:', error);
+                    return;
+                }
+            }
+
+            // Populate column dropdown
+            const tableData = oldTablesData[selectedTable];
+            columnSelect.disabled = false;
+            columnSelect.innerHTML = '<option value="">-- Select Column --</option>' +
+                tableData.columns.map(col =>
+                    `<option value="${col.name}" ${preselectedColumn === col.name ? 'selected' : ''}>${col.name}: ${col.type}</option>`
+                ).join('');
+
+            // Set up onchange handler
+            columnSelect.onchange = () => {
+                if (columnSelect.value) {
+                    saveProjectItemMapping(fieldName, {
+                        convertType: 'direct',
+                        oldTable: selectedTable,
+                        oldColumn: columnSelect.value
+                    });
+                }
+            };
+
+            // If preselected, trigger the mapping
+            if (preselectedColumn) {
+                saveProjectItemMapping(fieldName, {
+                    convertType: 'direct',
+                    oldTable: selectedTable,
+                    oldColumn: preselectedColumn
+                });
+            }
+        }
+
+        function saveProjectItemMapping(fieldName, mappingData) {
+            // Save to all 3 structures (funds, certificate, donation) to maintain consistency
+            // This ensures the mapping works for all project types
+
+            // Ensure structures exist
+            if (!projectItemMappings.funds) projectItemMappings.funds = {};
+            if (!projectItemMappings.collections) projectItemMappings.collections = {};
+            if (!projectItemMappings.collections.certificate) projectItemMappings.collections.certificate = {};
+            if (!projectItemMappings.collections.donation) projectItemMappings.collections.donation = {};
+
+            // Initialize field in all structures
+            if (!projectItemMappings.funds[fieldName]) {
+                projectItemMappings.funds[fieldName] = {};
+            }
+            if (!projectItemMappings.collections.certificate[fieldName]) {
+                projectItemMappings.collections.certificate[fieldName] = {};
+            }
+            if (!projectItemMappings.collections.donation[fieldName]) {
+                projectItemMappings.collections.donation[fieldName] = {};
+            }
+
+            // Update all structures with the mapping data
+            Object.assign(projectItemMappings.funds[fieldName], mappingData);
+            Object.assign(projectItemMappings.collections.certificate[fieldName], mappingData);
+            Object.assign(projectItemMappings.collections.donation[fieldName], mappingData);
+
+            console.log('ProjectItem mappings updated:', projectItemMappings);
+        }
+
+        function onProjectItemDefaultChanged(fieldName, value) {
+            saveProjectItemMapping(fieldName, { defaultValue: value || null });
+        }
+
+        function onProjectItemExpressionChanged(fieldName, value) {
+            const expression = value.trim();
+            if (expression) {
+                saveProjectItemMapping(fieldName, {
+                    expression: expression,
+                    convertType: 'expression'
+                });
+            } else {
+                // Remove expression if empty from all structures
+                if (projectItemMappings.funds?.[fieldName]) {
+                    delete projectItemMappings.funds[fieldName].expression;
+                    if (projectItemMappings.funds[fieldName].convertType === 'expression' &&
+                        projectItemMappings.funds[fieldName].oldColumn) {
+                        projectItemMappings.funds[fieldName].convertType = 'direct';
+                    }
+                }
+                if (projectItemMappings.collections?.certificate?.[fieldName]) {
+                    delete projectItemMappings.collections.certificate[fieldName].expression;
+                    if (projectItemMappings.collections.certificate[fieldName].convertType === 'expression' &&
+                        projectItemMappings.collections.certificate[fieldName].oldColumn) {
+                        projectItemMappings.collections.certificate[fieldName].convertType = 'direct';
+                    }
+                }
+                if (projectItemMappings.collections?.donation?.[fieldName]) {
+                    delete projectItemMappings.collections.donation[fieldName].expression;
+                    if (projectItemMappings.collections.donation[fieldName].convertType === 'expression' &&
+                        projectItemMappings.collections.donation[fieldName].oldColumn) {
+                        projectItemMappings.collections.donation[fieldName].convertType = 'direct';
+                    }
+                }
+            }
+            console.log(`Expression updated for ${fieldName}:`, expression);
+        }
+
+        function onProjectItemConstChanged(fieldName, value) {
+            saveProjectItemMapping(fieldName, {
+                convertType: 'const',
+                value: value
+            });
+        }
+
+        function setItemExampleExpression(fieldName, type) {
+            const textarea = document.getElementById(`item_expression_${fieldName}`);
+            if (!textarea) return;
+
+            let exampleCode = '';
+
+            switch(type) {
+                case 'truncate':
+                    exampleCode = 'value ? value.substring(0, 150) : null';
+                    break;
+                case 'nullIfZero':
+                    exampleCode = 'value === 0 ? null : value';
+                    break;
+                case 'orDefault':
+                    exampleCode = 'value || 0';
+                    break;
+                default:
+                    exampleCode = '';
+            }
+
+            textarea.value = exampleCode;
+
+            // Trigger the change event to save it
+            onProjectItemExpressionChanged(fieldName, exampleCode);
         }
     </script>
 </body>
