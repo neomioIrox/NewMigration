@@ -21,7 +21,7 @@ const logger = winston.createLogger({
   transports: [
     // Write to file
     new winston.transports.File({
-      filename: 'migration-logs.log',
+      filename: path.join(__dirname, '../logs/migration-logs.log'),
       maxsize: 5242880, // 5MB
       maxFiles: 5
     }),
@@ -30,7 +30,7 @@ const logger = winston.createLogger({
   ]
 });
 
-app.use(express.static('public'));
+app.use(express.static(path.join(__dirname, '../public')));
 app.use(express.json());
 
 // Store connection configs (in production, use environment variables or secure storage)
@@ -179,7 +179,7 @@ function findRelatedTables(targetTable, tables) {
 // API endpoint to get all old table names
 app.get('/api/old-tables', (req, res) => {
   try {
-    const oldTables = parseSQLFile('create-kupat-db-generic.sql');
+    const oldTables = parseSQLFile(path.join(__dirname, '../database/schemas/create-kupat-db-generic.sql'));
     const tableNames = Object.keys(oldTables).sort();
     res.json({ tables: tableNames });
   } catch (error) {
@@ -191,7 +191,7 @@ app.get('/api/old-tables', (req, res) => {
 app.get('/api/old-table/:tableName', (req, res) => {
   try {
     const tableName = req.params.tableName.toLowerCase();
-    const oldTables = parseSQLFile('create-kupat-db-generic.sql');
+    const oldTables = parseSQLFile(path.join(__dirname, '../database/schemas/create-kupat-db-generic.sql'));
 
     if (!oldTables[tableName]) {
       return res.status(404).json({ error: 'Table not found' });
@@ -209,11 +209,11 @@ app.get('/api/analyze/:tableName', (req, res) => {
     const tableName = req.params.tableName;
 
     // Parse both SQL files
-    const newTables = parseSQLFile('KupatHairNewMySQL.sql');
-    const oldTables = parseSQLFile('create-kupat-db-generic.sql');
+    const newTables = parseSQLFile(path.join(__dirname, '../database/schemas/KupatHairNewMySQL.sql'));
+    const oldTables = parseSQLFile(path.join(__dirname, '../database/schemas/create-kupat-db-generic.sql'));
 
     // Parse mapping file
-    const mappings = parseMappingFile('Mapping.csv');
+    const mappings = parseMappingFile(path.join(__dirname, '../data/Mapping.csv'));
 
     // Find related tables in new DB
     const newRelated = findRelatedTables(tableName, newTables);
@@ -306,7 +306,7 @@ app.post('/api/test-mysql', async (req, res) => {
 app.post('/api/clear-logs', (req, res) => {
   try {
     // Write empty string to log file to clear it
-    fs.writeFileSync('migration-logs.log', '');
+    fs.writeFileSync(path.join(__dirname, '../logs/migration-logs.log'), '');
     logger.info('Log file cleared by user');
     res.json({ success: true, message: 'Log file cleared successfully!' });
   } catch (error) {
@@ -339,7 +339,7 @@ app.post('/api/fk-mapping/:columnName', (req, res) => {
     const { columnName } = req.params;
     const { sourceTable, keyColumn, mappings } = req.body;
 
-    const fkMappingPath = path.join(__dirname, 'fk-mappings', `${columnName}.json`);
+    const fkMappingPath = path.join(__dirname, '../data/fk-mappings', `${columnName}.json`);
     const mappingData = {
       columnName,
       sourceTable,
@@ -361,7 +361,7 @@ app.post('/api/fk-mapping/:columnName', (req, res) => {
 app.get('/api/fk-mapping/:columnName', (req, res) => {
   try {
     const { columnName } = req.params;
-    const fkMappingPath = path.join(__dirname, 'fk-mappings', `${columnName}.json`);
+    const fkMappingPath = path.join(__dirname, '../data/fk-mappings', `${columnName}.json`);
 
     if (!fs.existsSync(fkMappingPath)) {
       return res.json({ success: true, exists: false, mapping: null });
@@ -384,7 +384,7 @@ app.post('/api/save-mapping', (req, res) => {
     }
 
     // Create mappings directory if it doesn't exist
-    const mappingsDir = path.join(__dirname, 'mappings');
+    const mappingsDir = path.join(__dirname, '../mappings');
     if (!fs.existsSync(mappingsDir)) {
       fs.mkdirSync(mappingsDir);
     }
@@ -416,7 +416,7 @@ app.post('/api/save-mapping', (req, res) => {
 // Get list of available mappings
 app.get('/api/mappings', (req, res) => {
   try {
-    const mappingsDir = path.join(__dirname, 'mappings');
+    const mappingsDir = path.join(__dirname, '../mappings');
 
     if (!fs.existsSync(mappingsDir)) {
       return res.json({ success: true, mappings: [] });
@@ -449,7 +449,7 @@ app.get('/api/load-mapping/:filename', (req, res) => {
   try {
     const { filename } = req.params;
     const safeFilename = filename.replace(/[^a-zA-Z0-9\-_\u0590-\u05FF]/g, '_');
-    const filePath = path.join(__dirname, 'mappings', `${safeFilename}.json`);
+    const filePath = path.join(__dirname, '../mappings', `${safeFilename}.json`);
 
     if (!fs.existsSync(filePath)) {
       return res.status(404).json({ success: false, message: 'Mapping file not found' });

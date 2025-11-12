@@ -15,7 +15,7 @@ npm start
 # Server runs on http://localhost:3030
 
 # Find running process (if needed)
-ps aux | grep "node server.js"
+ps aux | grep "node src/server.js"
 
 # Stop server (replace PID)
 kill <PID>
@@ -25,7 +25,7 @@ kill <PID>
 
 ### Core Components
 
-**Backend (server.js)**
+**Backend (src/server.js)**
 - Express server with three main API endpoints:
   - `/api/analyze/:tableName` - Returns complete analysis of a table including foreign key relationships and mappings
   - `/api/old-tables` - Lists all tables from old SQL Server schema
@@ -42,14 +42,38 @@ kill <PID>
   3. Bottom: Field mapping table from CSV
 - Interactive table exploration with selectable columns
 
+### Project Structure
+
+```
+NewMigration/
+├── src/                    # Server code
+│   └── server.js          # Main Express server
+├── public/                # Frontend UI
+│   └── index.html
+├── database/              # SQL files
+│   ├── schemas/           # Database schemas
+│   └── queries/           # SQL queries for checks
+├── scripts/               # Helper scripts
+│   ├── migration/         # Migration runners
+│   ├── utils/             # Utility scripts
+│   └── checks/            # Validation scripts
+├── mappings/              # Mapping configurations
+├── data/                  # Data files
+│   ├── Mapping.csv
+│   └── fk-mappings/       # FK translation files
+├── reports/               # Migration reports
+├── logs/                  # Log files
+└── docs/                  # Documentation
+```
+
 ### Key Data Files
 
 **SQL Schemas**
-- `KupatHairNewMySQL.sql` - Target MySQL database schema
-- `create-kupat-db-generic.sql` - Source SQL Server database schema
+- `database/schemas/KupatHairNewMySQL.sql` - Target MySQL database schema
+- `database/schemas/create-kupat-db-generic.sql` - Source SQL Server database schema
 
 **Migration Mapping**
-- `Mapping.csv` - Field-by-field conversion rules with columns:
+- `data/Mapping.csv` - Field-by-field conversion rules with columns:
   - Step, New Table/Column, Convert Type, Old Table/Column, Comments
   - Convert types: direct, auto, const, expression, FK
 
@@ -126,20 +150,23 @@ Migration order matters: parent tables must be migrated before children due to f
 
 **Status and tracking:**
 - **MIGRATION_STATUS.md** - Current migration status, results, and known issues
-- **mapping-reports/Mapping-Coverage.html** - Visual progress report (127/3,137 lines = 4%)
-- **migration-logs.log** - Migration execution logs
+- **reports/Mapping-Coverage.html** - Visual progress report (127/3,137 lines = 4%)
+- **logs/migration-logs.log** - Migration execution logs
+- **SESSION_SUMMARY_2025-11-12.md** - Latest session summary and changes
 
 **Configuration:**
-- **mappings/ProjectMapping.json** - Active mapping configuration
-- **fk-mappings/*.json** - Foreign key translation tables
-- **Mapping.csv** - Original mapping reference (3,137 lines)
+- **mappings/ProjectMapping.json** - Active mapping configuration (nested structure for CLI)
+- **mappings/ProjectMapping_Funds_Fixed.json** - Funds migration (flat structure for UI)
+- **mappings/ProjectMapping_Collections_Fixed.json** - Collections migration (flat structure for UI)
+- **data/fk-mappings/*.json** - Foreign key translation tables
+- **data/Mapping.csv** - Original mapping reference (3,137 lines)
 
-## Current State (As of Nov 11, 2025)
+## Current State (As of Nov 12, 2025)
 
 **Migration Results:**
 - project: 1,750/1,750 rows (100% ✅)
-- projectLocalization: 5,244/5,250 rows (99.9% ⚠️ - 6 NULL title errors)
-- projectItem: Implementation complete, testing pending
+- projectLocalization: 5,250/5,250 rows (100% ✅ - NULL title issue fixed)
+- projectItem: 3,500/3,500 items (100% ✅)
 
 **Server:** Running on port 3030
 **Progress:** 127/3,137 CSV lines (4%)

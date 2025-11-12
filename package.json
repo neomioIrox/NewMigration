@@ -2,9 +2,9 @@
   "name": "db-migration-helper",
   "version": "1.0.0",
   "description": "Database migration visualization tool for SQL Server to MySQL",
-  "main": "server.js",
+  "main": "src/server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node src/server.js"
   },
   "dependencies": {
     "csv-parse": "^5.5.2",

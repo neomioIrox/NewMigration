@@ -418,43 +418,31 @@ FROM products
 
 ## תוצאות מיגרציה אחרונה
 
-**Date**: 2025-11-11 10:24
+**Date**: 2025-11-12 13:03
 - **Rows expected**: 5,250 (1,750 × 3)
-- **Rows migrated**: 5,244/5,250 (99.9% ⚠️)
-- **Errors**: 6 (Title cannot be null)
-- **Duration**: ~28 שניות
-
-### שורות שנכשלו:
-1. Project 335 (French): Name_fr is null
-2. Project 373 (French): Name_fr is null
-3. Project 1000 (English): Name_en is null
-4. Project 1000 (French): Name_fr is null
-5. Project 1399 (English): Name_en is null
-6. Project 1399 (French): Name_fr is null
+- **Rows migrated**: 5,250/5,250 (100% ✅)
+- **Errors**: 0
+- **Duration**: ~9 שניות
+- **Fix applied**: NULL title fallback with 'No Translation' default
 
 ## בעיות ידועות
 
-### 1. NULL Title Fallback
-**בעיה**: Expression fallback לא עובד כשורה.
+### ~~1. NULL Title Fallback~~ ✅ FIXED
+**בעיה**: Expression fallback לא עבד כשגם `row.Name` היה null
+**פתרון**: עדכנו expression ל:
 ```javascript
-"expression": "(value ? value.substring(0, 150) : (row.Name ? row.Name.substring(0, 150) : null))"
+"expression": "value ? value.substring(0, 150) : (row.Name ? row.Name.substring(0, 150) : 'No Translation')",
+"defaultValue": "No Translation"
 ```
-
-**פתרון אפשרי**:
-1. בדוק ש-`row.Name` באמת זמין בזמן evaluation
-2. או: שנה את ה-defaultValue logic ב-server.js
+**תוצאה**: 100% success (5,250/5,250 rows)
 
 ### 2. convertType עקבי
 **בעיה**: `OrderInProjectsPageView` מוגדר כ-`convertType: "direct"` אבל יש לו `expression`.
 
 **פתרון**: שנה ל-`convertType: "expression"`.
 
-### 3. DefaultValue אחרי Expression
-**בעיה**: defaultValue לא תמיד מיושם אחרי expression שמחזיר null.
-
-**מיקום**: server.js:684-689
-
-**פתרון**: החל defaultValue **אחרי** expression evaluation.
+### ~~3. DefaultValue אחרי Expression~~ ✅ WORKING
+**סטטוס**: server.js מיישם defaultValue גם לפני וגם אחרי expression (lines 764-772, 788-796)
 
 ## Foreign Keys
 

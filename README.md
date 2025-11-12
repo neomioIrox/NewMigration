@@ -6,7 +6,7 @@ This tool helps visualize and manage the migration from SQL Server to MySQL, foc
 
 ## Quick Start
 
-The server is currently running at: **http://localhost:3000**
+The server is currently running at: **http://localhost:3030**
 
 Open this URL in your web browser to see:
 - All tables connected to the Project table in the new MySQL database
@@ -66,7 +66,7 @@ The project table in MySQL has these key relationships:
 To stop the server, use this command:
 ```bash
 # Find the process
-ps aux | grep "node server.js"
+ps aux | grep "node src/server.js"
 
 # Kill it (replace PID with actual process ID)
 kill <PID>
@@ -77,11 +77,30 @@ To start the server again:
 npm start
 ```
 
-## Files Created
+## Project Structure
 
-- `server.js` - Node.js Express server with SQL parser
-- `public/index.html` - Web interface
-- `package.json` - Node.js dependencies
+```
+NewMigration/
+├── src/                    # Server code
+│   └── server.js          # Main Express server
+├── public/                # Frontend UI
+│   └── index.html
+├── database/              # SQL files
+│   ├── schemas/           # Database schemas
+│   └── queries/           # SQL queries
+├── scripts/               # Helper scripts
+│   ├── migration/         # Migration runners
+│   ├── utils/             # Utility scripts
+│   └── checks/            # Validation scripts
+├── mappings/              # Mapping configurations
+├── data/                  # Data files
+│   ├── Mapping.csv
+│   └── fk-mappings/
+├── reports/               # Migration reports
+├── logs/                  # Log files
+├── docs/                  # Documentation
+└── package.json           # Dependencies
+```
 
 ## Next Steps
 

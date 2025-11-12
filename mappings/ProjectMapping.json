@@ -146,13 +146,15 @@
         "convertType": "expression",
         "oldTable": "products",
         "oldColumn": "Name_en",
-        "expression": "(value ? value.substring(0, 150) : (row.Name ? row.Name.substring(0, 150) : null))"
+        "expression": "value ? value.substring(0, 150) : (row.Name ? row.Name.substring(0, 150) : 'No Translation')",
+        "defaultValue": "No Translation"
       },
       "french": {
         "convertType": "expression",
         "oldTable": "products",
         "oldColumn": "Name_fr",
-        "expression": "(value ? value.substring(0, 150) : (row.Name ? row.Name.substring(0, 150) : null))"
+        "expression": "value ? value.substring(0, 150) : (row.Name ? row.Name.substring(0, 150) : 'No Translation')",
+        "defaultValue": "No Translation"
       }
     },
     "Description": {
@@ -275,7 +277,7 @@
         "convertType": "expression",
         "oldTable": "products",
         "oldColumn": "ShowPrayerNames",
-        "expression": "value || 0",
+        "expression": "value ? 1 : 0",
         "defaultValue": "0"
       },
       "RecordStatus": {
@@ -331,7 +333,7 @@
           "convertType": "expression",
           "oldTable": "products",
           "oldColumn": "ShowPrayerNames",
-          "expression": "value || 0",
+          "expression": "value ? 1 : 0",
           "defaultValue": "0"
         },
         "DeliveryMethod": {
@@ -390,7 +392,7 @@
           "convertType": "expression",
           "oldTable": "products",
           "oldColumn": "ShowPrayerNames",
-          "expression": "value || 0",
+          "expression": "value ? 1 : 0",
           "defaultValue": "0"
         },
         "RecordStatus": {

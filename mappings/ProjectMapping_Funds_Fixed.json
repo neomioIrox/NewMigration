@@ -1,12 +1,12 @@
 {
-  "filename": "ProjectMapping_Funds",
-  "whereClause": "ISNULL(Certificate,0) != 1 AND NOT EXISTS (SELECT 1 FROM ProductGroup g WHERE g.ParentProductId=products.productsid)",
+  "filename": "ProjectMapping_Funds_Fixed",
+  "whereClause": null,
   "columnMappings": {
     "Name": {
       "convertType": "expression",
       "oldTable": "products",
       "oldColumn": "Name",
-      "expression": "value ? String(value).substring(0, 145) : null"
+      "expression": "value ? value.substring(0, 150) : null"
     },
     "ProjectType": {
       "convertType": "const",
@@ -78,13 +78,15 @@
         "convertType": "expression",
         "oldTable": "products",
         "oldColumn": "Name_en",
-        "expression": "(value ? value.substring(0, 150) : (row.Name ? row.Name.substring(0, 150) : null))"
+        "expression": "value ? value.substring(0, 150) : (row.Name ? row.Name.substring(0, 150) : 'No Translation')",
+        "defaultValue": "No Translation"
       },
       "french": {
         "convertType": "expression",
         "oldTable": "products",
         "oldColumn": "Name_fr",
-        "expression": "(value ? value.substring(0, 150) : (row.Name ? row.Name.substring(0, 150) : null))"
+        "expression": "value ? value.substring(0, 150) : (row.Name ? row.Name.substring(0, 150) : 'No Translation')",
+        "defaultValue": "No Translation"
       }
     },
     "Description": {
@@ -189,7 +191,7 @@
         "convertType": "expression",
         "oldTable": "products",
         "oldColumn": "Name",
-        "expression": "value ? String(value).substring(0, 145) : null"
+        "expression": "value ? value.substring(0, 150) : null"
       },
       "ItemType": {
         "convertType": "const",
@@ -207,7 +209,7 @@
         "convertType": "expression",
         "oldTable": "products",
         "oldColumn": "ShowPrayerNames",
-        "expression": "value === null || value === undefined ? 0 : (value ? 1 : 0)",
+        "expression": "value ? 1 : 0",
         "defaultValue": "0"
       },
       "RecordStatus": {
@@ -240,5 +242,5 @@
       }
     }
   },
-  "savedAt": "2025-11-11T12:00:00.000Z"
+  "savedAt": "2025-11-12T14:30:00.000Z"
 }
