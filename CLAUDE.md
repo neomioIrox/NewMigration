@@ -161,6 +161,55 @@ Migration order matters: parent tables must be migrated before children due to f
 - **data/fk-mappings/*.json** - Foreign key translation tables
 - **data/Mapping.csv** - Original mapping reference (3,137 lines)
 
+## AI Agents
+
+**Claude Code Agents** - Specialized subagents for automation:
+
+### Mapping Generator Agent (`.claude/agents/mapping-generator/`)
+Automatically generates JSON mapping configurations from CSV file.
+
+**Capabilities:**
+- Reads and parses Mapping.csv
+- Identifies patterns (localization, FK, expressions)
+- Generates UI or CLI format mappings
+- Adds NULL safety automatically
+- Handles multi-language localizations
+
+**Usage:**
+```
+Table: [table_name]
+Steps: [step_range]
+Format: [ui|cli]
+```
+
+**Documentation:**
+- `prompt.md` - Agent instructions and rules
+- `rules.md` - Mapping patterns and examples
+- `example.md` - Practical use cases
+- `README.md` - User guide
+
+### Migration Executor Agent (`.claude/agents/migration-executor/`)
+Executes database migrations using JSON mappings against live databases.
+
+**Capabilities:**
+- Connects to MSSQL and MySQL
+- Executes migrations (test/dry-run/production modes)
+- Handles errors with retry logic
+- Generates detailed reports
+- Supports rollback
+
+**Modes:**
+- `test` - 10 rows, with rollback
+- `dry-run` - Simulates without writing
+- `production` - Full migration
+
+**Documentation:**
+- `prompt.md` - Execution instructions
+- `strategies.md` - Advanced patterns
+- `README.md` - User guide
+
+**Complete workflow:** `.claude/agents/USAGE_EXAMPLES.md`
+
 ## Current State (As of Nov 12, 2025)
 
 **Migration Results:**

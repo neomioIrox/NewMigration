@@ -1,0 +1,60 @@
+{
+  "name": "migration-executor",
+  "version": "1.0.0",
+  "description": "Database migration executor - runs migration using JSON mappings against live databases",
+  "author": "Claude & User",
+  "capabilities": [
+    "Execute database migrations from JSON mappings",
+    "Connect to MSSQL and MySQL databases",
+    "Handle multi-table dependencies",
+    "Process localization data (3 languages)",
+    "Manage FK translations",
+    "Generate migration reports",
+    "Handle errors and rollback",
+    "Track progress in real-time"
+  ],
+  "requiredFiles": [
+    "mappings/*.json",
+    "src/server.js",
+    "data/fk-mappings/*.json"
+  ],
+  "executionModes": {
+    "test": {
+      "description": "Test mode - runs on limited dataset",
+      "limit": 10,
+      "rollback": true
+    },
+    "dry-run": {
+      "description": "Simulates migration without writing to DB",
+      "writes": false,
+      "validates": true
+    },
+    "production": {
+      "description": "Full migration with all data",
+      "limit": null,
+      "rollback": false
+    }
+  },
+  "supportedOperations": [
+    "migrate-table",
+    "validate-mapping",
+    "check-connections",
+    "clear-target",
+    "generate-report",
+    "rollback"
+  ],
+  "errorHandling": {
+    "maxRetries": 3,
+    "retryDelay": 1000,
+    "logErrors": true,
+    "stopOnError": false,
+    "errorLimit": 100
+  },
+  "reporting": {
+    "format": "json",
+    "outputPath": "reports/",
+    "includeErrors": true,
+    "includeStats": true,
+    "includeTimings": true
+  }
+}

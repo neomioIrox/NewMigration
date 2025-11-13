@@ -1,0 +1,47 @@
+{
+  "name": "mapping-generator",
+  "version": "1.0.0",
+  "description": "Database migration mapping generator - creates JSON mappings from CSV for any table",
+  "author": "Claude & User",
+  "capabilities": [
+    "Read and parse CSV mapping files",
+    "Understand database schemas (MySQL and SQL Server)",
+    "Generate JSON mapping configurations",
+    "Handle multi-language localizations",
+    "Process complex expressions and FK mappings",
+    "Identify and parse table comments"
+  ],
+  "requiredFiles": [
+    "data/Mapping.csv",
+    "database/schemas/KupatHairNewMySQL.sql",
+    "database/schemas/create-kupat-db-generic.sql"
+  ],
+  "outputFormats": {
+    "ui": {
+      "description": "Flat structure for UI with columnMappings",
+      "example": "mappings/ProjectMapping_Funds_Fixed.json"
+    },
+    "cli": {
+      "description": "Nested structure for CLI scripts",
+      "example": "mappings/ProjectMapping.json"
+    }
+  },
+  "supportedTables": [
+    "project",
+    "projectlocalization",
+    "projectitem",
+    "projectitemlocalization",
+    "lead",
+    "recruiter",
+    "payment",
+    "order",
+    "media"
+  ],
+  "mappingTypes": [
+    "direct",
+    "const",
+    "expression",
+    "FK",
+    "auto"
+  ]
+}
