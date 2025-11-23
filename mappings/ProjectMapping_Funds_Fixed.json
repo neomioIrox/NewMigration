@@ -1,6 +1,6 @@
 {
   "filename": "ProjectMapping_Funds_Fixed",
-  "whereClause": null,
+  "whereClause": "IsNull([Certificate],0) != 1 AND NOT EXISTS (SELECT 1 FROM ProductGroup g WITH (NOLOCK) WHERE g.ParentProductId=products.productsid OR g.SubProductId=products.productsid)",
   "columnMappings": {
     "Name": {
       "convertType": "expression",

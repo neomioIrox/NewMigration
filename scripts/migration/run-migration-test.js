@@ -3,7 +3,10 @@ const fs = require('fs');
 
 async function runMigration() {
   console.log('Loading mapping file...');
-  const mapping = JSON.parse(fs.readFileSync('./mappings/ProjectMapping_Funds.json', 'utf-8'));
+  const mapping = JSON.parse(fs.readFileSync('./mappings/ProjectMapping_Funds_Fixed.json', 'utf-8'));
+
+  console.log('\n=== WHERE Clause for Funds ===');
+  console.log(mapping.whereClause || 'No WHERE clause');
 
   console.log('\n=== Fixed Expression for AllowFreeAddPrayerNames ===');
   console.log(mapping.projectItemMappings.funds.AllowFreeAddPrayerNames.expression);
