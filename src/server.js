@@ -518,7 +518,7 @@ app.post('/api/migrate', async (req, res) => {
 
         // Check if FK mapping is enabled for this column
         if (mapping.useFkMapping) {
-          const fkMappingPath = path.join(__dirname, 'fk-mappings', `${targetCol}.json`);
+          const fkMappingPath = path.join(__dirname, '../data/fk-mappings', `${targetCol}.json`);
           if (fs.existsSync(fkMappingPath)) {
             const fkData = JSON.parse(fs.readFileSync(fkMappingPath, 'utf-8'));
             fkMappingColumns[targetCol] = fkData;
@@ -954,6 +954,24 @@ app.post('/api/migrate', async (req, res) => {
               } else if (typeof value === 'string' && /^\d+$/.test(value)) {
                 value = parseInt(value, 10);
               }
+
+              // Final fallback to defaultValue if still null
+              if ((value === null || value === undefined) && mapping.defaultValue) {
+                if (mapping.defaultValue === 'GETDATE()' || mapping.defaultValue === 'NOW()') {
+                  value = new Date();
+                } else {
+                  value = mapping.defaultValue;
+                  if (typeof value === 'string' && /^\d+$/.test(value)) {
+                    value = parseInt(value, 10);
+                  }
+                }
+              }
+
+              // Truncate ItemName if too long (max 150 chars)
+              if (fieldName === 'ItemName' && typeof value === 'string' && value.length > 150) {
+                value = value.substring(0, 150);
+              }
+
               itemData[fieldName] = value;
 
               // Debug logging for AllowFreeAddPrayerNames
@@ -1044,6 +1062,24 @@ app.post('/api/migrate', async (req, res) => {
                 } else if (typeof value === 'string' && /^\d+$/.test(value)) {
                   value = parseInt(value, 10);
                 }
+
+                // Final fallback to defaultValue if still null
+                if ((value === null || value === undefined) && mapping.defaultValue) {
+                  if (mapping.defaultValue === 'GETDATE()' || mapping.defaultValue === 'NOW()') {
+                    value = new Date();
+                  } else {
+                    value = mapping.defaultValue;
+                    if (typeof value === 'string' && /^\d+$/.test(value)) {
+                      value = parseInt(value, 10);
+                    }
+                  }
+                }
+
+                // Truncate ItemName if too long (max 150 chars)
+                if (fieldName === 'ItemName' && typeof value === 'string' && value.length > 150) {
+                  value = value.substring(0, 150);
+                }
+
                 itemData[fieldName] = value;
               }
 
@@ -1124,6 +1160,24 @@ app.post('/api/migrate', async (req, res) => {
                 } else if (typeof value === 'string' && /^\d+$/.test(value)) {
                   value = parseInt(value, 10);
                 }
+
+                // Final fallback to defaultValue if still null
+                if ((value === null || value === undefined) && mapping.defaultValue) {
+                  if (mapping.defaultValue === 'GETDATE()' || mapping.defaultValue === 'NOW()') {
+                    value = new Date();
+                  } else {
+                    value = mapping.defaultValue;
+                    if (typeof value === 'string' && /^\d+$/.test(value)) {
+                      value = parseInt(value, 10);
+                    }
+                  }
+                }
+
+                // Truncate ItemName if too long (max 150 chars)
+                if (fieldName === 'ItemName' && typeof value === 'string' && value.length > 150) {
+                  value = value.substring(0, 150);
+                }
+
                 itemData[fieldName] = value;
               }
 

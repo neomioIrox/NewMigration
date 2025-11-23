@@ -13,8 +13,30 @@ Database Migration Helper - An interactive web-based tool for managing and mappi
 npm start
 
 # Server runs on http://localhost:3030
+# Main interface: http://localhost:3030
+# Gallery migration: http://localhost:3030/gallery-migration.html
+```
 
-# Find running process (if needed)
+### Server Management (Windows)
+
+```bash
+# Find running server
+netstat -ano | findstr :3030
+
+# Stop server (replace PID)
+taskkill /PID <PID> /F
+
+# Or use PowerShell
+powershell -Command "Stop-Process -Id <PID> -Force"
+
+# Start in background
+start /B npm start
+```
+
+### Server Management (Linux/Mac)
+
+```bash
+# Find running process
 ps aux | grep "node src/server.js"
 
 # Stop server (replace PID)
@@ -26,21 +48,20 @@ kill <PID>
 ### Core Components
 
 **Backend (src/server.js)**
-- Express server with three main API endpoints:
-  - `/api/analyze/:tableName` - Returns complete analysis of a table including foreign key relationships and mappings
-  - `/api/old-tables` - Lists all tables from old SQL Server schema
-  - `/api/old-table/:tableName` - Returns specific old table structure
+- Express server serving both web UI and REST API
 - SQL parser (`parseSQLFile`) extracts table definitions, columns, and foreign keys using regex
 - CSV parser (`parseMappingFile`) processes migration mappings from Mapping.csv
 - Relationship analyzer (`findRelatedTables`) identifies bidirectional table relationships via foreign keys
+- Migration engine with support for expressions, FK mappings, and localization
+- Winston logger outputs to both console and `logs/migration-logs.log`
 
-**Frontend (public/index.html)**
-- Single-page application with no framework dependencies
-- Three-panel layout:
-  1. Left: New MySQL database structure (Project table + related tables)
-  2. Right: Old SQL Server database explorer with dropdown
-  3. Bottom: Field mapping table from CSV
-- Interactive table exploration with selectable columns
+**Frontend**
+- `public/index.html` - Main project migration interface (single-page app, vanilla JS)
+  - Three-panel layout: New DB structure, Old DB explorer, Field mappings
+  - Interactive table exploration with selectable columns
+- `public/gallery-migration.html` - Gallery migration interface (Hebrew RTL)
+  - Specialized UI for ProductMedia → Media/Gallery migration
+  - Support for both image and video gallery items
 
 ### Project Structure
 
@@ -120,6 +141,84 @@ Key related tables:
 
 Migration order matters: parent tables must be migrated before children due to foreign key constraints.
 
+## Server API Reference
+
+**Schema Analysis:**
+- `GET /api/analyze/:tableName` - Full table analysis with FK relationships and mappings
+- `GET /api/old-tables` - List all source database tables
+- `GET /api/old-table/:tableName` - Get specific source table structure
+
+**Database Configuration:**
+- `POST /api/config/mssql` - Set SQL Server connection config
+- `POST /api/config/mysql` - Set MySQL connection config
+- `GET /api/test-connections` - Test both database connections
+
+**Migration Execution:**
+- `POST /api/migrate` - Execute migration with mapping configuration
+  - Body: `{ tableName, mappings, fkMappings, localizationMappings, projectItemMappings, whereClause }`
+
+## Database Configuration
+
+The server requires connection to both MSSQL (source) and MySQL (target) databases.
+
+**Setup before migration:**
+1. Configure MSSQL: `POST /api/config/mssql` with connection details
+2. Configure MySQL: `POST /api/config/mysql` with connection details
+3. Test connections: `GET /api/test-connections`
+
+**Note:** Connection configs are stored in memory. In production, use environment variables or secure configuration management.
+
+## Running Migrations
+
+**Test Migration (10 rows with rollback):**
+```bash
+node scripts/migration/run-migration-test.js
+```
+
+**Dry Run (simulation only, no database writes):**
+```bash
+node scripts/migration/run-migration.js
+```
+
+**Production Migration (full migration):**
+```bash
+node scripts/migration/run-final-migration.js
+```
+
+**Utility Scripts:**
+```bash
+# Clear all migrated tables
+node scripts/utils/clear-tables.js
+
+# Clear only ProjectItem data
+node scripts/utils/clear-projectitem.js
+
+# List available databases
+node scripts/utils/list-databases.js
+```
+
+**Validation Scripts:**
+```bash
+# Check source data integrity
+node scripts/checks/check-source-data.js
+
+# Validate ProjectItem migration
+node scripts/checks/check-projectitem.js
+```
+
+## Gallery Migration
+
+**Feature:** Specialized interface for migrating ProductMedia gallery items (images and videos).
+
+**Files:**
+- `public/gallery-migration.html` - Hebrew RTL interface for gallery migration
+- `mappings/GalleryMapping_Images.json` - Image gallery field mappings
+- `mappings/GalleryMapping_Videos.json` - Video gallery field mappings
+
+**Access:** http://localhost:3030/gallery-migration.html
+
+**Purpose:** Migrate ProductMedia records from old database to new Media/Gallery structure with support for both image and video types.
+
 ## File Modification Guidelines
 
 **When modifying server.js:**
@@ -158,6 +257,8 @@ Migration order matters: parent tables must be migrated before children due to f
 - **mappings/ProjectMapping.json** - Active mapping configuration (nested structure for CLI)
 - **mappings/ProjectMapping_Funds_Fixed.json** - Funds migration (flat structure for UI)
 - **mappings/ProjectMapping_Collections_Fixed.json** - Collections migration (flat structure for UI)
+- **mappings/GalleryMapping_Images.json** - Image gallery migration mappings
+- **mappings/GalleryMapping_Videos.json** - Video gallery migration mappings
 - **data/fk-mappings/*.json** - Foreign key translation tables
 - **data/Mapping.csv** - Original mapping reference (3,137 lines)
 
@@ -210,12 +311,17 @@ Executes database migrations using JSON mappings against live databases.
 
 **Complete workflow:** `.claude/agents/USAGE_EXAMPLES.md`
 
-## Current State (As of Nov 12, 2025)
+## Current State
+
+**Note:** This status snapshot may be outdated. Check [MIGRATION_STATUS.md](MIGRATION_STATUS.md) for the latest migration results and detailed reports.
+
+**Last Updated:** Nov 12, 2025
 
 **Migration Results:**
 - project: 1,750/1,750 rows (100% ✅)
 - projectLocalization: 5,250/5,250 rows (100% ✅ - NULL title issue fixed)
 - projectItem: 3,500/3,500 items (100% ✅)
 
-**Server:** Running on port 3030
-**Progress:** 127/3,137 CSV lines (4%)
+**Server:** Port 3030
+**Overall Progress:** 127/3,137 CSV mapping lines (4%)
+**Status:** Three core tables successfully migrated with 100% success rate
