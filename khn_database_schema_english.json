@@ -1,0 +1,895 @@
+{
+  "database_name": "KHN (Kupat Ha'ir)",
+  "description": "System for managing donations, projects, funds, and donation workflows for Kupat Ha'ir",
+  "version": "1.0",
+  "tables": {
+    "LutRecordStatus": {
+      "description": "Record Status - General table serving all main tables in DB to store record status",
+      "columns": {
+        "Id": {"type": "int", "identity": true, "primary_key": true, "nullable": false},
+        "Description": {"type": "string", "nullable": false, "description": "Description"},
+        "IsSystemValue": {"type": "boolean", "nullable": true, "description": "Whether this is a system value that cannot be modified or deleted"}
+      },
+      "system_values": ["New", "Accept", "Freezed", "Locked", "Deleted", "Closed"]
+    },
+    "LutLanguage": {
+      "description": "Languages",
+      "columns": {
+        "Id": {"type": "int", "identity": true, "primary_key": true, "nullable": false},
+        "Description": {"type": "string", "nullable": false},
+        "DefaultCurrency": {"type": "int", "nullable": false, "foreign_key": "LutCurrency.Id"},
+        "Domain": {"type": "string(100)", "nullable": false, "description": "Site domain for this language"},
+        "IsSystemValue": {"type": "boolean", "nullable": true}
+      },
+      "system_values": ["Hebrew", "English", "French"]
+    },
+    "LutCurrency": {
+      "description": "Currencies",
+      "columns": {
+        "Id": {"type": "int", "identity": true, "primary_key": true, "nullable": false},
+        "Description": {"type": "string(20)", "nullable": false, "description": "Currency name"},
+        "CurrencyCode": {"type": "string(10)", "nullable": false, "unique": true, "description": "Currency code (ILS/USD/...)"},
+        "IsSystemValue": {"type": "boolean", "nullable": true}
+      },
+      "system_values": ["NIS (ILS)", "Dollar", "Euro", "Pound"]
+    },
+    "CurrencyRate": {
+      "description": "Exchange Rates - Currency exchange rates against Shekel",
+      "columns": {
+        "Id": {"type": "int", "identity": true, "primary_key": true, "nullable": false},
+        "Currency": {"type": "int", "nullable": false, "foreign_key": "LutCurrency.Id", "unique_with": ["RateDate"]},
+        "RateInILS": {"type": "float", "nullable": false, "description": "Currency exchange rate as of date (how many shekels equals one unit of the currency)"},
+        "RateDate": {"type": "DateTime", "nullable": false, "description": "Rate date"}
+      },
+      "notes": "Table will be updated via Job that will iterate over lutcurrency"
+    },
+    "Address": {
+      "description": "Addresses",
+      "columns": {
+        "Id": {"type": "int", "identity": true, "primary_key": true, "nullable": false},
+        "Country": {"type": "int", "nullable": false, "foreign_key": "LutCountry.Id"},
+        "City": {"type": "string(100)", "nullable": false},
+        "Street": {"type": "string(100)", "nullable": true},
+        "Number": {"type": "string(10)", "nullable": true},
+        "Entrance": {"type": "string(10)", "nullable": true},
+        "Floor": {"type": "string(10)", "nullable": true},
+        "ZipCode": {"type": "string(50)", "nullable": true},
+        "Latitude": {"type": "double", "nullable": true},
+        "Longitude": {"type": "double", "nullable": true},
+        "Comments": {"type": "string(1000)", "nullable": true, "description": "Address comments"}
+      }
+    },
+    "LutCountry": {
+      "description": "Countries",
+      "columns": {
+        "Id": {"type": "int", "identity": true, "primary_key": true, "nullable": false},
+        "Description": {"type": "string(100)", "nullable": false, "description": "Country name in Hebrew for reports"}
+      }
+    },
+    "LutEntityType": {
+      "description": "Entity Types in System",
+      "columns": {
+        "Id": {"type": "int", "identity": true, "primary_key": true, "nullable": false},
+        "Description": {"type": "string", "nullable": false},
+        "IsSystemValue": {"type": "boolean", "nullable": true}
+      },
+      "system_values": ["Project", "ProjectItem", "ClothesCollection", "Donation", "Lead", "Banner", "Gallery"]
+    },
+    "Translations": {
+      "description": "Translations - Contains data translations for multiple tables in the system",
+      "columns": {
+        "Id": {"type": "int", "identity": true, "primary_key": true, "nullable": false},
+        "TableName": {"type": "string(50)", "nullable": false, "description": "Table name"},
+        "FieldName": {"type": "string(50)", "nullable": false, "description": "Field name"},
+        "RecordId": {"type": "int", "nullable": false, "description": "Record ID in the mentioned table for which this translation applies"},
+        "Language": {"type": "int", "nullable": false, "foreign_key": "LutLanguage.Id"},
+        "Translation": {"type": "string(max)", "nullable": false, "description": "Translation text"},
+        "CreatedAt": {"type": "DateTime", "nullable": false},
+        "CreatedBy": {"type": "int", "nullable": false, "foreign_key": "User.Id"},
+        "UpdatedAt": {"type": "DateTime", "nullable": false},
+        "UpdatedBy": {"type": "int", "nullable": false, "foreign_key": "User.Id"}
+      },
+      "unique_keys": ["TableName + FieldName + RecordId + LanguageId"],
+      "used_for_tables": ["LutCountry", "Recruiter", "RecruiterGroup", "Branch", "LutFundCategory"]
+    },
+    "CustomerUser": {
+      "description": "Customer Users - Users created through registration via customer website",
+      "columns": {
+        "Id": {"type": "int", "identity": true, "primary_key": true, "nullable": false},
+        "FirstName": {"type": "string(100)", "nullable": false},
+        "LastName": {"type": "string(300)", "nullable": false},
+        "Gender": {"type": "int", "nullable": true, "foreign_key": "LutGender.Id", "description": "Gender (Male/Female)"},
+        "Email": {"type": "string(100)", "nullable": false},
+        "UserName": {"type": "string(40)", "nullable": false, "unique": true},
+        "Password": {"type": "string(200)", "nullable": false},
+        "Phone": {"type": "string(100)", "nullable": true, "description": "Phone"},
+        "IdNumber": {"type": "string(100)", "nullable": true, "description": "ID number"},
+        "IsEmailVerified": {"type": "boolean", "nullable": false},
+        "EmailVerificationToken": {"type": "string(100)", "nullable": true},
+        "EmailVerificationTokenExpiry": {"type": "DateTime", "nullable": true},
+        "RecordStatus": {"type": "int", "nullable": false, "foreign_key": "LutRecordStatus.Id"},
+        "StatusChangedAt": {"type": "DateTime", "nullable": false},
+        "StatusChangedBy": {"type": "int", "nullable": false, "foreign_key": "User.Id"},
+        "CreatedAt": {"type": "DateTime", "nullable": false},
+        "CreatedBy": {"type": "int", "nullable": false, "foreign_key": "User.Id"},
+        "UpdatedAt": {"type": "DateTime", "nullable": false},
+        "UpdatedBy": {"type": "int", "nullable": false, "foreign_key": "User.Id"}
+      }
+    },
+    "CustomerUserCrdt": {
+      "description": "Credit Cards for Customer Users",
+      "columns": {
+        "Id": {"type": "int", "identity": true, "primary_key": true, "nullable": false},
+        "CustomerUserId": {"type": "int", "nullable": false, "foreign_key": "CustomerUser.Id"},
+        "LastDigits": {"type": "string(100)", "nullable": false, "description": "Last 4 digits of card or text received from credit service in France"},
+        "CreditCardType": {"type": "int", "nullable": true, "foreign_key": "LutCreditCardType.Id"},
+        "Token": {"type": "string(1000)", "nullable": false, "description": "Token for executing transactions"},
+        "CreatedAt": {"type": "DateTime", "nullable": false},
+        "CreatedBy": {"type": "int", "nullable": false, "foreign_key": "User.Id"},
+        "UpdatedAt": {"type": "DateTime", "nullable": false},
+        "UpdatedBy": {"type": "int", "nullable": false, "foreign_key": "User.Id"}
+      }
+    },
+    "CustomerAddress": {
+      "description": "Addresses for Customer Users",
+      "columns": {
+        "Id": {"type": "int", "identity": true, "primary_key": true, "nullable": false},
+        "CustomerUserId": {"type": "int", "nullable": false, "foreign_key": "CustomerUser.Id"},
+        "AddressId": {"type": "int", "nullable": false, "foreign_key": "Address.Id"},
+        "IsMainAddress": {"type": "bit", "nullable": false, "description": "Is this the main address"},
+        "CreatedAt": {"type": "DateTime", "nullable": false},
+        "CreatedBy": {"type": "int", "nullable": false, "foreign_key": "User.Id"},
+        "UpdatedAt": {"type": "DateTime", "nullable": false},
+        "UpdatedBy": {"type": "int", "nullable": false, "foreign_key": "User.Id"}
+      }
+    },
+    "CustomerUserPrayName": {
+      "description": "Prayer Names for Customer Users",
+      "columns": {
+        "Id": {"type": "int", "identity": true, "primary_key": true, "nullable": false},
+        "CustomerUserId": {"type": "int", "nullable": false, "foreign_key": "CustomerUser.Id"},
+        "Name": {"type": "string(100)", "nullable": false, "description": "First name"},
+        "Gender": {"type": "int", "nullable": false, "foreign_key": "LutGender.Id"},
+        "ParentName": {"type": "string(100)", "nullable": false, "description": "Mother's name (possibly father's name when referring to soul commemoration)"},
+        "PrayDescription": {"type": "string(max)", "nullable": false, "description": "Prayer request description"},
+        "CreatedAt": {"type": "DateTime", "nullable": false},
+        "CreatedBy": {"type": "int", "nullable": false, "foreign_key": "User.Id"},
+        "UpdatedAt": {"type": "DateTime", "nullable": false},
+        "UpdatedBy": {"type": "int", "nullable": false, "foreign_key": "User.Id"}
+      }
+    },
+    "LutGender": {
+      "description": "Genders",
+      "columns": {
+        "Id": {"type": "int", "identity": true, "primary_key": true, "nullable": false},
+        "Description": {"type": "string", "nullable": false},
+        "IsSystemValue": {"type": "boolean", "nullable": true}
+      },
+      "system_values": ["Male", "Female"]
+    },
+    "LutCreditCardType": {
+      "description": "Credit Card Types",
+      "columns": {
+        "Id": {"type": "int", "identity": true, "primary_key": true, "nullable": false},
+        "Description": {"type": "string", "nullable": false},
+        "IsSystemValue": {"type": "boolean", "nullable": true}
+      },
+      "system_values": ["Visa", "Isracard"],
+      "notes": "Table is editable and does not contain system values"
+    },
+    "User": {
+      "description": "System Users - Management users",
+      "columns": {
+        "Id": {"type": "int", "identity": true, "primary_key": true, "nullable": false},
+        "FirstName": {"type": "string(100)", "nullable": false},
+        "LastName": {"type": "string(300)", "nullable": false},
+        "Email": {"type": "string(100)", "nullable": true},
+        "UserName": {"type": "string(20)", "nullable": false, "unique": true},
+        "Password": {"type": "string(200)", "nullable": false},
+        "RoleId": {"type": "int", "nullable": true, "foreign_key": "Role.Id", "description": "Role, link to permission set"},
+        "RecordStatus": {"type": "int", "nullable": false, "foreign_key": "LutRecordStatus.Id"},
+        "StatusChangedAt": {"type": "DateTime", "nullable": false},
+        "StatusChangedBy": {"type": "int", "nullable": false, "foreign_key": "User.Id"},
+        "CreatedAt": {"type": "DateTime", "nullable": false},
+        "CreatedBy": {"type": "int", "nullable": false, "foreign_key": "User.Id"},
+        "UpdatedAt": {"type": "DateTime", "nullable": false},
+        "UpdatedBy": {"type": "int", "nullable": false, "foreign_key": "User.Id"}
+      }
+    },
+    "Role": {
+      "description": "Permission Profiles/Roles",
+      "columns": {
+        "Id": {"type": "int", "identity": true, "primary_key": true, "nullable": false},
+        "Description": {"type": "string", "nullable": false},
+        "IsSystemValue": {"type": "boolean", "nullable": true},
+        "RecordStatus": {"type": "int", "nullable": false, "foreign_key": "LutRecordStatus.Id"},
+        "StatusChangedAt": {"type": "DateTime", "nullable": false},
+        "StatusChangedBy": {"type": "int", "nullable": false, "foreign_key": "User.Id"},
+        "CreatedAt": {"type": "DateTime", "nullable": false},
+        "CreatedBy": {"type": "int", "nullable": false, "foreign_key": "User.Id"},
+        "UpdatedAt": {"type": "DateTime", "nullable": false},
+        "UpdatedBy": {"type": "int", "nullable": false, "foreign_key": "User.Id"}
+      },
+      "system_values": ["System Administrator"],
+      "notes": "Permission profile purpose is to collect a set of permissions under a defined group and assign this permission set to system users"
+    },
+    "Permission": {
+      "description": "Permissions",
+      "columns": {
+        "Id": {"type": "int", "identity": true, "primary_key": true, "nullable": false},
+        "PermissionName": {"type": "string(50)", "nullable": false, "unique": true},
+        "PermissionType": {"type": "int", "nullable": false, "foreign_key": "LutPermissionType.Id"},
+        "Description": {"type": "string(100)", "nullable": true}
+      },
+      "notes": "In this table we will store all existing permissions in the system in a flat manner"
+    },
+    "LutPermissionType": {
+      "description": "Permission Types",
+      "columns": {
+        "Id": {"type": "int", "primary_key": true, "nullable": false},
+        "Description": {"type": "string", "nullable": false},
+        "IsSystemValue": {"type": "boolean", "nullable": true}
+      },
+      "system_values": [
+        "Boolean - Yes/No type permission",
+        "Edit - Edit type permission (receives values: edit/readonly/none)"
+      ]
+    },
+    "LutPermissionLevel": {
+      "description": "Permission Level",
+      "columns": {
+        "Id": {"type": "int", "primary_key": true, "nullable": false},
+        "Description": {"type": "string", "nullable": false},
+        "IsSystemValue": {"type": "boolean", "nullable": true}
+      },
+      "system_values": ["Edit", "ReadOnly", "None", "Allowed"]
+    },
+    "RolePermission": {
+      "description": "Permissions for Profile",
+      "columns": {
+        "Id": {"type": "int", "identity": true, "primary_key": true, "nullable": false},
+        "RoleId": {"type": "int", "nullable": false, "foreign_key": "Role.Id"},
+        "PermissionId": {"type": "int", "nullable": false, "foreign_key": "Permission.Id"},
+        "Level": {"type": "int", "nullable": true, "foreign_key": "LutPermissionLevel.Id"},
+        "CreatedAt": {"type": "DateTime", "nullable": false},
+        "CreatedBy": {"type": "int", "nullable": false, "foreign_key": "User.Id"},
+        "UpdatedAt": {"type": "DateTime", "nullable": false},
+        "UpdatedBy": {"type": "int", "nullable": false, "foreign_key": "User.Id"}
+      }
+    },
+    "Project": {
+      "description": "Project",
+      "columns": {
+        "Id": {"type": "int", "identity": true, "primary_key": true, "nullable": false},
+        "Name": {"type": "string(150)", "nullable": false, "description": "Project name in Hebrew (for use in reports and understanding table content)"},
+        "ProjectType": {"type": "int", "nullable": false, "foreign_key": "LutProjectType.Id"},
+        "KupatFundNo": {"type": "int", "nullable": true, "description": "Fund number in Kupat Ha'ir"},
+        "TerminalId": {"type": "int", "nullable": false, "foreign_key": "Terminal.Id"},
+        "DisplayAsSelfView": {"type": "bit", "nullable": true, "description": "Whether the project (and items under it) will be displayed on the site as a standalone view without Kupat Ha'ir elements"},
+        "MainMedia": {"type": "int", "nullable": true, "description": "Link to main image or video for display on project page"},
+        "ImageForListsView": {"type": "int", "nullable": true, "description": "Link to image for display in lists (news/donated/help funds)"},
+        "DisplayItemsInProjectPage": {"type": "bit", "nullable": true, "description": "Whether to display project items at bottom of project page"},
+        "RecordStatus": {"type": "int", "nullable": false, "foreign_key": "LutRecordStatus.Id"},
+        "StatusChangedAt": {"type": "DateTime", "nullable": false},
+        "StatusChangedBy": {"type": "int", "nullable": false, "foreign_key": "User.Id"},
+        "CreatedAt": {"type": "DateTime", "nullable": false},
+        "CreatedBy": {"type": "int", "nullable": false, "foreign_key": "User.Id"},
+        "UpdatedAt": {"type": "DateTime", "nullable": false},
+        "UpdatedBy": {"type": "int", "nullable": false, "foreign_key": "User.Id"}
+      }
+    },
+    "LutProjectType": {
+      "description": "Project Types",
+      "columns": {
+        "Id": {"type": "int", "identity": true, "primary_key": true, "nullable": false},
+        "Description": {"type": "string", "nullable": false},
+        "IsSystemValue": {"type": "boolean", "nullable": true}
+      },
+      "system_values": ["Fund", "Collection", "Campaign", "Hamol"]
+    },
+    "ProjectLocalization": {
+      "description": "Language Values for Project",
+      "columns": {
+        "Id": {"type": "int", "identity": true, "primary_key": true, "nullable": false},
+        "ProjectId": {"type": "int", "nullable": false, "foreign_key": "Project.Id", "unique_with": ["Language"]},
+        "Language": {"type": "int", "nullable": false, "foreign_key": "LutLanguage.Id"},
+        "DisplayInSite": {"type": "bit", "nullable": false},
+        "Title": {"type": "string(150)", "nullable": false},
+        "Description": {"type": "string(max)", "nullable": true},
+        "RecruitmentTarget": {"type": "int", "nullable": true},
+        "CreditCardTerminalId": {"type": "int", "nullable": true, "foreign_key": "Terminal.Id"},
+        "ContentID": {"type": "int", "nullable": true, "foreign_key": "EntityContent.Id"},
+        "MainMedia": {"type": "int", "nullable": true, "foreign_key": "Media.Id"},
+        "ImageForListsView": {"type": "int", "nullable": true, "foreign_key": "Media.Id"},
+        "HideDonationsInSite": {"type": "boolean", "nullable": true},
+        "OrderInProjectsPageView": {"type": "int", "nullable": true},
+        "OrderInListView": {"type": "int", "nullable": true},
+        "LinkSettingIdInListView": {"type": "int", "nullable": true, "foreign_key": "LinkSetting.Id"},
+        "LinkSettingIdInButtonListView": {"type": "int", "nullable": true, "foreign_key": "LinkSetting.Id"},
+        "OrderInNewsView": {"type": "int", "nullable": true},
+        "NewsViewLinkSettingId": {"type": "int", "nullable": true, "foreign_key": "LinkSetting.Id"},
+        "MainLinkButtonSettingId": {"type": "int", "nullable": true, "foreign_key": "LinkSetting.Id"},
+        "RecordStatus": {"type": "int", "nullable": false, "foreign_key": "LutRecordStatus.Id"},
+        "StatusChangedAt": {"type": "DateTime", "nullable": false},
+        "StatusChangedBy": {"type": "int", "nullable": false, "foreign_key": "User.Id"},
+        "CreatedAt": {"type": "DateTime", "nullable": false},
+        "CreatedBy": {"type": "int", "nullable": false, "foreign_key": "User.Id"},
+        "UpdatedAt": {"type": "DateTime", "nullable": false},
+        "UpdatedBy": {"type": "int", "nullable": false, "foreign_key": "User.Id"}
+      }
+    },
+    "ProjectTerminal": {
+      "description": "Terminals for Projects",
+      "columns": {
+        "Id": {"type": "int", "identity": true, "primary_key": true, "nullable": false},
+        "ProjectId": {"type": "int", "nullable": false, "foreign_key": "Project.Id"},
+        "AreaId": {"type": "int", "nullable": false, "foreign_key": "LutClearingArea.Id"},
+        "TerminalId": {"type": "int", "nullable": false, "foreign_key": "Terminal.Id"},
+        "CreatedAt": {"type": "DateTime", "nullable": false},
+        "CreatedBy": {"type": "int", "nullable": false, "foreign_key": "User.Id"},
+        "UpdatedAt": {"type": "DateTime", "nullable": false},
+        "UpdatedBy": {"type": "int", "nullable": false, "foreign_key": "User.Id"}
+      }
+    },
+    "ProjectItem": {
+      "description": "Items in Project",
+      "columns": {
+        "Id": {"type": "int", "identity": true, "primary_key": true, "nullable": false},
+        "ProjectId": {"type": "int", "nullable": false, "foreign_key": "Project.Id"},
+        "ItemName": {"type": "string(150)", "nullable": false, "description": "Item name in Hebrew (for reports)"},
+        "ItemType": {"type": "int", "nullable": false, "foreign_key": "LutProjectItemType.Id"},
+        "PriceType": {"type": "int", "nullable": false, "foreign_key": "LutPriceType.Id"},
+        "KupatFundNo": {"type": "int", "nullable": true},
+        "HasEngravingName": {"type": "bit", "nullable": false},
+        "AllowFreeAddPrayerNames": {"type": "bit", "nullable": false},
+        "AllowAddDedication": {"type": "bit", "nullable": true},
+        "DeliveryMethod": {"type": "int", "nullable": true, "foreign_key": "LutDeliveryMethod.Id"},
+        "AllowSelfPickup": {"type": "bit", "nullable": true},
+        "MainMedia": {"type": "int", "nullable": true, "foreign_key": "Media.Id"},
+        "ImageForListsView": {"type": "int", "nullable": true, "foreign_key": "Media.Id"},
+        "MediaForExecutePage": {"type": "int", "nullable": true, "foreign_key": "Media.Id"},
+        "MobileMediaForExecutePage": {"type": "int", "nullable": true, "foreign_key": "Media.Id"},
+        "RecordStatus": {"type": "int", "nullable": false, "foreign_key": "LutRecordStatus.Id"},
+        "StatusChangedAt": {"type": "DateTime", "nullable": false},
+        "StatusChangedBy": {"type": "int", "nullable": false, "foreign_key": "User.Id"},
+        "CreatedAt": {"type": "DateTime", "nullable": false},
+        "CreatedBy": {"type": "int", "nullable": false, "foreign_key": "User.Id"},
+        "UpdatedAt": {"type": "DateTime", "nullable": false},
+        "UpdatedBy": {"type": "int", "nullable": false, "foreign_key": "User.Id"}
+      }
+    },
+    "LutProjectItemType": {
+      "description": "Project Item Types",
+      "columns": {
+        "Id": {"type": "int", "identity": true, "primary_key": true, "nullable": false},
+        "Description": {"type": "string", "nullable": false},
+        "IsSystemValue": {"type": "boolean", "nullable": true}
+      },
+      "system_values": ["Charm", "Certificate", "PrayerName", "Donation", "FundDonation", "SubFundDonation", "Lead"]
+    },
+    "LutPriceType": {
+      "description": "Price Types",
+      "columns": {
+        "Id": {"type": "int", "identity": true, "primary_key": true, "nullable": false},
+        "Description": {"type": "string", "nullable": false},
+        "IsSystemValue": {"type": "boolean", "nullable": true}
+      },
+      "system_values": ["Closed", "Free", "None"]
+    },
+    "LutDeliveryMethod": {
+      "description": "Delivery Methods",
+      "columns": {
+        "Id": {"type": "int", "identity": true, "primary_key": true, "nullable": false},
+        "Description": {"type": "string", "nullable": false},
+        "IsSystemValue": {"type": "boolean", "nullable": true}
+      },
+      "system_values": ["Post", "Email", "Pickup"]
+    },
+    "LutPaymentType": {
+      "description": "Payment Types",
+      "columns": {
+        "Id": {"type": "int", "identity": true, "primary_key": true, "nullable": false},
+        "Description": {"type": "string", "nullable": false},
+        "IsSystemValue": {"type": "boolean", "nullable": true}
+      },
+      "system_values": ["Fixed", "OneTime"]
+    },
+    "ProjectItemLocalization": {
+      "description": "Language Values for Project Items",
+      "columns": {
+        "Id": {"type": "int", "identity": true, "primary_key": true, "nullable": false},
+        "ItemId": {"type": "int", "nullable": false, "foreign_key": "ProjectItem.Id", "unique_with": ["Language"]},
+        "Language": {"type": "int", "nullable": false, "foreign_key": "LutLanguage.Id"},
+        "DisplayInSite": {"type": "bit", "nullable": false},
+        "Title": {"type": "string(150)", "nullable": true},
+        "TitleForExecutePage": {"type": "string(150)", "nullable": true},
+        "Description": {"type": "string(2000)", "nullable": true},
+        "MainMedia": {"type": "int", "nullable": true, "foreign_key": "Media.Id"},
+        "ImageForListsView": {"type": "int", "nullable": true, "foreign_key": "Media.Id"},
+        "MediaForExecutePage": {"type": "int", "nullable": true, "foreign_key": "Media.Id"},
+        "MobileMediaForExecutePage": {"type": "int", "nullable": true, "foreign_key": "Media.Id"},
+        "ContentID": {"type": "int", "nullable": true, "foreign_key": "EntityContent.Id"},
+        "PaymentSum": {"type": "int", "nullable": true},
+        "DefaultPaymentType": {"type": "int", "nullable": true, "foreign_key": "LutPaymentType.Id"},
+        "DefaultPaymentsCount": {"type": "int", "nullable": true},
+        "MaxPaymentsCount": {"type": "int", "nullable": true},
+        "MinPaymentSum": {"type": "int", "nullable": true},
+        "LowPriceWarningMessage": {"type": "string(200)", "nullable": true},
+        "NameForReceipt": {"type": "string(150)", "nullable": true},
+        "DynamicFieldLabel": {"type": "string(100)", "nullable": true},
+        "OrderInListView": {"type": "int", "nullable": true},
+        "OrderInItemsPageView": {"type": "int", "nullable": true, "foreign_key": "LutListViewOrder.Id"},
+        "ItemsViewLinkSettingId": {"type": "int", "nullable": true, "foreign_key": "LinkSetting.Id"},
+        "MainButtonLinkSettingId": {"type": "int", "nullable": true, "foreign_key": "LinkSetting.Id"},
+        "OrderInProjectPageFooter": {"type": "int", "nullable": true},
+        "ProjectFooterLinkSettingId": {"type": "int", "nullable": true, "foreign_key": "LinkSetting.Id"},
+        "RecordStatus": {"type": "int", "nullable": false, "foreign_key": "LutRecordStatus.Id"},
+        "StatusChangedAt": {"type": "DateTime", "nullable": false},
+        "StatusChangedBy": {"type": "int", "nullable": false, "foreign_key": "User.Id"},
+        "CreatedAt": {"type": "DateTime", "nullable": false},
+        "CreatedBy": {"type": "int", "nullable": false, "foreign_key": "User.Id"},
+        "UpdatedAt": {"type": "DateTime", "nullable": false},
+        "UpdatedBy": {"type": "int", "nullable": false, "foreign_key": "User.Id"}
+      }
+    },
+    "ProjectItemQuickDonationLocalization": {
+      "description": "Quick Donation Settings for Item in Specific Language",
+      "columns": {
+        "Id": {"type": "int", "identity": true, "primary_key": true, "nullable": false},
+        "ProjectItemLocalizationId": {"type": "int", "nullable": false, "foreign_key": "ProjectItemLocalization.Id"},
+        "PaymentSum": {"type": "int", "nullable": false},
+        "Display": {"type": "bit", "nullable": false, "description": "Whether to display (default yes)"},
+        "CreatedAt": {"type": "DateTime", "nullable": false},
+        "CreatedBy": {"type": "int", "nullable": false, "foreign_key": "User.Id"},
+        "UpdatedAt": {"type": "DateTime", "nullable": false},
+        "UpdatedBy": {"type": "int", "nullable": false, "foreign_key": "User.Id"}
+      }
+    },
+    "LinkSetting": {
+      "description": "Link Settings",
+      "columns": {
+        "Id": {"type": "int", "identity": true, "primary_key": true, "nullable": false},
+        "LinkType": {"type": "int", "nullable": true, "foreign_key": "LutLinkType.Id"},
+        "LinkTargetType": {"type": "bit", "nullable": false, "foreign_key": "LutLinkTargetType.Id"},
+        "ProjectId": {"type": "int", "nullable": false, "foreign_key": "Project.Id"},
+        "ItemId": {"type": "int", "nullable": true, "foreign_key": "ProjectItem.Id"},
+        "LinkText": {"type": "string(200)", "nullable": true},
+        "MediaId": {"type": "int", "nullable": true, "foreign_key": "Media.Id"},
+        "MobileMediaId": {"type": "int", "nullable": true, "foreign_key": "Media.Id"},
+        "Description": {"type": "string(1000)", "nullable": true},
+        "DonationPagePaymentType": {"type": "int", "nullable": true, "foreign_key": "LutPaymentType.Id"},
+        "DonationPagePaymentSum": {"type": "int", "nullable": true},
+        "DonationPagePaymentCount": {"type": "int", "nullable": true},
+        "CreatedAt": {"type": "DateTime", "nullable": false},
+        "CreatedBy": {"type": "int", "nullable": false, "foreign_key": "User.Id"},
+        "UpdatedAt": {"type": "DateTime", "nullable": false},
+        "UpdatedBy": {"type": "int", "nullable": false, "foreign_key": "User.Id"}
+      }
+    },
+    "LutLinkType": {
+      "description": "Link Types",
+      "columns": {
+        "Id": {"type": "int", "identity": true, "primary_key": true, "nullable": false},
+        "Description": {"type": "string", "nullable": false},
+        "IsSystemValue": {"type": "boolean", "nullable": true}
+      },
+      "system_values": ["Button", "Banner", "ListItem"]
+    },
+    "LutLinkTargetType": {
+      "description": "Link Target Types",
+      "columns": {
+        "Id": {"type": "int", "identity": true, "primary_key": true, "nullable": false},
+        "Description": {"type": "string", "nullable": false},
+        "IsSystemValue": {"type": "boolean", "nullable": true}
+      },
+      "system_values": ["ToProjectPage", "ToItemPage", "ToExecutionPage"]
+    },
+    "LutListViewOrder": {
+      "description": "Position in List View Display",
+      "columns": {
+        "Id": {"type": "int", "identity": true, "primary_key": true, "nullable": false},
+        "Description": {"type": "string", "nullable": false},
+        "IsSystemValue": {"type": "boolean", "nullable": true}
+      },
+      "system_values": ["1-10 (30 records for values 1 through 10)", "Middle", "End", "ByProjectId", "None"]
+    },
+    "MoreItemLink": {
+      "description": "List of Additional Items for Display on Entity Page",
+      "columns": {
+        "Id": {"type": "int", "identity": true, "primary_key": true, "nullable": false},
+        "EntityType": {"type": "int", "nullable": true, "foreign_key": "LutEntityType.Id"},
+        "EntityId": {"type": "int", "nullable": true},
+        "Language": {"type": "int", "nullable": true, "foreign_key": "LutLanguage.Id"},
+        "ListType": {"type": "int", "nullable": false, "foreign_key": "LutListType.Id"},
+        "ProjectId": {"type": "int", "nullable": false, "foreign_key": "Project.Id"},
+        "ProjectItemId": {"type": "int", "nullable": true, "foreign_key": "ProjectItem.Id"},
+        "LinkSettingId": {"type": "int", "nullable": false, "foreign_key": "LinkSetting.Id"},
+        "DonateLinkSettingId": {"type": "int", "nullable": true, "foreign_key": "LinkSetting.Id"},
+        "DonateParamsSameToLinkSettingsParams": {"type": "bool", "nullable": false},
+        "Order": {"type": "int", "nullable": false},
+        "RecordStatus": {"type": "int", "nullable": false, "foreign_key": "LutRecordStatus.Id"},
+        "StatusChangedAt": {"type": "DateTime", "nullable": false},
+        "StatusChangedBy": {"type": "int", "nullable": false, "foreign_key": "User.Id"},
+        "CreatedAt": {"type": "DateTime", "nullable": false},
+        "CreatedBy": {"type": "int", "nullable": false, "foreign_key": "User.Id"},
+        "UpdatedAt": {"type": "DateTime", "nullable": false},
+        "UpdatedBy": {"type": "int", "nullable": false, "foreign_key": "User.Id"}
+      }
+    },
+    "LutListType": {
+      "description": "List Types in System",
+      "columns": {
+        "Id": {"type": "int", "identity": true, "primary_key": true, "nullable": false},
+        "Description": {"type": "string", "nullable": false},
+        "IsSystemValue": {"type": "boolean", "nullable": true}
+      },
+      "system_values": ["EntityPageMoreHotList", "DonationEndMoreHotList", "None"]
+    },
+    "LutAppLocationType": {
+      "description": "Location Type in System",
+      "columns": {
+        "Id": {"type": "int", "identity": true, "primary_key": true, "nullable": false},
+        "Description": {"type": "string", "nullable": false},
+        "IsSystemValue": {"type": "boolean", "nullable": true}
+      },
+      "system_values": ["EntityPageList", "ShortList", "All"]
+    },
+    "EntityListViewOrderConfig": {
+      "description": "Config for Position Values/Maximum for LutListViewOrder Fields in System",
+      "columns": {
+        "Id": {"type": "int", "identity": true, "primary_key": true, "nullable": false},
+        "EntityType": {"type": "int", "nullable": false, "foreign_key": "LutEntityType.Id"},
+        "AppLocationType": {"type": "int", "nullable": false, "foreign_key": "LutAppLocationType.Id"},
+        "MaxOrderNum": {"type": "int", "nullable": false, "foreign_key": "LutListViewOrder.Id"},
+        "AllowNumbersOnly": {"type": "bit", "nullable": false},
+        "CreatedAt": {"type": "DateTime", "nullable": false},
+        "CreatedBy": {"type": "int", "nullable": false, "foreign_key": "User.Id"},
+        "UpdatedAt": {"type": "DateTime", "nullable": false},
+        "UpdatedBy": {"type": "int", "nullable": false, "foreign_key": "User.Id"}
+      },
+      "unique_keys": ["TableName + FieldName + AppLocationType"]
+    },
+    "EntityMoreDisplayLocation": {
+      "description": "Additional Locations for Entity Display in System",
+      "columns": {
+        "Id": {"type": "int", "identity": true, "primary_key": true, "nullable": false},
+        "SourceEntityType": {"type": "int", "nullable": false, "foreign_key": "LutEntityType.Id"},
+        "EntityId": {"type": "int", "nullable": false},
+        "Language": {"type": "int", "nullable": false, "foreign_key": "LutLanguage.Id"},
+        "TargetEntityType": {"type": "int", "nullable": false, "foreign_key": "LutEntityType.Id"},
+        "AppLocationType": {"type": "int", "nullable": false, "foreign_key": "LutAppLocationType.Id"},
+        "Order": {"type": "int", "nullable": true, "foreign_key": "LutListViewOrder.Id"},
+        "LinkSettings": {"type": "int", "nullable": true, "foreign_key": "LinkSetting.Id"},
+        "RecordStatus": {"type": "int", "nullable": false, "foreign_key": "LutRecordStatus.Id"},
+        "StatusChangedAt": {"type": "DateTime", "nullable": false},
+        "StatusChangedBy": {"type": "int", "nullable": false, "foreign_key": "User.Id"},
+        "CreatedAt": {"type": "DateTime", "nullable": false},
+        "CreatedBy": {"type": "int", "nullable": false, "foreign_key": "User.Id"},
+        "UpdatedAt": {"type": "DateTime", "nullable": false},
+        "UpdatedBy": {"type": "int", "nullable": false, "foreign_key": "User.Id"}
+      }
+    },
+    "EntityMedia": {
+      "description": "Media List for Entity",
+      "columns": {
+        "Id": {"type": "int", "identity": true, "primary_key": true, "nullable": false},
+        "EntityType": {"type": "int", "nullable": false, "foreign_key": "LutEntityType.Id"},
+        "EntityId": {"type": "int", "nullable": false},
+        "Language": {"type": "int", "nullable": false, "foreign_key": "LutLanguage.Id"},
+        "MediaId": {"type": "int", "nullable": false, "foreign_key": "Media.Id"},
+        "CreatedAt": {"type": "DateTime", "nullable": false},
+        "CreatedBy": {"type": "int", "nullable": false, "foreign_key": "User.Id"},
+        "UpdatedAt": {"type": "DateTime", "nullable": false},
+        "UpdatedBy": {"type": "int", "nullable": false, "foreign_key": "User.Id"}
+      }
+    },
+    "Media": {
+      "description": "Images and Videos",
+      "columns": {
+        "Id": {"type": "int", "identity": true, "primary_key": true, "nullable": false},
+        "YearDirectory": {"type": "string(100)", "nullable": false, "description": "Directory name by year"},
+        "MonthDirectory": {"type": "string(100)", "nullable": false, "description": "Directory name by month"},
+        "RelativePath": {"type": "string(500)", "nullable": false, "description": "Relative path of media file"},
+        "SourceType": {"type": "int", "nullable": false, "foreign_key": "LutMediaSourceType.Id"},
+        "MediaType": {"type": "int", "nullable": false, "foreign_key": "LutMediaType.Id"},
+        "FriendlyName": {"type": "string(100)", "nullable": true, "description": "Display name"},
+        "MatchToPlatform": {"type": "int", "nullable": false, "foreign_key": "LutPlatformType.Id"},
+        "RecordStatus": {"type": "int", "nullable": false, "foreign_key": "LutRecordStatus.Id"},
+        "StatusChangedAt": {"type": "DateTime", "nullable": false},
+        "StatusChangedBy": {"type": "int", "nullable": false, "foreign_key": "User.Id"},
+        "CreatedAt": {"type": "DateTime", "nullable": false},
+        "CreatedBy": {"type": "int", "nullable": false, "foreign_key": "User.Id"},
+        "UpdatedAt": {"type": "DateTime", "nullable": false},
+        "UpdatedBy": {"type": "int", "nullable": false, "foreign_key": "User.Id"}
+      }
+    },
+    "LutMediaType": {
+      "description": "Media File Types",
+      "columns": {
+        "Id": {"type": "int", "identity": true, "primary_key": true, "nullable": false},
+        "Description": {"type": "string", "nullable": false},
+        "IsSystemValue": {"type": "boolean", "nullable": true}
+      },
+      "system_values": ["Image", "Video"]
+    },
+    "LutMediaSourceType": {
+      "description": "Source Types for Media Files",
+      "columns": {
+        "Id": {"type": "int", "identity": true, "primary_key": true, "nullable": false},
+        "Description": {"type": "string", "nullable": false},
+        "IsSystemValue": {"type": "boolean", "nullable": true}
+      },
+      "system_values": ["Youtube", "S3"]
+    },
+    "LutPlatformType": {
+      "description": "Platform Types",
+      "columns": {
+        "Id": {"type": "int", "identity": true, "primary_key": true, "nullable": false},
+        "Description": {"type": "string", "nullable": false},
+        "IsSystemValue": {"type": "boolean", "nullable": true}
+      },
+      "system_values": ["Desktop", "Mobile", "All"]
+    },
+    "Banner": {
+      "description": "Banners",
+      "columns": {
+        "Id": {"type": "int", "identity": true, "primary_key": true, "nullable": false},
+        "Name": {"type": "string(200)", "nullable": false, "description": "Banner name for display in management system only"},
+        "Order": {"type": "int", "nullable": true},
+        "LinkSettingId": {"type": "int", "nullable": false, "foreign_key": "LinkSetting.Id"},
+        "BelongToEntityType": {"type": "int", "nullable": false, "foreign_key": "LutEntityType.Id"},
+        "EntityId": {"type": "int", "nullable": false},
+        "RecordStatus": {"type": "int", "nullable": false, "foreign_key": "LutRecordStatus.Id"},
+        "StatusChangedAt": {"type": "DateTime", "nullable": false},
+        "StatusChangedBy": {"type": "int", "nullable": false, "foreign_key": "User.Id"},
+        "CreatedAt": {"type": "DateTime", "nullable": false},
+        "CreatedBy": {"type": "int", "nullable": false, "foreign_key": "User.Id"},
+        "UpdatedAt": {"type": "DateTime", "nullable": false},
+        "UpdatedBy": {"type": "int", "nullable": false, "foreign_key": "User.Id"}
+      }
+    },
+    "BannerLocalization": {
+      "description": "Language Values for Banners",
+      "columns": {
+        "Id": {"type": "int", "identity": true, "primary_key": true, "nullable": false},
+        "BannerId": {"type": "int", "nullable": false, "foreign_key": "Banner.Id"},
+        "Language": {"type": "int", "nullable": false, "foreign_key": "LutLanguage.Id"},
+        "MediaId": {"type": "int", "nullable": false, "foreign_key": "Media.Id"},
+        "MobileMediaId": {"type": "int", "nullable": true, "foreign_key": "Media.Id"},
+        "DisplayInSite": {"type": "bool", "nullable": false},
+        "CreatedAt": {"type": "DateTime", "nullable": false},
+        "CreatedBy": {"type": "int", "nullable": false, "foreign_key": "User.Id"},
+        "UpdatedAt": {"type": "DateTime", "nullable": false},
+        "UpdatedBy": {"type": "int", "nullable": false, "foreign_key": "User.Id"}
+      },
+      "unique_keys": ["BannerId + Language"]
+    },
+    "FundCategory": {
+      "description": "Categories for Funds",
+      "columns": {
+        "Id": {"type": "int", "identity": true, "primary_key": true, "nullable": false},
+        "FundId": {"type": "int", "nullable": false, "foreign_key": "Project.Id", "unique_with": ["CategoryId"]},
+        "CategoryId": {"type": "int", "nullable": false, "foreign_key": "LutFundCategory.Id"},
+        "CreatedAt": {"type": "DateTime", "nullable": false},
+        "CreatedBy": {"type": "int", "nullable": false, "foreign_key": "User.Id"}
+      }
+    },
+    "LutFundCategory": {
+      "description": "Fund Category Names",
+      "columns": {
+        "Id": {"type": "int", "identity": true, "primary_key": true, "nullable": false},
+        "Description": {"type": "string", "nullable": false},
+        "Order": {"type": "int", "nullable": false, "description": "Position in categories list (on funds page)"},
+        "IsSystemValue": {"type": "boolean", "nullable": true}
+      },
+      "system_values": ["General Funds", "Public Sacrifices", "Private Funds", "Orphans Fund", "Orphans Weddings", "Medical Rescue Funds"],
+      "notes": "Translations will be stored in Translations table"
+    },
+    "RecruitersGroup": {
+      "description": "Recruiter Groups",
+      "columns": {
+        "Id": {"type": "int", "identity": true, "primary_key": true, "nullable": false},
+        "Name": {"type": "string(200)", "nullable": false, "description": "Group name in Hebrew - serves for reports only"},
+        "ProjectId": {"type": "int", "nullable": false, "foreign_key": "Project.Id"},
+        "RecordStatus": {"type": "int", "nullable": false, "foreign_key": "LutRecordStatus.Id"},
+        "StatusChangedAt": {"type": "DateTime", "nullable": false},
+        "StatusChangedBy": {"type": "int", "nullable": false, "foreign_key": "User.Id"},
+        "CreatedAt": {"type": "DateTime", "nullable": false},
+        "CreatedBy": {"type": "int", "nullable": false, "foreign_key": "User.Id"},
+        "UpdatedAt": {"type": "DateTime", "nullable": false},
+        "UpdatedBy": {"type": "int", "nullable": false, "foreign_key": "User.Id"}
+      },
+      "notes": "Translations for group names will be stored in Translations table"
+    },
+    "RecruitersGroupLanguage": {
+      "description": "Language Values for Recruiter Groups",
+      "columns": {
+        "Id": {"type": "int", "identity": true, "primary_key": true, "nullable": false},
+        "RecruiterGroupId": {"type": "int", "nullable": false, "foreign_key": "RecruitersGroup.Id"},
+        "LanguageId": {"type": "int", "nullable": false, "foreign_key": "LutLanguage.Id"},
+        "Name": {"type": "string(200)", "nullable": true, "description": "Group name in current language"},
+        "Description": {"type": "string(500)", "nullable": true, "description": "Description for group that will appear in this language"},
+        "DisplayInSite": {"type": "bit", "nullable": false},
+        "RecordStatus": {"type": "int", "nullable": false, "foreign_key": "LutRecordStatus.Id"},
+        "StatusChangedAt": {"type": "DateTime", "nullable": false},
+        "StatusChangedBy": {"type": "int", "nullable": false, "foreign_key": "User.Id"},
+        "CreatedAt": {"type": "DateTime", "nullable": false},
+        "CreatedBy": {"type": "int", "nullable": false, "foreign_key": "User.Id"},
+        "UpdatedAt": {"type": "DateTime", "nullable": false},
+        "UpdatedBy": {"type": "int", "nullable": false, "foreign_key": "User.Id"}
+      }
+    },
+    "Recruiter": {
+      "description": "Recruiters",
+      "columns": {
+        "Id": {"type": "int", "identity": true, "primary_key": true, "nullable": false},
+        "Name": {"type": "string(200)", "nullable": false, "description": "Recruiter name in Hebrew - serves for reports only"},
+        "ProjectId": {"type": "int", "nullable": true, "foreign_key": "Project.Id"},
+        "RecruiterGroupId": {"type": "int", "nullable": true, "foreign_key": "RecruitersGroup.Id"},
+        "Phone": {"type": "string(15)", "nullable": true, "description": "Recruiter's phone number"},
+        "Email": {"type": "string(100)", "nullable": true, "description": "Recruiter's email address"},
+        "RecruitmentTarget": {"type": "int", "nullable": true, "description": "Recruitment target"},
+        "RecordStatus": {"type": "int", "nullable": false, "foreign_key": "LutRecordStatus.Id"},
+        "StatusChangedAt": {"type": "DateTime", "nullable": false},
+        "StatusChangedBy": {"type": "int", "nullable": false, "foreign_key": "User.Id"},
+        "CreatedAt": {"type": "DateTime", "nullable": false},
+        "CreatedBy": {"type": "int", "nullable": false, "foreign_key": "User.Id"},
+        "UpdatedAt": {"type": "DateTime", "nullable": false},
+        "UpdatedBy": {"type": "int", "nullable": false, "foreign_key": "User.Id"}
+      },
+      "notes": "Translations for recruiter names will be stored in Translations table"
+    },
+    "RecruiterLocalization": {
+      "description": "Language Values for Recruiters",
+      "columns": {
+        "Id": {"type": "int", "identity": true, "primary_key": true, "nullable": false},
+        "RecruiterId": {"type": "int", "nullable": false, "foreign_key": "Recruiter.Id"},
+        "LanguageId": {"type": "int", "nullable": false, "foreign_key": "LutLanguage.Id"},
+        "Name": {"type": "string(200)", "nullable": true, "description": "Recruiter name in current language"},
+        "Description": {"type": "string(200)", "nullable": true, "description": "Description text for current language"},
+        "DisplayInSite": {"type": "bit", "nullable": false},
+        "CreatedAt": {"type": "DateTime", "nullable": false},
+        "CreatedBy": {"type": "int", "nullable": false, "foreign_key": "User.Id"},
+        "UpdatedAt": {"type": "DateTime", "nullable": false},
+        "UpdatedBy": {"type": "int", "nullable": false, "foreign_key": "User.Id"}
+      }
+    },
+    "EntityTag": {
+      "description": "Tags for Entities",
+      "columns": {
+        "Id": {"type": "int", "identity": true, "primary_key": true, "nullable": false},
+        "EntityType": {"type": "int", "nullable": false, "foreign_key": "LutEntityType.Id"},
+        "EntityId": {"type": "int", "nullable": false},
+        "TagId": {"type": "int", "nullable": false, "foreign_key": "LutTag.Id"},
+        "CreatedAt": {"type": "DateTime", "nullable": false},
+        "CreatedBy": {"type": "int", "nullable": false, "foreign_key": "User.Id"}
+      }
+    },
+    "LutTag": {
+      "description": "Tags for Projects",
+      "columns": {
+        "Id": {"type": "int", "identity": true, "primary_key": true, "nullable": false},
+        "Description": {"type": "string", "nullable": false},
+        "IsSystemValue": {"type": "boolean", "nullable": true}
+      },
+      "examples": ["Kupat Ha'ir", "Projects", "Rosh Chodesh Orphans"],
+      "notes": "Table does not contain system values and is editable by user"
+    },
+    "Terminal": {
+      "description": "Terminals - List of terminals for credit card charging",
+      "columns": {
+        "Id": {"type": "int", "identity": true, "primary_key": true, "nullable": false},
+        "Name": {"type": "string(200)", "nullable": false, "description": "Terminal name in Hebrew (serves for reports)"},
+        "TerminalNum": {"type": "int", "nullable": false, "unique": true, "description": "Terminal number"},
+        "UserName": {"type": "string(500)", "nullable": false, "description": "Encrypted password of user for connecting to terminal"},
+        "RecordStatus": {"type": "int", "nullable": false, "foreign_key": "LutRecordStatus.Id"},
+        "StatusChangedAt": {"type": "DateTime", "nullable": false},
+        "StatusChangedBy": {"type": "int", "nullable": false, "foreign_key": "User.Id"},
+        "CreatedAt": {"type": "DateTime", "nullable": false},
+        "CreatedBy": {"type": "int", "nullable": false, "foreign_key": "User.Id"},
+        "UpdatedAt": {"type": "DateTime", "nullable": false},
+        "UpdatedBy": {"type": "int", "nullable": false, "foreign_key": "User.Id"}
+      },
+      "notes": "Currently we're talking about two terminals: Kupat Ha'ir and Karnot"
+    }
+  },
+  "relationships": {
+    "primary_entities": {
+      "description": "Main business entities",
+      "tables": ["Project", "ProjectItem", "CustomerUser"]
+    },
+    "lookup_tables": {
+      "description": "Reference/lookup tables with predefined values",
+      "tables": [
+        "LutRecordStatus", "LutLanguage", "LutCurrency", "LutCountry", 
+        "LutEntityType", "LutGender", "LutCreditCardType", "LutProjectType", 
+        "LutProjectItemType", "LutPriceType", "LutDeliveryMethod", "LutPaymentType",
+        "LutLinkType", "LutLinkTargetType", "LutListType", "LutAppLocationType",
+        "LutListViewOrder", "LutMediaType", "LutMediaSourceType", "LutPlatformType",
+        "LutPermissionType", "LutPermissionLevel", "LutFundCategory", "LutTag"
+      ]
+    },
+    "localization_tables": {
+      "description": "Tables containing language-specific content",
+      "tables": [
+        "ProjectLocalization", "ProjectItemLocalization", "ProjectItemQuickDonationLocalization",
+        "BannerLocalization", "RecruitersGroupLanguage", "RecruiterLocalization", "Translations"
+      ]
+    },
+    "user_management": {
+      "description": "System user authentication and authorization",
+      "tables": ["User", "Role", "Permission", "RolePermission"]
+    },
+    "customer_management": {
+      "description": "Customer/donor user management",
+      "tables": ["CustomerUser", "CustomerUserCrdt", "CustomerAddress", "CustomerUserPrayName"]
+    },
+    "media_management": {
+      "description": "Media files (images and videos) management",
+      "tables": ["Media", "EntityMedia"]
+    },
+    "configuration": {
+      "description": "System configuration tables",
+      "tables": ["LinkSetting", "Terminal", "CurrencyRate", "EntityListViewOrderConfig", "EntityMoreDisplayLocation"]
+    },
+    "categorization": {
+      "description": "Entity categorization and tagging",
+      "tables": ["FundCategory", "EntityTag"]
+    },
+    "recruitment": {
+      "description": "Fundraising recruiters and groups",
+      "tables": ["Recruiter", "RecruitersGroup", "RecruiterLocalization", "RecruitersGroupLanguage"]
+    }
+  },
+  "key_concepts": {
+    "multi_language_support": {
+      "description": "The system is built dynamically so there is no specific reference to a specific language",
+      "implementation": "Localization tables contain data for each language separately"
+    },
+    "entity_types": {
+      "description": "The system supports multiple entity types managed uniformly",
+      "types": ["Project", "ProjectItem", "ClothesCollection", "Donation", "Lead", "Banner", "Gallery"]
+    },
+    "record_status": {
+      "description": "All main tables use LutRecordStatus to store record status",
+      "statuses": ["New", "Accept", "Freezed", "Locked", "Deleted", "Closed"]
+    },
+    "audit_fields": {
+      "description": "Every main table contains audit tracking fields",
+      "fields": ["RecordStatus", "StatusChangedAt", "StatusChangedBy", "CreatedAt", "CreatedBy", "UpdatedAt", "UpdatedBy"]
+    },
+    "translations": {
+      "description": "Translations table serves to translate fields from various tables",
+      "applicable_tables": ["LutCountry", "Recruiter", "RecruiterGroup", "Branch", "LutFundCategory"]
+    },
+    "project_types": {
+      "description": "Projects can be of different types, each with different behavior in the system",
+      "types": ["Fund", "Collection", "Campaign", "Hamol"]
+    },
+    "item_types": {
+      "description": "Items can be of various types",
+      "types": ["Charm", "Certificate", "PrayerName", "Donation", "FundDonation", "SubFundDonation", "Lead"]
+    },
+    "payment_structure": {
+      "description": "The system supports both recurring and one-time payments",
+      "features": ["Fixed recurring payments", "One-time payments", "Multiple payment installments"]
+    },
+    "media_management": {
+      "description": "Media files are managed centrally with support for different platforms",
+      "platforms": ["Desktop", "Mobile", "All"],
+      "sources": ["Youtube", "S3"]
+    },
+    "link_settings": {
+      "description": "Sophisticated link system allowing configuration of links to projects and items with various parameters",
+      "link_types": ["Button", "Banner", "ListItem"],
+      "target_types": ["ToProjectPage", "ToItemPage", "ToExecutionPage"]
+    }
+  },
+  "design_patterns": {
+    "soft_delete": "Records are marked as deleted rather than physically removed (using RecordStatus)",
+    "audit_trail": "All changes are tracked with timestamps and user information",
+    "multi_tenancy_support": "System supports multiple languages and currencies",
+    "entity_attribute_value": "Flexible tagging and categorization system for entities",
+    "localization_strategy": "Separate localization tables for each main entity type"
+  }
+}

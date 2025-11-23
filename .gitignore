@@ -16,8 +16,12 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.bak
+temp_*.txt
 
 # Generated mapping files
 mapping-reports/
+
+# Local settings
+.claude/settings.local.json
 
 nul

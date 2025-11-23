@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>מיגרציית גלריות - Gallery Migration</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        /* Control Panel */
+        .control-panel {
+            background: #f8f9fa;
+            padding: 25px 30px;
+            border-bottom: 3px solid #e9ecef;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .gallery-type-selector {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .gallery-type-selector label {
+            font-weight: bold;
+            font-size: 1.1em;
+            color: #495057;
+        }
+
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.2);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #218838;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        /* Radio Buttons */
+        input[type="radio"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+
+        .radio-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: white;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .radio-label:hover {
+            border-color: #667eea;
+            background: #f8f9ff;
+        }
+
+        input[type="radio"]:checked + .radio-label {
+            border-color: #667eea;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-weight: bold;
+        }
+
+        /* Stats Panel */
+        .stats-panel {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            padding: 25px 30px;
+            background: #f8f9fa;
+            border-bottom: 2px solid #e9ecef;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .stat-card .label {
+            font-size: 0.9em;
+            color: #6c757d;
+            margin-bottom: 8px;
+        }
+
+        .stat-card .value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        /* Content Area */
+        .content {
+            padding: 30px;
+        }
+
+        .section-title {
+            font-size: 1.5em;
+            color: #495057;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 3px solid #667eea;
+        }
+
+        /* Tables Container */
+        .tables-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .table-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .table-section h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        thead {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        th {
+            padding: 15px;
+            text-align: right;
+            font-weight: bold;
+            font-size: 0.95em;
+        }
+
+        td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #e9ecef;
+            text-align: right;
+        }
+
+        tbody tr:hover {
+            background: #f8f9ff;
+        }
+
+        tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .mapping-arrow {
+            text-align: center !important;
+            font-size: 1.5em;
+            color: #667eea;
+        }
+
+        /* Progress Bar */
+        .progress-section {
+            margin-top: 30px;
+            display: none;
+        }
+
+        .progress-bar-container {
+            width: 100%;
+            height: 40px;
+            background: #e9ecef;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+
+        /* Status Messages */
+        .status-message {
+            margin-top: 20px;
+            padding: 15px 20px;
+            border-radius: 8px;
+            display: none;
+        }
+
+        .status-message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status-message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .status-message.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        /* Loading Spinner */
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #6c757d;
+        }
+
+        .empty-state-icon {
+            font-size: 4em;
+            margin-bottom: 20px;
+            opacity: 0.3;
+        }
+
+        .empty-state-text {
+            font-size: 1.2em;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .tables-container {
+                grid-template-columns: 1fr;
+            }
+
+            .control-panel {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .gallery-type-selector {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🎨 מיגרציית גלריות</h1>
+            <p>Gallery Migration Tool - Images & Videos</p>
+        </div>
+
+        <!-- Control Panel -->
+        <div class="control-panel">
+            <div class="gallery-type-selector">
+                <label>סוג גלריה:</label>
+                <div>
+                    <input type="radio" name="galleryType" id="typeImages" value="images" checked>
+                    <label for="typeImages" class="radio-label">🖼️ תמונות (Images)</label>
+                </div>
+                <div>
+                    <input type="radio" name="galleryType" id="typeVideos" value="videos">
+                    <label for="typeVideos" class="radio-label">🎥 וידאו (Videos)</label>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 15px;">
+                <button class="btn btn-primary" id="loadDataBtn">
+                    📥 טען נתונים
+                </button>
+                <button class="btn btn-success" id="runMigrationBtn" disabled>
+                    🚀 הרץ מיגרציה (Test Mode)
+                </button>
+                <button class="btn btn-secondary" id="resetBtn">
+                    🔄 אפס
+                </button>
+            </div>
+        </div>
+
+        <!-- Stats Panel -->
+        <div class="stats-panel">
+            <div class="stat-card">
+                <div class="label">טבלת מקור</div>
+                <div class="value" id="sourceTable">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">שורות במקור</div>
+                <div class="value" id="sourceRowCount">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">שדות ממופים</div>
+                <div class="value" id="mappedFieldsCount">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">שפות</div>
+                <div class="value">3</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">שורות צפויות</div>
+                <div class="value" id="expectedRows">0</div>
+            </div>
+        </div>
+
+        <!-- Content Area -->
+        <div class="content">
+            <!-- Mapping Preview -->
+            <div class="section-title">📋 תצוגת מיפוי</div>
+
+            <div class="tables-container">
+                <!-- Source Table -->
+                <div class="table-section">
+                    <h3>🗄️ טבלת מקור (Old DB)</h3>
+                    <table id="sourceTable">
+                        <thead>
+                            <tr>
+                                <th>שדה</th>
+                                <th>טיפוס</th>
+                                <th>ערך לדוגמה</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sourceTableBody">
+                            <tr>
+                                <td colspan="3" class="empty-state">
+                                    <div class="empty-state-icon">📂</div>
+                                    <div class="empty-state-text">לחץ "טען נתונים" להתחלה</div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Target Table -->
+                <div class="table-section">
+                    <h3>🎯 טבלת יעד (New DB)</h3>
+                    <table id="targetTable">
+                        <thead>
+                            <tr>
+                                <th>שדה</th>
+                                <th>טיפוס מיפוי</th>
+                                <th>מקור</th>
+                            </tr>
+                        </thead>
+                        <tbody id="targetTableBody">
+                            <tr>
+                                <td colspan="3" class="empty-state">
+                                    <div class="empty-state-icon">🎯</div>
+                                    <div class="empty-state-text">ממתין לנתונים...</div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Localization Preview -->
+            <div class="section-title">🌐 תצוגת לוקליזציה</div>
+            <div class="table-section">
+                <table id="localizationTable">
+                    <thead>
+                        <tr>
+                            <th>שדה</th>
+                            <th>עברית 🇮🇱</th>
+                            <th>אנגלית 🇺🇸</th>
+                            <th>צרפתית 🇫🇷</th>
+                        </tr>
+                    </thead>
+                    <tbody id="localizationTableBody">
+                        <tr>
+                            <td colspan="4" class="empty-state">
+                                <div class="empty-state-icon">🌍</div>
+                                <div class="empty-state-text">ממתין לנתונים...</div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Progress Section -->
+            <div class="progress-section" id="progressSection">
+                <div class="section-title">📊 התקדמות מיגרציה</div>
+                <div class="progress-bar-container">
+                    <div class="progress-bar" id="progressBar">0%</div>
+                </div>
+            </div>
+
+            <!-- Status Messages -->
+            <div class="status-message" id="statusMessage"></div>
+        </div>
+    </div>
+
+    <script>
+        // Global State
+        let currentMapping = null;
+        let currentGalleryType = 'images';
+        let sourceData = null;
+
+        // DOM Elements
+        const galleryTypeInputs = document.querySelectorAll('input[name="galleryType"]');
+        const loadDataBtn = document.getElementById('loadDataBtn');
+        const runMigrationBtn = document.getElementById('runMigrationBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const statusMessage = document.getElementById('statusMessage');
+        const progressSection = document.getElementById('progressSection');
+        const progressBar = document.getElementById('progressBar');
+
+        // Event Listeners
+        galleryTypeInputs.forEach(input => {
+            input.addEventListener('change', (e) => {
+                currentGalleryType = e.target.value;
+                resetUI();
+            });
+        });
+
+        loadDataBtn.addEventListener('click', loadGalleryData);
+        runMigrationBtn.addEventListener('click', runMigration);
+        resetBtn.addEventListener('click', resetUI);
+
+        // Load Gallery Data
+        async function loadGalleryData() {
+            showStatus('info', 'טוען נתונים...');
+            loadDataBtn.disabled = true;
+            loadDataBtn.innerHTML = '<span class="spinner"></span> טוען...';
+
+            try {
+                // Load mapping file
+                const mappingFile = currentGalleryType === 'images'
+                    ? 'GalleryMapping_Images.json'
+                    : 'GalleryMapping_Videos.json';
+
+                // Remove .json extension for API call
+                const mappingName = mappingFile.replace('.json', '');
+                const response = await fetch(`/api/load-mapping/${mappingName}`);
+                if (!response.ok) throw new Error('שגיאה בטעינת קובץ המיפוי');
+
+                const data = await response.json();
+                if (!data.success) throw new Error(data.message);
+
+                currentMapping = data.mapping;
+
+                // Update stats
+                updateStats();
+
+                // Render tables
+                renderSourceTable();
+                renderTargetTable();
+                renderLocalizationTable();
+
+                // Enable migration button
+                runMigrationBtn.disabled = false;
+
+                showStatus('success', `✅ נתונים נטענו בהצלחה עבור ${currentGalleryType === 'images' ? 'תמונות' : 'וידאו'}`);
+
+            } catch (error) {
+                showStatus('error', `❌ שגיאה: ${error.message}`);
+                console.error('Error loading data:', error);
+            } finally {
+                loadDataBtn.disabled = false;
+                loadDataBtn.innerHTML = '📥 טען נתונים';
+            }
+        }
+
+        // Update Stats
+        function updateStats() {
+            if (!currentMapping) return;
+
+            document.getElementById('sourceTable').textContent = currentMapping.sourceTable || '-';
+
+            const mappedFields = Object.keys(currentMapping.columnMappings || {}).length;
+            document.getElementById('mappedFieldsCount').textContent = mappedFields;
+
+            // These would be fetched from actual DB
+            document.getElementById('sourceRowCount').textContent = '?';
+            document.getElementById('expectedRows').textContent = '? × 3';
+        }
+
+        // Render Source Table
+        function renderSourceTable() {
+            const tbody = document.getElementById('sourceTableBody');
+            tbody.innerHTML = '';
+
+            if (!currentMapping || !currentMapping.columnMappings) {
+                tbody.innerHTML = '<tr><td colspan="3">אין נתונים</td></tr>';
+                return;
+            }
+
+            // Extract unique source columns
+            const sourceColumns = new Set();
+            Object.values(currentMapping.columnMappings).forEach(mapping => {
+                if (mapping.oldColumn) {
+                    sourceColumns.add({
+                        column: mapping.oldColumn,
+                        table: mapping.oldTable || currentMapping.sourceTable
+                    });
+                }
+            });
+
+            // Add localization columns
+            if (currentMapping.localizationMappings) {
+                Object.values(currentMapping.localizationMappings).forEach(langMapping => {
+                    Object.values(langMapping.mappings || {}).forEach(mapping => {
+                        if (mapping.oldColumn) {
+                            sourceColumns.add({
+                                column: mapping.oldColumn,
+                                table: mapping.oldTable || currentMapping.sourceTable
+                            });
+                        }
+                    });
+                });
+            }
+
+            const uniqueColumns = Array.from(sourceColumns).reduce((acc, item) => {
+                if (!acc.find(x => x.column === item.column)) {
+                    acc.push(item);
+                }
+                return acc;
+            }, []);
+
+            uniqueColumns.forEach(col => {
+                const row = `
+                    <tr>
+                        <td><strong>${col.column}</strong></td>
+                        <td>-</td>
+                        <td style="color: #6c757d; font-style: italic;">מחכה לנתוני DB</td>
+                    </tr>
+                `;
+                tbody.innerHTML += row;
+            });
+        }
+
+        // Render Target Table
+        function renderTargetTable() {
+            const tbody = document.getElementById('targetTableBody');
+            tbody.innerHTML = '';
+
+            if (!currentMapping || !currentMapping.columnMappings) {
+                tbody.innerHTML = '<tr><td colspan="3">אין נתונים</td></tr>';
+                return;
+            }
+
+            Object.entries(currentMapping.columnMappings).forEach(([targetCol, mapping]) => {
+                const convertType = mapping.convertType || 'unknown';
+                let source = '-';
+
+                switch(convertType) {
+                    case 'direct':
+                        source = `${mapping.oldTable || ''}.${mapping.oldColumn || ''}`;
+                        break;
+                    case 'const':
+                        source = `קבוע: ${mapping.constValue}`;
+                        break;
+                    case 'expression':
+                        source = `ביטוי: ${mapping.expression || ''}`;
+                        break;
+                    case 'FK':
+                        source = `FK: ${mapping.fkTable || ''}`;
+                        break;
+                }
+
+                const row = `
+                    <tr>
+                        <td><strong>${targetCol}</strong></td>
+                        <td><span style="background: #667eea; color: white; padding: 4px 12px; border-radius: 4px; font-size: 0.85em;">${convertType}</span></td>
+                        <td style="font-size: 0.9em;">${source}</td>
+                    </tr>
+                `;
+                tbody.innerHTML += row;
+            });
+        }
+
+        // Render Localization Table
+        function renderLocalizationTable() {
+            const tbody = document.getElementById('localizationTableBody');
+            tbody.innerHTML = '';
+
+            if (!currentMapping || !currentMapping.localizationMappings) {
+                tbody.innerHTML = '<tr><td colspan="4">אין נתונים</td></tr>';
+                return;
+            }
+
+            const hebrew = currentMapping.localizationMappings.hebrew?.mappings || {};
+            const english = currentMapping.localizationMappings.english?.mappings || {};
+            const french = currentMapping.localizationMappings.french?.mappings || {};
+
+            const allFields = new Set([
+                ...Object.keys(hebrew),
+                ...Object.keys(english),
+                ...Object.keys(french)
+            ]);
+
+            allFields.forEach(field => {
+                const heSource = hebrew[field]?.oldColumn || hebrew[field]?.expression || '-';
+                const enSource = english[field]?.oldColumn || english[field]?.expression || '-';
+                const frSource = french[field]?.oldColumn || french[field]?.expression || '-';
+
+                const row = `
+                    <tr>
+                        <td><strong>${field}</strong></td>
+                        <td>${heSource}</td>
+                        <td>${enSource}</td>
+                        <td>${frSource}</td>
+                    </tr>
+                `;
+                tbody.innerHTML += row;
+            });
+        }
+
+        // Run Migration (Placeholder)
+        async function runMigration() {
+            showStatus('info', '⚠️ פונקציונליות זו תיכנס לפעולה בשלב הבא. כרגע - רק תצוגה!');
+
+            // Simulate progress
+            progressSection.style.display = 'block';
+            let progress = 0;
+            const interval = setInterval(() => {
+                progress += 10;
+                progressBar.style.width = progress + '%';
+                progressBar.textContent = progress + '%';
+
+                if (progress >= 100) {
+                    clearInterval(interval);
+                    showStatus('success', '✅ מיגרציה הושלמה בהצלחה! (סימולציה בלבד)');
+                }
+            }, 200);
+        }
+
+        // Reset UI
+        function resetUI() {
+            currentMapping = null;
+            sourceData = null;
+
+            document.getElementById('sourceTableBody').innerHTML = `
+                <tr>
+                    <td colspan="3" class="empty-state">
+                        <div class="empty-state-icon">📂</div>
+                        <div class="empty-state-text">לחץ "טען נתונים" להתחלה</div>
+                    </td>
+                </tr>
+            `;
+
+            document.getElementById('targetTableBody').innerHTML = `
+                <tr>
+                    <td colspan="3" class="empty-state">
+                        <div class="empty-state-icon">🎯</div>
+                        <div class="empty-state-text">ממתין לנתונים...</div>
+                    </td>
+                </tr>
+            `;
+
+            document.getElementById('localizationTableBody').innerHTML = `
+                <tr>
+                    <td colspan="4" class="empty-state">
+                        <div class="empty-state-icon">🌍</div>
+                        <div class="empty-state-text">ממתין לנתונים...</div>
+                    </td>
+                </tr>
+            `;
+
+            document.getElementById('sourceTable').textContent = '-';
+            document.getElementById('sourceRowCount').textContent = '0';
+            document.getElementById('mappedFieldsCount').textContent = '0';
+            document.getElementById('expectedRows').textContent = '0';
+
+            runMigrationBtn.disabled = true;
+            progressSection.style.display = 'none';
+            progressBar.style.width = '0%';
+            progressBar.textContent = '0%';
+            statusMessage.style.display = 'none';
+        }
+
+        // Show Status Message
+        function showStatus(type, message) {
+            statusMessage.className = `status-message ${type}`;
+            statusMessage.textContent = message;
+            statusMessage.style.display = 'block';
+
+            setTimeout(() => {
+                statusMessage.style.display = 'none';
+            }, 5000);
+        }
+
+        // Initialize
+        console.log('🎨 Gallery Migration UI initialized');
+        console.log('📁 Mapping files expected:');
+        console.log('   - /api/load-mapping/GalleryMapping_Images');
+        console.log('   - /api/load-mapping/GalleryMapping_Videos');
+    </script>
+</body>
+</html>
