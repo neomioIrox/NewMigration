@@ -1370,16 +1370,23 @@ app.post('/api/migrate', async (req, res) => {
 
       for (const [oldProductId, newProjectId] of Object.entries(idMappings)) {
         try {
-          // Get the hebrew projectImage media ID
+          // Get hebrew media IDs with fallback priority: projectImage → projectVideo → donationBanner
           const hebrewProjectImageId = mediaIdMappings[oldProductId]?.hebrew?.projectImage;
+          const hebrewProjectVideoId = mediaIdMappings[oldProductId]?.hebrew?.projectVideo;
+          const hebrewDonationBannerId = mediaIdMappings[oldProductId]?.hebrew?.donationBanner;
 
-          if (hebrewProjectImageId) {
+          const mainMediaId = hebrewProjectImageId || hebrewProjectVideoId || hebrewDonationBannerId;
+
+          if (mainMediaId) {
             const updateQuery = `UPDATE project SET MainMedia = ? WHERE Id = ?`;
-            await mysqlConnection.execute(updateQuery, [hebrewProjectImageId, newProjectId]);
+            await mysqlConnection.execute(updateQuery, [mainMediaId, newProjectId]);
             mainMediaUpdatedCount++;
-            logger.debug(`Updated Project ${newProjectId} MainMedia to ${hebrewProjectImageId}`);
+
+            const mediaType = hebrewProjectImageId ? 'projectImage' :
+                             hebrewProjectVideoId ? 'projectVideo' : 'donationBanner';
+            logger.debug(`Updated Project ${newProjectId} MainMedia to ${mainMediaId} (hebrew.${mediaType})`);
           } else {
-            logger.debug(`No hebrew projectImage found for Project ${newProjectId}, skipping MainMedia update`);
+            logger.debug(`No hebrew media found for Project ${newProjectId}, skipping MainMedia update`);
           }
         } catch (err) {
           logger.error(`Error updating MainMedia for Project ${newProjectId}: ${err.message}`);
@@ -1404,17 +1411,54 @@ app.post('/api/migrate', async (req, res) => {
       let localizationMainMediaUpdateErrors = [];
 
       for (const [oldProductId, newProjectId] of Object.entries(idMappings)) {
+        // Update Hebrew projectLocalization (Language=1)
+        try {
+          // Get hebrew media IDs with fallback priority: projectImage → projectVideo → donationBanner
+          const hebrewProjectImageId = mediaIdMappings[oldProductId]?.hebrew?.projectImage;
+          const hebrewProjectVideoId = mediaIdMappings[oldProductId]?.hebrew?.projectVideo;
+          const hebrewDonationBannerId = mediaIdMappings[oldProductId]?.hebrew?.donationBanner;
+
+          const hebrewMainMediaId = hebrewProjectImageId || hebrewProjectVideoId || hebrewDonationBannerId;
+
+          if (hebrewMainMediaId) {
+            const updateQuery = `UPDATE projectlocalization SET MainMedia = ? WHERE ProjectId = ? AND Language = 1`;
+            await mysqlConnection.execute(updateQuery, [hebrewMainMediaId, newProjectId]);
+            localizationMainMediaUpdatedCount++;
+
+            const mediaType = hebrewProjectImageId ? 'projectImage' :
+                             hebrewProjectVideoId ? 'projectVideo' : 'donationBanner';
+            logger.debug(`Updated ProjectLocalization (Hebrew) for Project ${newProjectId} MainMedia to ${hebrewMainMediaId} (hebrew.${mediaType})`);
+          } else {
+            logger.debug(`No hebrew media found for Project ${newProjectId}, skipping Hebrew MainMedia update`);
+          }
+        } catch (err) {
+          logger.error(`Error updating Hebrew MainMedia for ProjectLocalization ${newProjectId}: ${err.message}`);
+          localizationMainMediaUpdateErrors.push({
+            projectId: newProjectId,
+            language: 'Hebrew',
+            error: err.message
+          });
+        }
+
         // Update English projectLocalization (Language=2)
         try {
+          // Get english media IDs with fallback priority: projectImage → projectVideo → donationBanner
           const englishProjectImageId = mediaIdMappings[oldProductId]?.english?.projectImage;
+          const englishProjectVideoId = mediaIdMappings[oldProductId]?.english?.projectVideo;
+          const englishDonationBannerId = mediaIdMappings[oldProductId]?.english?.donationBanner;
 
-          if (englishProjectImageId) {
+          const englishMainMediaId = englishProjectImageId || englishProjectVideoId || englishDonationBannerId;
+
+          if (englishMainMediaId) {
             const updateQuery = `UPDATE projectlocalization SET MainMedia = ? WHERE ProjectId = ? AND Language = 2`;
-            await mysqlConnection.execute(updateQuery, [englishProjectImageId, newProjectId]);
+            await mysqlConnection.execute(updateQuery, [englishMainMediaId, newProjectId]);
             localizationMainMediaUpdatedCount++;
-            logger.debug(`Updated ProjectLocalization (English) for Project ${newProjectId} MainMedia to ${englishProjectImageId}`);
+
+            const mediaType = englishProjectImageId ? 'projectImage' :
+                             englishProjectVideoId ? 'projectVideo' : 'donationBanner';
+            logger.debug(`Updated ProjectLocalization (English) for Project ${newProjectId} MainMedia to ${englishMainMediaId} (english.${mediaType})`);
           } else {
-            logger.debug(`No english projectImage found for Project ${newProjectId}, skipping English MainMedia update`);
+            logger.debug(`No english media found for Project ${newProjectId}, skipping English MainMedia update`);
           }
         } catch (err) {
           logger.error(`Error updating English MainMedia for ProjectLocalization ${newProjectId}: ${err.message}`);
@@ -1427,15 +1471,23 @@ app.post('/api/migrate', async (req, res) => {
 
         // Update French projectLocalization (Language=3)
         try {
+          // Get french media IDs with fallback priority: projectImage → projectVideo → donationBanner
           const frenchProjectImageId = mediaIdMappings[oldProductId]?.french?.projectImage;
+          const frenchProjectVideoId = mediaIdMappings[oldProductId]?.french?.projectVideo;
+          const frenchDonationBannerId = mediaIdMappings[oldProductId]?.french?.donationBanner;
 
-          if (frenchProjectImageId) {
+          const frenchMainMediaId = frenchProjectImageId || frenchProjectVideoId || frenchDonationBannerId;
+
+          if (frenchMainMediaId) {
             const updateQuery = `UPDATE projectlocalization SET MainMedia = ? WHERE ProjectId = ? AND Language = 3`;
-            await mysqlConnection.execute(updateQuery, [frenchProjectImageId, newProjectId]);
+            await mysqlConnection.execute(updateQuery, [frenchMainMediaId, newProjectId]);
             localizationMainMediaUpdatedCount++;
-            logger.debug(`Updated ProjectLocalization (French) for Project ${newProjectId} MainMedia to ${frenchProjectImageId}`);
+
+            const mediaType = frenchProjectImageId ? 'projectImage' :
+                             frenchProjectVideoId ? 'projectVideo' : 'donationBanner';
+            logger.debug(`Updated ProjectLocalization (French) for Project ${newProjectId} MainMedia to ${frenchMainMediaId} (french.${mediaType})`);
           } else {
-            logger.debug(`No french projectImage found for Project ${newProjectId}, skipping French MainMedia update`);
+            logger.debug(`No french media found for Project ${newProjectId}, skipping French MainMedia update`);
           }
         } catch (err) {
           logger.error(`Error updating French MainMedia for ProjectLocalization ${newProjectId}: ${err.message}`);
