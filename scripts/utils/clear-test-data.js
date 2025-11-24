@@ -9,7 +9,7 @@ async function clearTestData() {
   const mysqlConfig = {
     host: 'localhost',
     user: 'root',
-    password: 'Aa123456',
+    password: 'root',
     database: 'kupathair_newdb'
   };
 

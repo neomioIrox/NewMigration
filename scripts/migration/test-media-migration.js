@@ -53,7 +53,7 @@ async function testMediaMigration() {
         localizationMappings: mapping.localizationMappings,
         projectItemMappings: mapping.projectItemMappings,
         mediaMappings: mapping.mediaMappings,
-        whereClause: mapping.whereClause + ' AND productsid <= 5' // Only first 5 projects
+        whereClause: mapping.whereClause + ' AND productsid <= 3' // Only first 3 projects for testing
       })
     });
 

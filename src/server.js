@@ -1395,6 +1395,63 @@ app.post('/api/migrate', async (req, res) => {
         logger.warn(`MainMedia update errors: ${mainMediaUpdateErrors.length}`);
       }
       logger.info('='.repeat(60));
+
+      // ===== Update MainMedia FK in ProjectLocalization table by language =====
+      logger.info('='.repeat(60));
+      logger.info('Updating MainMedia FK in ProjectLocalization table by language...');
+
+      let localizationMainMediaUpdatedCount = 0;
+      let localizationMainMediaUpdateErrors = [];
+
+      for (const [oldProductId, newProjectId] of Object.entries(idMappings)) {
+        // Update English projectLocalization (Language=2)
+        try {
+          const englishProjectImageId = mediaIdMappings[oldProductId]?.english?.projectImage;
+
+          if (englishProjectImageId) {
+            const updateQuery = `UPDATE projectlocalization SET MainMedia = ? WHERE ProjectId = ? AND Language = 2`;
+            await mysqlConnection.execute(updateQuery, [englishProjectImageId, newProjectId]);
+            localizationMainMediaUpdatedCount++;
+            logger.debug(`Updated ProjectLocalization (English) for Project ${newProjectId} MainMedia to ${englishProjectImageId}`);
+          } else {
+            logger.debug(`No english projectImage found for Project ${newProjectId}, skipping English MainMedia update`);
+          }
+        } catch (err) {
+          logger.error(`Error updating English MainMedia for ProjectLocalization ${newProjectId}: ${err.message}`);
+          localizationMainMediaUpdateErrors.push({
+            projectId: newProjectId,
+            language: 'English',
+            error: err.message
+          });
+        }
+
+        // Update French projectLocalization (Language=3)
+        try {
+          const frenchProjectImageId = mediaIdMappings[oldProductId]?.french?.projectImage;
+
+          if (frenchProjectImageId) {
+            const updateQuery = `UPDATE projectlocalization SET MainMedia = ? WHERE ProjectId = ? AND Language = 3`;
+            await mysqlConnection.execute(updateQuery, [frenchProjectImageId, newProjectId]);
+            localizationMainMediaUpdatedCount++;
+            logger.debug(`Updated ProjectLocalization (French) for Project ${newProjectId} MainMedia to ${frenchProjectImageId}`);
+          } else {
+            logger.debug(`No french projectImage found for Project ${newProjectId}, skipping French MainMedia update`);
+          }
+        } catch (err) {
+          logger.error(`Error updating French MainMedia for ProjectLocalization ${newProjectId}: ${err.message}`);
+          localizationMainMediaUpdateErrors.push({
+            projectId: newProjectId,
+            language: 'French',
+            error: err.message
+          });
+        }
+      }
+
+      logger.info(`ProjectLocalization MainMedia FK update completed: ${localizationMainMediaUpdatedCount} rows updated`);
+      if (localizationMainMediaUpdateErrors.length > 0) {
+        logger.warn(`ProjectLocalization MainMedia update errors: ${localizationMainMediaUpdateErrors.length}`);
+      }
+      logger.info('='.repeat(60));
     }
 
     await mssqlPool.close();
