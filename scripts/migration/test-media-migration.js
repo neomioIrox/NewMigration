@@ -32,11 +32,13 @@ async function testMediaMigration() {
 
   // Ask for confirmation
   console.log('⚠️  This will:');
-  console.log('   1. Clear existing data from: project, projectLocalization, projectItem, media');
+  console.log('   1. Clear existing data from: project, projectLocalization, projectItem, media, linkSetting');
   console.log('   2. Migrate 5 Funds projects');
   console.log('   3. Create ProjectLocalization records (3 per project)');
   console.log('   4. Create ProjectItem records (1 per project)');
   console.log('   5. Create Media records (up to 9 per project, based on conditions)');
+  console.log('   6. Create LinkSetting records (3 per project - Hebrew, English, French)');
+  console.log('   7. Update ProjectLocalization.MainLinkButtonSettingId for each language');
   console.log('');
 
   // Prepare the migration request
@@ -133,6 +135,29 @@ async function testMediaMigration() {
         console.log('');
       }
 
+      // LinkSetting results
+      if (result.linkSetting) {
+        console.log('🔗 LINKSETTING TABLE:');
+        console.log(`   ✨ Inserted: ${result.linkSetting.insertedCount}`);
+
+        if (result.linkSetting.errors && result.linkSetting.errors.length > 0) {
+          console.log(`   ❌ Errors: ${result.linkSetting.errors.length}`);
+          result.linkSetting.errors.slice(0, 5).forEach((err, i) => {
+            console.log(`      ${i + 1}. ${err}`);
+          });
+        } else {
+          console.log('   ✅ No errors!');
+        }
+
+        // Three LinkSettings per project (one per language)
+        const projectCount = result.project?.insertedCount || 0;
+        console.log(`   📊 Expected: ${projectCount * 3} (3 per project - Hebrew, English, French)`);
+        console.log('');
+      } else {
+        console.log('⚠️  No linkSetting results returned');
+        console.log('');
+      }
+
       console.log('═══════════════════════════════════════════════════════\n');
 
       // Summary
@@ -140,7 +165,8 @@ async function testMediaMigration() {
       console.log(`   Projects migrated: ${result.project?.insertedCount || 0}`);
       console.log(`   Localization records: ${result.projectLocalization?.insertedCount || 0}`);
       console.log(`   ProjectItem records: ${result.projectItem?.insertedCount || 0}`);
-      console.log(`   Media records: ${result.media?.insertedCount || 0} 🎉`);
+      console.log(`   Media records: ${result.media?.insertedCount || 0}`);
+      console.log(`   LinkSetting records: ${result.linkSetting?.insertedCount || 0} 🎉`);
       console.log('');
 
       console.log('💡 Next steps:');
