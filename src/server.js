@@ -1360,6 +1360,41 @@ app.post('/api/migrate', async (req, res) => {
         logger.warn(`Media errors: ${mediaErrors.length}`);
       }
       logger.info('='.repeat(60));
+
+      // ===== Update MainMedia FK in Project table =====
+      logger.info('='.repeat(60));
+      logger.info('Updating MainMedia FK in Project table...');
+
+      let mainMediaUpdatedCount = 0;
+      let mainMediaUpdateErrors = [];
+
+      for (const [oldProductId, newProjectId] of Object.entries(idMappings)) {
+        try {
+          // Get the hebrew projectImage media ID
+          const hebrewProjectImageId = mediaIdMappings[oldProductId]?.hebrew?.projectImage;
+
+          if (hebrewProjectImageId) {
+            const updateQuery = `UPDATE project SET MainMedia = ? WHERE Id = ?`;
+            await mysqlConnection.execute(updateQuery, [hebrewProjectImageId, newProjectId]);
+            mainMediaUpdatedCount++;
+            logger.debug(`Updated Project ${newProjectId} MainMedia to ${hebrewProjectImageId}`);
+          } else {
+            logger.debug(`No hebrew projectImage found for Project ${newProjectId}, skipping MainMedia update`);
+          }
+        } catch (err) {
+          logger.error(`Error updating MainMedia for Project ${newProjectId}: ${err.message}`);
+          mainMediaUpdateErrors.push({
+            projectId: newProjectId,
+            error: err.message
+          });
+        }
+      }
+
+      logger.info(`MainMedia FK update completed: ${mainMediaUpdatedCount} projects updated`);
+      if (mainMediaUpdateErrors.length > 0) {
+        logger.warn(`MainMedia update errors: ${mainMediaUpdateErrors.length}`);
+      }
+      logger.info('='.repeat(60));
     }
 
     await mssqlPool.close();
