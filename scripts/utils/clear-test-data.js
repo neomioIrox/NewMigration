@@ -24,6 +24,8 @@ async function clearTestData() {
     // Clear tables in reverse order (to respect foreign keys)
     const tablesToClear = [
       { name: 'linksetting', description: 'Link settings' },
+      { name: 'entitycontentitem', description: 'Content items' },
+      { name: 'entitycontent', description: 'Content records' },
       { name: 'media', description: 'Media records' },
       { name: 'projectitem', description: 'Project items' },
       { name: 'projectlocalization', description: 'Project localizations' },

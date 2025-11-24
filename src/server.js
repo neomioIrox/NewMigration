@@ -1614,6 +1614,161 @@ app.post('/api/migrate', async (req, res) => {
       logger.info('='.repeat(60));
     }
 
+    // ===== EntityContent & EntityContentItem Migration =====
+    let contentInsertedCount = 0;
+    let contentItemInsertedCount = 0;
+    let contentErrors = [];
+    const contentIdMappings = {}; // Store oldProductId -> { language -> contentId }
+
+    // Only create EntityContent if we have ProjectLocalization records
+    if (localizationInsertedCount > 0) {
+      logger.info('='.repeat(60));
+      logger.info('Starting EntityContent migration...');
+
+      // Language configurations
+      const languageConfigs = [
+        { language: 1, name: 'Hebrew', descriptionField: 'Description' },
+        { language: 3, name: 'French', descriptionField: 'Description_fr' },
+        { language: 2, name: 'English', descriptionField: 'Description_en' }
+      ];
+
+      for (const [oldProductId, newProjectId] of Object.entries(idMappings)) {
+        contentIdMappings[oldProductId] = {};
+
+        // Get the description fields from the original product
+        const productResult = await mssqlPool.request()
+          .input('productId', sql.Int, oldProductId)
+          .query(`SELECT Description, Description_en, Description_fr FROM Products WHERE productsid = @productId`);
+
+        if (productResult.recordset.length === 0) {
+          logger.warn(`Product ${oldProductId} not found in source DB`);
+          continue;
+        }
+
+        const product = productResult.recordset[0];
+
+        // Create EntityContent for each language
+        for (const langConfig of languageConfigs) {
+          const descriptionContent = product[langConfig.descriptionField];
+
+          // Skip if description is null or empty
+          if (!descriptionContent || descriptionContent.trim() === '') {
+            logger.debug(`No ${langConfig.name} content for Product ${oldProductId}, skipping EntityContent creation`);
+            contentIdMappings[oldProductId][langConfig.language] = null;
+            continue;
+          }
+
+          try {
+            // Create EntityContent
+            const contentData = {
+              Name: null, // As specified
+              IsTemplate: 0,
+              CreatedAt: new Date(),
+              CreatedBy: 1 // System user
+            };
+
+            const contentColumns = Object.keys(contentData).join(', ');
+            const contentPlaceholders = Object.keys(contentData).map(() => '?').join(', ');
+            const contentValues = Object.values(contentData);
+
+            const contentQuery = `INSERT INTO entitycontent (${contentColumns}) VALUES (${contentPlaceholders})`;
+            const [contentResult] = await mysqlConnection.execute(contentQuery, contentValues);
+
+            const contentId = contentResult.insertId;
+            contentIdMappings[oldProductId][langConfig.language] = contentId;
+            contentInsertedCount++;
+            logger.debug(`Created ${langConfig.name} EntityContent ${contentId} for Project ${newProjectId}`);
+
+            // Create EntityContentItem with ItemType = 11
+            const contentItemData = {
+              ContentId: contentId,
+              ItemType: 11, // As specified
+              ItemDefinition: JSON.stringify({ Text: descriptionContent }), // Keep HTML as-is for now
+              Name: null,
+              CreatedAt: new Date(),
+              CreatedBy: 1, // System user
+              UpdatedAt: new Date(),
+              UpdatedBy: 1 // System user
+            };
+
+            const itemColumns = Object.keys(contentItemData).join(', ');
+            const itemPlaceholders = Object.keys(contentItemData).map(() => '?').join(', ');
+            const itemValues = Object.values(contentItemData);
+
+            const itemQuery = `INSERT INTO entitycontentitem (${itemColumns}) VALUES (${itemPlaceholders})`;
+            const [itemResult] = await mysqlConnection.execute(itemQuery, itemValues);
+
+            contentItemInsertedCount++;
+            logger.debug(`Created EntityContentItem ${itemResult.insertId} for EntityContent ${contentId}`);
+
+          } catch (err) {
+            logger.error(`Error creating ${langConfig.name} EntityContent for Project ${newProjectId}: ${err.message}`);
+            contentErrors.push({
+              oldProductId,
+              newProjectId,
+              language: langConfig.name,
+              error: err.message
+            });
+          }
+        }
+      }
+
+      logger.info(`EntityContent migration completed: ${contentInsertedCount} records created`);
+      logger.info(`EntityContentItem migration completed: ${contentItemInsertedCount} records created`);
+      if (contentErrors.length > 0) {
+        logger.warn(`EntityContent errors: ${contentErrors.length}`);
+      }
+      logger.info('='.repeat(60));
+
+      // ===== Update ProjectLocalization.ContentId =====
+      logger.info('='.repeat(60));
+      logger.info('Updating ProjectLocalization.ContentId...');
+
+      let localizationContentUpdatedCount = 0;
+      let localizationContentUpdateErrors = [];
+
+      for (const [oldProductId, newProjectId] of Object.entries(idMappings)) {
+        const contentIds = contentIdMappings[oldProductId];
+
+        if (!contentIds || Object.keys(contentIds).length === 0) {
+          logger.debug(`No EntityContent found for oldProductId ${oldProductId}, skipping ContentId update`);
+          continue;
+        }
+
+        // Update each language's ProjectLocalization record
+        for (const [language, contentId] of Object.entries(contentIds)) {
+          if (contentId === null) {
+            // Skip null content IDs (where description was empty)
+            continue;
+          }
+
+          try {
+            const updateQuery = `UPDATE projectlocalization SET ContentId = ? WHERE ProjectId = ? AND Language = ?`;
+            await mysqlConnection.execute(updateQuery, [contentId, newProjectId, parseInt(language)]);
+
+            localizationContentUpdatedCount++;
+            const langName = language === '1' ? 'Hebrew' : language === '2' ? 'English' : 'French';
+            logger.debug(`Updated ${langName} ProjectLocalization for Project ${newProjectId} with ContentId ${contentId}`);
+
+          } catch (err) {
+            logger.error(`Error updating ProjectLocalization ContentId for Project ${newProjectId}, Language ${language}: ${err.message}`);
+            localizationContentUpdateErrors.push({
+              oldProductId,
+              newProjectId,
+              language,
+              error: err.message
+            });
+          }
+        }
+      }
+
+      logger.info(`ProjectLocalization.ContentId update completed: ${localizationContentUpdatedCount} rows updated`);
+      if (localizationContentUpdateErrors.length > 0) {
+        logger.warn(`ProjectLocalization ContentId update errors: ${localizationContentUpdateErrors.length}`);
+      }
+      logger.info('='.repeat(60));
+    }
+
     await mssqlPool.close();
     await mysqlConnection.end();
 
@@ -1675,6 +1830,16 @@ app.post('/api/migrate', async (req, res) => {
         errors: linkSettingErrors.slice(0, 10)
       };
       response.message += ` + ${linkSettingInsertedCount} linkSetting records.`;
+    }
+
+    // Add entityContent stats if applicable
+    if (contentInsertedCount > 0 || contentErrors.length > 0) {
+      response.entityContent = {
+        insertedCount: contentInsertedCount,
+        contentItemInsertedCount: contentItemInsertedCount,
+        errors: contentErrors.slice(0, 10)
+      };
+      response.message += ` + ${contentInsertedCount} entityContent records + ${contentItemInsertedCount} entityContentItem records.`;
     }
 
     res.json(response);

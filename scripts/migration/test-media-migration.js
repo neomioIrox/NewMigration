@@ -32,13 +32,16 @@ async function testMediaMigration() {
 
   // Ask for confirmation
   console.log('⚠️  This will:');
-  console.log('   1. Clear existing data from: project, projectLocalization, projectItem, media, linkSetting');
+  console.log('   1. Clear existing data from: project, projectLocalization, projectItem, media, linkSetting, entityContent, entityContentItem');
   console.log('   2. Migrate 5 Funds projects');
   console.log('   3. Create ProjectLocalization records (3 per project)');
   console.log('   4. Create ProjectItem records (1 per project)');
   console.log('   5. Create Media records (up to 9 per project, based on conditions)');
   console.log('   6. Create LinkSetting records (3 per project - Hebrew, English, French)');
   console.log('   7. Update ProjectLocalization.MainLinkButtonSettingId for each language');
+  console.log('   8. Create EntityContent records (up to 3 per project - one per language with content)');
+  console.log('   9. Create EntityContentItem records (1 per EntityContent with ItemType=11)');
+  console.log('   10. Update ProjectLocalization.ContentId for each language');
   console.log('');
 
   // Prepare the migration request
@@ -155,6 +158,30 @@ async function testMediaMigration() {
         console.log('');
       } else {
         console.log('⚠️  No linkSetting results returned');
+        console.log('');
+      }
+
+      // Display EntityContent results
+      if (result.entityContent) {
+        console.log('📄 EntityContent:');
+        console.log(`   ✅ Created: ${result.entityContent.insertedCount}`);
+        if (result.entityContent.errors && result.entityContent.errors.length > 0) {
+          console.log(`   ❌ Errors: ${result.entityContent.errors.length}`);
+          result.entityContent.errors.slice(0, 3).forEach(err => {
+            console.log(`      - ${err.language}: ${err.error}`);
+          });
+        } else {
+          console.log('   ✅ No errors!');
+        }
+        console.log(`   📊 Expected: up to ${projectCount * 3} (3 per project if content exists)`);
+        console.log('');
+
+        console.log('📝 EntityContentItem:');
+        console.log(`   ✅ Created: ${result.entityContent.contentItemInsertedCount}`);
+        console.log(`   📊 Expected: ${result.entityContent.insertedCount} (1 per EntityContent)`);
+        console.log('');
+      } else {
+        console.log('⚠️  No entityContent results returned');
         console.log('');
       }
 
