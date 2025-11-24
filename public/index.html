@@ -733,6 +733,47 @@
                     <div id="projectItemFields"></div>
                 </div>
             </div>
+
+            <!-- Media Accordion -->
+            <div class="localization-accordion" style="margin-top: 20px;">
+                <button class="accordion-header" onclick="toggleMediaAccordion()">
+                    <span>📸 Media Mapping (Images & Videos)</span>
+                    <span id="mediaToggleIcon">▼</span>
+                </button>
+                <div id="mediaContent" class="accordion-content" style="display: none;">
+                    <p style="color: #28a745; padding: 10px; background: #d4edda; border-radius: 4px; margin-bottom: 15px;">
+                        ✅ Media mappings loaded from JSON file<br>
+                        • Creates up to 9 media records per project (3 languages × 3 types)<br>
+                        • <strong>Types:</strong> projectImage, projectVideo, donationBanner<br>
+                        • <strong>Languages:</strong> Hebrew, English, French
+                    </p>
+
+                    <!-- Language Tabs -->
+                    <div class="tab-buttons">
+                        <button class="tab-btn active" onclick="switchMediaLanguageTab('hebrew')">עברית (Hebrew)</button>
+                        <button class="tab-btn" onclick="switchMediaLanguageTab('english')">אנגלית (English)</button>
+                        <button class="tab-btn" onclick="switchMediaLanguageTab('french')">צרפתית (French)</button>
+                    </div>
+
+                    <!-- Hebrew Tab -->
+                    <div id="hebrewMediaTab" class="tab-content active">
+                        <h3>Hebrew Media Fields</h3>
+                        <div id="hebrewMediaFields"></div>
+                    </div>
+
+                    <!-- English Tab -->
+                    <div id="englishMediaTab" class="tab-content">
+                        <h3>English Media Fields</h3>
+                        <div id="englishMediaFields"></div>
+                    </div>
+
+                    <!-- French Tab -->
+                    <div id="frenchMediaTab" class="tab-content">
+                        <h3>French Media Fields</h3>
+                        <div id="frenchMediaFields"></div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -892,6 +933,8 @@
         let projectItemMappings = {};  // Store projectItem mappings (funds & collections)
         let projectItemData = null;  // Store projectItem table structure
         let currentItemType = 'funds';  // Current active item type tab
+        let mediaMappings = {};  // Store media mappings (hebrew, english, french)
+        let mediaData = null;  // Store media table structure
         let whereClause = null;  // WHERE clause filter for source query
 
         async function loadData() {
@@ -1512,8 +1555,10 @@
             }
 
             console.log('Sending mappings:', columnMappings);
+            console.log('Sending FK mappings:', fkMappings);
             console.log('Sending localization mappings:', localizationMappings);
             console.log('Sending projectItem mappings:', projectItemMappings);
+            console.log('Sending media mappings:', mediaMappings);
             console.log('Sending WHERE clause:', whereClause);
             statusDiv.innerHTML = '<div class="status-message">מתחיל מיגרציה... אנא המתן</div>';
 
@@ -1524,8 +1569,10 @@
                     body: JSON.stringify({
                         tableName: 'project',
                         mappings: columnMappings,
+                        fkMappings: fkMappings,
                         localizationMappings: localizationMappings,
                         projectItemMappings: projectItemMappings,
+                        mediaMappings: mediaMappings,
                         whereClause: whereClause
                     })
                 });
@@ -1567,6 +1614,18 @@
                             resultHtml += `<br><strong>שגיאות ProjectItem (${result.projectItem.errors.length} ראשונות):</strong><br>`;
                             result.projectItem.errors.forEach(err => {
                                 resultHtml += `- [Project ID: ${err.newProjectId}] ${err.error}<br>`;
+                            });
+                        }
+                    }
+
+                    // Media results
+                    if (result.media) {
+                        resultHtml += `<br><strong>טבלת Media:</strong> ${result.media.insertedCount} רשומות מדיה נוצרו<br>`;
+
+                        if (result.media.errors && result.media.errors.length > 0) {
+                            resultHtml += `<br><strong>שגיאות Media (${result.media.errors.length} ראשונות):</strong><br>`;
+                            result.media.errors.slice(0, 5).forEach(err => {
+                                resultHtml += `- ${err}<br>`;
                             });
                         }
                     }
@@ -1615,6 +1674,7 @@
                         fkMappings: fkMappings,
                         localizationMappings: localizationMappings,
                         projectItemMappings: projectItemMappings,
+                        mediaMappings: mediaMappings,
                         whereClause: whereClause
                     })
                 });
@@ -1702,6 +1762,7 @@
                 fkMappings = result.mapping.fkMappings || {};
                 localizationMappings = result.mapping.localizationMappings || {};
                 projectItemMappings = result.mapping.projectItemMappings || {};
+                mediaMappings = result.mapping.mediaMappings || {};
                 whereClause = result.mapping.whereClause || null;
 
                 // Refresh the UI to reflect loaded mappings
@@ -1721,10 +1782,18 @@
                     renderProjectItemFields();
                 }
 
+                // If media mappings exist, load and render them
+                if (Object.keys(mediaMappings).length > 0 && !mediaData) {
+                    await loadMediaData();
+                } else if (mediaData) {
+                    renderMediaFields();
+                }
+
                 closeLoadMappingModal();
                 const locCount = Object.keys(localizationMappings).length;
                 const itemCount = Object.keys(projectItemMappings).length;
-                alert(`✓ המיפוי נטען בהצלחה!\nנטענו ${Object.keys(columnMappings).length} מיפויי שדות Project${locCount > 0 ? ` + ${locCount} שדות Localization` : ''}${itemCount > 0 ? ` + ProjectItem mappings` : ''}`);
+                const mediaCount = Object.keys(mediaMappings).length;
+                alert(`✓ המיפוי נטען בהצלחה!\nנטענו ${Object.keys(columnMappings).length} מיפויי שדות Project${locCount > 0 ? ` + ${locCount} שדות Localization` : ''}${itemCount > 0 ? ` + ProjectItem mappings` : ''}${mediaCount > 0 ? ` + ${mediaCount} Media mappings` : ''}`);
             } catch (error) {
                 alert('✗ שגיאה: ' + error.message);
             }
@@ -1766,6 +1835,41 @@
                 content.style.display = 'none';
                 icon.textContent = '▼';
             }
+        }
+
+        function toggleMediaAccordion() {
+            const content = document.getElementById('mediaContent');
+            const icon = document.getElementById('mediaToggleIcon');
+
+            if (content.style.display === 'none') {
+                content.style.display = 'block';
+                icon.textContent = '▲';
+
+                // Load media data if not loaded yet
+                if (!mediaData) {
+                    loadMediaData();
+                }
+            } else {
+                content.style.display = 'none';
+                icon.textContent = '▼';
+            }
+        }
+
+        function switchMediaLanguageTab(language) {
+            // Hide all media tabs
+            document.querySelectorAll('[id$="MediaTab"]').forEach(tab => {
+                tab.classList.remove('active');
+            });
+
+            // Remove active from all media tab buttons
+            const tabButtons = document.querySelectorAll('.tab-buttons .tab-btn');
+            tabButtons.forEach(btn => btn.classList.remove('active'));
+
+            // Show selected tab
+            document.getElementById(`${language}MediaTab`).classList.add('active');
+
+            // Activate selected button
+            event.target.classList.add('active');
         }
 
         function switchLanguageTab(language) {
@@ -2351,6 +2455,123 @@
 
             // Trigger the change event to save it
             onProjectItemExpressionChanged(fieldName, exampleCode);
+        }
+
+        // ===== Media Functions =====
+
+        async function loadMediaData() {
+            try {
+                const response = await fetch('/api/analyze/media');
+                mediaData = await response.json();
+
+                console.log('=== Media Data Loaded ===');
+                console.log('Current mediaMappings:', mediaMappings);
+                console.log('mediaMappings keys:', Object.keys(mediaMappings));
+
+                // Only initialize if mediaMappings is completely empty
+                // If it was loaded from JSON file, keep it
+                if (!mediaMappings || Object.keys(mediaMappings).length === 0) {
+                    console.log('Initializing empty mediaMappings structure');
+                    mediaMappings = {
+                        hebrew: {
+                            projectImage: {},
+                            projectVideo: {},
+                            donationBanner: {}
+                        },
+                        english: {
+                            projectImage: {},
+                            projectVideo: {},
+                            donationBanner: {}
+                        },
+                        french: {
+                            projectImage: {},
+                            projectVideo: {},
+                            donationBanner: {}
+                        }
+                    };
+                } else {
+                    console.log('Using existing mediaMappings from loaded file');
+                }
+
+                // Render fields for all languages
+                renderMediaFields();
+            } catch (error) {
+                console.error('Error loading media data:', error);
+                alert('שגיאה בטעינת נתוני media: ' + error.message);
+            }
+        }
+
+        function renderMediaFields() {
+            if (!mediaData || !mediaData.newDB || !mediaData.newDB.table) {
+                return;
+            }
+
+            const columns = mediaData.newDB.table.columns;
+            const skipFields = ['id', 'projectid'];
+
+            const mediaTypes = [
+                { key: 'projectImage', label: 'Project Image', icon: '🖼️' },
+                { key: 'projectVideo', label: 'Project Video', icon: '🎥' },
+                { key: 'donationBanner', label: 'Donation Banner', icon: '🎯' }
+            ];
+
+            ['hebrew', 'english', 'french'].forEach(lang => {
+                const container = document.getElementById(`${lang}MediaFields`);
+                let html = '';
+
+                mediaTypes.forEach(mediaType => {
+                    const typeMapping = mediaMappings[lang]?.[mediaType.key] || {};
+
+                    html += `
+                        <div class="media-type-section" style="border: 1px solid #dee2e6; border-radius: 4px; padding: 15px; margin-bottom: 15px; background: #f8f9fa;">
+                            <h4 style="margin-top: 0; color: #495057;">${mediaType.icon} ${mediaType.label}</h4>
+
+                            ${typeMapping.condition ? `
+                                <div style="background: #fff3cd; padding: 8px; margin-bottom: 10px; border-radius: 3px; font-size: 0.9em;">
+                                    <strong>Condition:</strong> <code>${typeMapping.condition}</code>
+                                </div>
+                            ` : ''}
+                    `;
+
+                    columns.forEach(col => {
+                        if (skipFields.includes(col.name.toLowerCase())) {
+                            return;
+                        }
+
+                        const mapping = typeMapping[col.name] || {};
+
+                        html += `
+                            <div class="column-row" style="background: white; padding: 10px; margin-bottom: 8px; border-radius: 3px;">
+                                <div class="column-name">${col.name}: ${col.type}</div>
+                                <div class="mapping-selectors">
+                                    ${mapping.convertType === 'const' ? `
+                                        <div class="const-label">Constant Value:</div>
+                                        <input type="text" id="media_${lang}_${mediaType.key}_value_${col.name}"
+                                            value="${mapping.value || ''}" readonly
+                                            placeholder="Constant value" style="background: #e9ecef;">
+                                    ` : mapping.convertType === 'direct' ? `
+                                        <div style="padding: 5px; background: #d4edda; border-radius: 3px;">
+                                            <strong>Direct mapping:</strong> ${mapping.oldTable}.${mapping.oldColumn}
+                                        </div>
+                                    ` : mapping.convertType === 'expression' ? `
+                                        <div style="padding: 5px; background: #cfe2ff; border-radius: 3px;">
+                                            <strong>Expression:</strong> <code>${mapping.expression}</code>
+                                        </div>
+                                    ` : `
+                                        <div style="padding: 5px; color: #6c757d;">
+                                            No mapping defined
+                                        </div>
+                                    `}
+                                </div>
+                            </div>
+                        `;
+                    });
+
+                    html += `</div>`;
+                });
+
+                container.innerHTML = html;
+            });
         }
     </script>
 </body>

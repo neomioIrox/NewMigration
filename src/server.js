@@ -374,10 +374,10 @@ app.get('/api/fk-mapping/:columnName', (req, res) => {
   }
 });
 
-// Save complete mapping (column mappings + FK mappings + localization mappings + projectItem mappings)
+// Save complete mapping (column mappings + FK mappings + localization mappings + projectItem mappings + media mappings)
 app.post('/api/save-mapping', (req, res) => {
   try {
-    const { filename, columnMappings, fkMappings, localizationMappings, projectItemMappings, whereClause } = req.body;
+    const { filename, columnMappings, fkMappings, localizationMappings, projectItemMappings, mediaMappings, whereClause } = req.body;
 
     if (!filename) {
       return res.status(400).json({ success: false, message: 'Filename is required' });
@@ -399,6 +399,7 @@ app.post('/api/save-mapping', (req, res) => {
       fkMappings,
       localizationMappings: localizationMappings || {},
       projectItemMappings: projectItemMappings || {},
+      mediaMappings: mediaMappings || {},
       whereClause: whereClause || null,
       savedAt: new Date().toISOString()
     };
@@ -465,6 +466,7 @@ app.get('/api/load-mapping/:filename', (req, res) => {
         fkMappings: mappingData.fkMappings || {},
         localizationMappings: mappingData.localizationMappings || {},
         projectItemMappings: mappingData.projectItemMappings || {},
+        mediaMappings: mappingData.mediaMappings || {},
         whereClause: mappingData.whereClause || null,
         savedAt: mappingData.savedAt
       }
@@ -599,6 +601,46 @@ app.post('/api/migrate', async (req, res) => {
               const rowFieldMatches = mapping.expression.match(/row\.(\w+)/g);
               if (rowFieldMatches) {
                 rowFieldMatches.forEach(match => {
+                  const fieldName = match.replace('row.', '');
+                  selectColumnsSet.add(fieldName);
+                });
+              }
+            }
+          }
+        }
+      }
+
+      // Also include columns from mediaMappings
+      const mediaMappings = req.body.mediaMappings;
+      if (mediaMappings) {
+        // Process all languages (hebrew, french, english)
+        for (const language of Object.values(mediaMappings)) {
+          // Process all media types (projectImage, projectVideo, donationBanner)
+          for (const mediaType of Object.values(language)) {
+            for (const [fieldName, mapping] of Object.entries(mediaType)) {
+              if (fieldName === 'condition') continue; // Skip condition field
+
+              if (mapping && mapping.oldColumn && mapping.oldTable === sourceTable) {
+                selectColumnsSet.add(mapping.oldColumn);
+              }
+
+              // Extract columns from expressions and conditions
+              if (mapping && mapping.expression) {
+                const rowFieldMatches = mapping.expression.match(/row\.(\w+)/g);
+                if (rowFieldMatches) {
+                  rowFieldMatches.forEach(match => {
+                    const fieldName = match.replace('row.', '');
+                    selectColumnsSet.add(fieldName);
+                  });
+                }
+              }
+            }
+
+            // Extract columns from condition expression
+            if (mediaType.condition) {
+              const conditionMatches = mediaType.condition.match(/row\.(\w+)/g);
+              if (conditionMatches) {
+                conditionMatches.forEach(match => {
                   const fieldName = match.replace('row.', '');
                   selectColumnsSet.add(fieldName);
                 });
@@ -1209,6 +1251,117 @@ app.post('/api/migrate', async (req, res) => {
       logger.info('='.repeat(60));
     }
 
+    // ===== Media Migration =====
+    let mediaInsertedCount = 0;
+    let mediaErrors = [];
+    const mediaIdMappings = {}; // Store oldProductId -> { language -> { mediaType -> mediaId } }
+
+    // Check if mediaMappings were provided
+    const mediaMappings = req.body.mediaMappings;
+
+    if (mediaMappings) {
+      logger.info('='.repeat(60));
+      logger.info('Starting Media migration...');
+
+      // Iterate through each project
+      for (const [oldProductId, newProjectId] of Object.entries(idMappings)) {
+        const row = rows.find(r => r.productsid === parseInt(oldProductId));
+
+        if (!row) {
+          logger.warn(`Source row not found for oldProductId: ${oldProductId}`);
+          continue;
+        }
+
+        mediaIdMappings[oldProductId] = {};
+
+        // Process each language (hebrew, french, english)
+        for (const [languageName, languageMappings] of Object.entries(mediaMappings)) {
+          mediaIdMappings[oldProductId][languageName] = {};
+
+          // Process each media type (projectImage, projectVideo, donationBanner)
+          for (const [mediaTypeName, mediaMapping] of Object.entries(languageMappings)) {
+            try {
+              // Check condition if specified
+              if (mediaMapping.condition) {
+                const conditionResult = eval(mediaMapping.condition);
+                if (!conditionResult) {
+                  logger.debug(`Skipping ${languageName}.${mediaTypeName} for product ${oldProductId} - condition not met`);
+                  continue;
+                }
+              }
+
+              const mediaData = {};
+
+              // Apply mappings
+              for (const [fieldName, mapping] of Object.entries(mediaMapping)) {
+                if (fieldName === 'condition') continue; // Skip condition field
+
+                let value = null;
+
+                if (mapping.convertType === 'const') {
+                  value = mapping.value;
+                  if (value === 'GETDATE()' || value === 'NOW()') {
+                    value = new Date();
+                  } else if (typeof value === 'string' && /^\d+$/.test(value)) {
+                    value = parseInt(value, 10);
+                  }
+                } else if (mapping.convertType === 'direct' && mapping.oldColumn) {
+                  value = row[mapping.oldColumn];
+                } else if (mapping.convertType === 'expression' && mapping.oldColumn) {
+                  value = row[mapping.oldColumn];
+
+                  // Apply expression if provided
+                  if (mapping.expression) {
+                    try {
+                      value = eval(mapping.expression);
+                    } catch (err) {
+                      logger.warn(`Expression evaluation failed for ${fieldName}: ${err.message}`);
+                    }
+                  }
+                }
+
+                // Convert undefined to null
+                if (value === undefined) {
+                  value = null;
+                } else if (typeof value === 'string' && /^\d+$/.test(value)) {
+                  value = parseInt(value, 10);
+                }
+
+                mediaData[fieldName] = value;
+              }
+
+              // Insert media record
+              const columns = Object.keys(mediaData).join(', ');
+              const placeholders = Object.keys(mediaData).map(() => '?').join(', ');
+              const values = Object.values(mediaData).map(v => v === undefined ? null : v);
+              const insertQuery = `INSERT INTO media (${columns}) VALUES (${placeholders})`;
+
+              const [result] = await mysqlConnection.execute(insertQuery, values);
+              mediaIdMappings[oldProductId][languageName][mediaTypeName] = result.insertId;
+              mediaInsertedCount++;
+              logger.debug(`Created ${languageName}.${mediaTypeName} for Project ${newProjectId} (Media ID: ${result.insertId})`);
+
+            } catch (err) {
+              logger.error(`Error creating Media (${languageName}.${mediaTypeName}) for oldProductId ${oldProductId}: ${err.message}`);
+              mediaErrors.push({
+                oldProductId,
+                newProjectId,
+                language: languageName,
+                mediaType: mediaTypeName,
+                error: err.message
+              });
+            }
+          }
+        }
+      }
+
+      logger.info(`Media migration completed: ${mediaInsertedCount} media records created`);
+      if (mediaErrors.length > 0) {
+        logger.warn(`Media errors: ${mediaErrors.length}`);
+      }
+      logger.info('='.repeat(60));
+    }
+
     await mssqlPool.close();
     await mysqlConnection.end();
 
@@ -1252,6 +1405,15 @@ app.post('/api/migrate', async (req, res) => {
         errors: projectItemErrors.slice(0, 10)
       };
       response.message += ` + ${projectItemInsertedCount} projectItem rows.`;
+    }
+
+    // Add media stats if applicable
+    if (mediaInsertedCount > 0 || mediaErrors.length > 0) {
+      response.media = {
+        insertedCount: mediaInsertedCount,
+        errors: mediaErrors.slice(0, 10)
+      };
+      response.message += ` + ${mediaInsertedCount} media records.`;
     }
 
     res.json(response);

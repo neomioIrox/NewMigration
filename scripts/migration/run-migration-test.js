@@ -27,6 +27,7 @@ async function runMigration() {
         fkMappings: mapping.fkMappings,
         localizationMappings: mapping.localizationMappings,
         projectItemMappings: mapping.projectItemMappings,
+        mediaMappings: mapping.mediaMappings,
         whereClause: mapping.whereClause
       })
     });
@@ -62,6 +63,15 @@ async function runMigration() {
       if (result.projectItem.errors && result.projectItem.errors.length > 0) {
         console.log('Errors:', result.projectItem.errors.length);
         console.log('Sample errors:', result.projectItem.errors.slice(0, 5));
+      }
+    }
+
+    if (result.media) {
+      console.log('\n--- Media Table ---');
+      console.log('Inserted:', result.media.insertedCount);
+      if (result.media.errors && result.media.errors.length > 0) {
+        console.log('Errors:', result.media.errors.length);
+        console.log('Sample errors:', result.media.errors.slice(0, 5));
       }
     }
 
