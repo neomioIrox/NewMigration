@@ -1614,6 +1614,105 @@ app.post('/api/migrate', async (req, res) => {
       logger.info('='.repeat(60));
     }
 
+    // ===== LinkSettingInListView Migration =====
+    let linkSettingListViewInsertedCount = 0;
+    let linkSettingListViewErrors = [];
+    const linkSettingListViewIdMappings = {}; // Store oldProductId -> { language -> linkSettingId }
+
+    // Create LinkSettingInListView for each ProjectLocalization
+    if (localizationInsertedCount > 0) {
+      logger.info('='.repeat(60));
+      logger.info('Starting LinkSettingInListView migration...');
+      logger.info('Creating List View LinkSettings for each language...');
+
+      // Language configurations
+      const languageConfigs = [
+        { language: 1, name: 'Hebrew' },
+        { language: 3, name: 'French' },
+        { language: 2, name: 'English' }
+      ];
+
+      for (const [oldProductId, newProjectId] of Object.entries(idMappings)) {
+        linkSettingListViewIdMappings[oldProductId] = {};
+
+        // Create LinkSettingInListView for each language
+        for (const langConfig of languageConfigs) {
+          try {
+            const linkSettingData = {
+              LinkType: 3,
+              LinkTargetType: 1,
+              ProjectId: newProjectId,
+              ItemId: null,
+              LinkText: null,
+              CreatedAt: new Date(),
+              CreatedBy: 1, // System user
+              UpdatedAt: new Date(),
+              UpdatedBy: 1 // System user
+            };
+
+            const columns = Object.keys(linkSettingData).join(', ');
+            const placeholders = Object.keys(linkSettingData).map(() => '?').join(', ');
+            const values = Object.values(linkSettingData);
+
+            const insertQuery = `INSERT INTO linksetting (${columns}) VALUES (${placeholders})`;
+            const [result] = await mysqlConnection.execute(insertQuery, values);
+
+            linkSettingListViewIdMappings[oldProductId][langConfig.language] = result.insertId;
+            linkSettingListViewInsertedCount++;
+            logger.debug(`Created ${langConfig.name} LinkSettingInListView ${result.insertId} for Project ${newProjectId}`);
+
+          } catch (err) {
+            logger.error(`Error creating ${langConfig.name} LinkSettingInListView for Project ${newProjectId}: ${err.message}`);
+            linkSettingListViewErrors.push({ oldProductId, newProjectId, language: langConfig.name, error: err.message });
+          }
+        }
+      }
+
+      logger.info(`LinkSettingInListView migration completed: ${linkSettingListViewInsertedCount} records created (${linkSettingListViewInsertedCount / 3} projects × 3 languages)`);
+      if (linkSettingListViewErrors.length > 0) {
+        logger.warn(`LinkSettingInListView errors: ${linkSettingListViewErrors.length}`);
+      }
+      logger.info('='.repeat(60));
+
+      // ===== Update ProjectLocalization.LinkSettingIdInListView =====
+      logger.info('='.repeat(60));
+      logger.info('Updating ProjectLocalization.LinkSettingIdInListView...');
+
+      let localizationListViewLinkUpdatedCount = 0;
+      let localizationListViewLinkUpdateErrors = [];
+
+      for (const [oldProductId, newProjectId] of Object.entries(idMappings)) {
+        const linkSettingIds = linkSettingListViewIdMappings[oldProductId];
+
+        if (!linkSettingIds || Object.keys(linkSettingIds).length === 0) {
+          logger.debug(`No LinkSettingsInListView found for oldProductId ${oldProductId}, skipping LinkSettingIdInListView update`);
+          continue;
+        }
+
+        // Update each language's ProjectLocalization record
+        for (const [language, linkSettingId] of Object.entries(linkSettingIds)) {
+          try {
+            const updateQuery = `UPDATE projectlocalization SET LinkSettingIdInListView = ? WHERE ProjectId = ? AND Language = ?`;
+            await mysqlConnection.execute(updateQuery, [linkSettingId, newProjectId, parseInt(language)]);
+
+            localizationListViewLinkUpdatedCount++;
+            const langName = language === '1' ? 'Hebrew' : language === '2' ? 'English' : 'French';
+            logger.debug(`Updated ${langName} ProjectLocalization for Project ${newProjectId} with LinkSettingIdInListView ${linkSettingId}`);
+
+          } catch (err) {
+            logger.error(`Error updating ProjectLocalization.LinkSettingIdInListView for Project ${newProjectId}, Language ${language}: ${err.message}`);
+            localizationListViewLinkUpdateErrors.push({ oldProductId, newProjectId, language, error: err.message });
+          }
+        }
+      }
+
+      logger.info(`ProjectLocalization.LinkSettingIdInListView update completed: ${localizationListViewLinkUpdatedCount} rows updated`);
+      if (localizationListViewLinkUpdateErrors.length > 0) {
+        logger.warn(`ProjectLocalization LinkSettingIdInListView update errors: ${localizationListViewLinkUpdateErrors.length}`);
+      }
+      logger.info('='.repeat(60));
+    }
+
     // ===== EntityContent & EntityContentItem Migration =====
     let contentInsertedCount = 0;
     let contentItemInsertedCount = 0;
@@ -1830,6 +1929,15 @@ app.post('/api/migrate', async (req, res) => {
         errors: linkSettingErrors.slice(0, 10)
       };
       response.message += ` + ${linkSettingInsertedCount} linkSetting records.`;
+    }
+
+    // Add linkSettingListView stats if applicable
+    if (linkSettingListViewInsertedCount > 0 || linkSettingListViewErrors.length > 0) {
+      response.linkSettingListView = {
+        insertedCount: linkSettingListViewInsertedCount,
+        errors: linkSettingListViewErrors.slice(0, 10)
+      };
+      response.message += ` + ${linkSettingListViewInsertedCount} linkSettingListView records.`;
     }
 
     // Add entityContent stats if applicable
