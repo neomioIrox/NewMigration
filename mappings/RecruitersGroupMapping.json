@@ -1,0 +1,92 @@
+{
+  "filename": "RecruitersGroupMapping",
+  "description": "מיפוי קבוצות מגייסים - RecruitersGroups to recruitersgroup",
+  "sourceTable": "RecruitersGroups",
+  "targetTable": "recruitersgroup",
+  "sourceIdColumn": "ID",
+  "whereClause": "ProjectId IS NOT NULL",
+  "columnMappings": {
+    "Name": {
+      "convertType": "expression",
+      "oldTable": "RecruitersGroups",
+      "oldColumn": "Name",
+      "expression": "value ? value.substring(0, 200) : 'ללא שם'"
+    },
+    "ProjectId": {
+      "convertType": "direct",
+      "oldTable": "RecruitersGroups",
+      "oldColumn": "ProjectId",
+      "useFkMapping": true,
+      "comment": "מחפש ProjectId חדש לפי ProductId ישן"
+    },
+    "RecordStatus": {
+      "convertType": "const",
+      "value": "2"
+    },
+    "StatusChangedAt": {
+      "convertType": "const",
+      "value": "GETDATE()"
+    },
+    "StatusChangedBy": {
+      "convertType": "const",
+      "value": "-1"
+    },
+    "CreatedAt": {
+      "convertType": "const",
+      "value": "GETDATE()"
+    },
+    "CreatedBy": {
+      "convertType": "const",
+      "value": "-1"
+    },
+    "UpdatedAt": {
+      "convertType": "const",
+      "value": "GETDATE()"
+    },
+    "UpdatedBy": {
+      "convertType": "const",
+      "value": "-1"
+    }
+  },
+  "fkMappings": {
+    "ProjectId": "product-to-project"
+  },
+  "localizationMappings": {
+    "targetTable": "recruitersgrouplanguage",
+    "parentFkColumn": "RecruiterGroupId",
+    "Name": {
+      "hebrew": {
+        "convertType": "expression",
+        "oldTable": "RecruitersGroups",
+        "oldColumn": "Name",
+        "expression": "value ? value.substring(0, 200) : null"
+      },
+      "english": {
+        "convertType": "expression",
+        "oldTable": "RecruitersGroups",
+        "oldColumn": "Name",
+        "expression": "value ? value.substring(0, 200) : null"
+      },
+      "french": {
+        "convertType": "expression",
+        "oldTable": "RecruitersGroups",
+        "oldColumn": "Name",
+        "expression": "value ? value.substring(0, 200) : null"
+      }
+    },
+    "Description": {
+      "hebrew": { "convertType": "const", "value": null },
+      "english": { "convertType": "const", "value": null },
+      "french": { "convertType": "const", "value": null }
+    },
+    "DisplayInSite": {
+      "hebrew": { "convertType": "const", "value": "1" },
+      "english": { "convertType": "const", "value": "1" },
+      "french": { "convertType": "const", "value": "1" }
+    }
+  },
+  "notes": [
+    "סדר מיגרציה: RecruitersGroup חייב להיות לפני Recruiter",
+    "FK: ProjectId -> מיפוי מ-product-to-project.json"
+  ]
+}

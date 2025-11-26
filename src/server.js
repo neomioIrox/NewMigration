@@ -5,6 +5,7 @@ const { parse } = require('csv-parse/sync');
 const sql = require('mssql');
 const mysql = require('mysql2/promise');
 const winston = require('winston');
+const { mssqlConfig: defaultMssqlConfig, mysqlConfig: defaultMysqlConfig } = require('../config/database');
 
 const app = express();
 const PORT = 3030;
@@ -31,11 +32,12 @@ const logger = winston.createLogger({
 });
 
 app.use(express.static(path.join(__dirname, '../public')));
+app.use('/mappings', express.static(path.join(__dirname, '../mappings')));
 app.use(express.json());
 
-// Store connection configs (in production, use environment variables or secure storage)
-let mssqlConfig = null;
-let mysqlConfig = null;
+// Connection configs from centralized config file (can be overridden via API)
+let mssqlConfig = { ...defaultMssqlConfig };
+let mysqlConfig = { ...defaultMysqlConfig };
 
 // Parse SQL file to extract table definitions
 function parseSQLFile(filePath) {
@@ -374,6 +376,351 @@ app.get('/api/fk-mapping/:columnName', (req, res) => {
   }
 });
 
+// Generate RecruiterGroupId mapping by matching old and new data
+app.post('/api/generate-recruitersgroup-mapping', async (req, res) => {
+  try {
+    if (!mssqlConfig || !mysqlConfig) {
+      return res.status(400).json({ success: false, message: 'Database connections not configured' });
+    }
+
+    logger.info('Generating RecruiterGroupId mapping...');
+
+    // Load product-to-project mapping
+    const projectMappingPath = path.join(__dirname, '../data/fk-mappings/ProjectId.json');
+    if (!fs.existsSync(projectMappingPath)) {
+      return res.status(400).json({ success: false, message: 'ProjectId mapping not found' });
+    }
+    const projectMapping = JSON.parse(fs.readFileSync(projectMappingPath, 'utf-8'));
+
+    // Connect to databases
+    const mssqlPool = await sql.connect(mssqlConfig);
+    const mysqlConn = await mysql.createConnection({
+      ...mysqlConfig,
+      charset: 'utf8mb4'
+    });
+
+    // Get old RecruitersGroups
+    const oldGroups = await mssqlPool.request().query(`
+      SELECT ID, Name, ProjectId
+      FROM RecruitersGroups
+      WHERE ProjectId IS NOT NULL
+    `);
+    logger.info(`Found ${oldGroups.recordset.length} groups in old DB`);
+
+    // Get new recruitersgroup
+    const [newGroups] = await mysqlConn.query(`
+      SELECT Id, Name, ProjectId
+      FROM recruitersgroup
+    `);
+    logger.info(`Found ${newGroups.length} groups in new DB`);
+
+    // Create lookup by Name+ProjectId for new groups
+    const newGroupLookup = {};
+    for (const g of newGroups) {
+      const key = `${g.Name}|${g.ProjectId}`;
+      newGroupLookup[key] = g.Id;
+    }
+
+    // Create mapping
+    const mapping = {};
+    let matched = 0;
+    let notMatched = 0;
+
+    for (const oldGroup of oldGroups.recordset) {
+      // Convert old ProjectId to new ProjectId
+      const newProjectId = projectMapping.mappings[oldGroup.ProjectId.toString()];
+
+      if (!newProjectId) {
+        notMatched++;
+        continue;
+      }
+
+      // Find new group by Name + new ProjectId
+      const key = `${oldGroup.Name}|${newProjectId}`;
+      const newGroupId = newGroupLookup[key];
+
+      if (newGroupId) {
+        mapping[oldGroup.ID] = newGroupId;
+        matched++;
+      } else {
+        notMatched++;
+      }
+    }
+
+    logger.info(`RecruiterGroupId mapping: ${matched} matched, ${notMatched} not matched`);
+
+    // Save mapping
+    const mappingData = {
+      columnName: 'RecruiterGroupId',
+      sourceTable: 'RecruitersGroups',
+      keyColumn: 'ID',
+      description: 'Mapping from old RecruitersGroups.ID to new recruitersgroup.Id',
+      totalMappings: Object.keys(mapping).length,
+      mappings: mapping,
+      createdAt: new Date().toISOString()
+    };
+
+    const fkMappingPath = path.join(__dirname, '../data/fk-mappings/RecruiterGroupId.json');
+    fs.writeFileSync(fkMappingPath, JSON.stringify(mappingData, null, 2));
+
+    await mssqlPool.close();
+    await mysqlConn.end();
+
+    res.json({
+      success: true,
+      message: `RecruiterGroupId mapping created: ${matched} matched, ${notMatched} not matched`,
+      matched,
+      notMatched,
+      totalMappings: Object.keys(mapping).length
+    });
+
+  } catch (error) {
+    logger.error(`Error generating RecruiterGroupId mapping: ${error.message}`);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// Run full recruiters migration (groups + individual recruiters)
+app.post('/api/run-all-recruiters', async (req, res) => {
+  const results = {
+    step1_groups: null,
+    step2_mapping: null,
+    step3_recruiters: null,
+    success: false
+  };
+
+  try {
+    logger.info('='.repeat(60));
+    logger.info('STARTING FULL RECRUITERS MIGRATION');
+    logger.info('='.repeat(60));
+
+    // Load mapping files
+    const groupMappingPath = path.join(__dirname, '../mappings/RecruitersGroupMapping.json');
+    const recruiterMappingPath = path.join(__dirname, '../mappings/RecruiterMapping.json');
+
+    if (!fs.existsSync(groupMappingPath)) {
+      throw new Error('RecruitersGroupMapping.json not found');
+    }
+    if (!fs.existsSync(recruiterMappingPath)) {
+      throw new Error('RecruiterMapping.json not found');
+    }
+
+    const groupMapping = JSON.parse(fs.readFileSync(groupMappingPath, 'utf-8'));
+    const recruiterMapping = JSON.parse(fs.readFileSync(recruiterMappingPath, 'utf-8'));
+
+    // Helper function to run migration
+    async function runMigration(mapping, tableName) {
+      const formattedLocalization = {};
+      if (mapping.localizationMappings) {
+        const loc = mapping.localizationMappings;
+        const fields = Object.keys(loc).filter(k => !['targetTable', 'parentFkColumn'].includes(k));
+        for (const field of fields) {
+          formattedLocalization[field] = loc[field];
+        }
+      }
+
+      const requestBody = {
+        tableName: mapping.targetTable,
+        mappings: mapping.columnMappings,
+        localizationMappings: formattedLocalization,
+        fkMappings: mapping.fkMappings || {},
+        whereClause: mapping.whereClause || '',
+        sourceIdColumn: mapping.sourceIdColumn || 'productsid'
+      };
+
+      // Simulate internal API call by reusing migration logic
+      return new Promise(async (resolve, reject) => {
+        try {
+          // Connect to databases
+          const mssqlPool = await sql.connect(mssqlConfig);
+          const mysqlConn = await mysql.createConnection({
+            ...mysqlConfig,
+            charset: 'utf8mb4'
+          });
+
+          // Run migration logic (simplified version)
+          const sourceTable = Object.values(requestBody.mappings).find(m => m.oldTable)?.oldTable;
+          const sourceIdColumn = requestBody.sourceIdColumn;
+
+          // Build select columns
+          const selectColumns = [];
+          for (const [targetCol, mapping] of Object.entries(requestBody.mappings)) {
+            if (mapping.oldColumn && mapping.oldTable === sourceTable) {
+              selectColumns.push(mapping.oldColumn);
+            }
+          }
+
+          // Add localization columns
+          if (requestBody.localizationMappings) {
+            for (const [fieldName, fieldMappings] of Object.entries(requestBody.localizationMappings)) {
+              // Skip if it's an object (actual field mappings)
+              if (typeof fieldMappings === 'object' && fieldMappings !== null && !Array.isArray(fieldMappings)) {
+                for (const langMapping of Object.values(fieldMappings)) {
+                  if (langMapping.oldColumn && langMapping.oldTable === sourceTable) {
+                    selectColumns.push(langMapping.oldColumn);
+                  }
+                }
+              }
+            }
+          }
+
+          const uniqueColumns = [...new Set(selectColumns)];
+          let query = `SELECT ${sourceIdColumn} as sourceId, ${uniqueColumns.join(', ')} FROM ${sourceTable}`;
+          if (requestBody.whereClause) {
+            query += ` WHERE ${requestBody.whereClause}`;
+          }
+
+          logger.info(`Query: ${query}`);
+          const sourceData = await mssqlPool.request().query(query);
+          logger.info(`Fetched ${sourceData.recordset.length} rows`);
+
+          // Load FK mappings
+          const fkMappings = {};
+          for (const [colName, mapping] of Object.entries(requestBody.mappings)) {
+            if (mapping.useFkMapping) {
+              const fkPath = path.join(__dirname, `../data/fk-mappings/${colName}.json`);
+              if (fs.existsSync(fkPath)) {
+                fkMappings[colName] = JSON.parse(fs.readFileSync(fkPath, 'utf-8'));
+              }
+            }
+          }
+
+          let inserted = 0;
+          let errors = 0;
+
+          for (const row of sourceData.recordset) {
+            try {
+              const values = {};
+
+              // Process mappings
+              for (const [targetCol, mapping] of Object.entries(requestBody.mappings)) {
+                if (mapping.convertType === 'const') {
+                  values[targetCol] = mapping.value === 'GETDATE()' ? new Date() : mapping.value;
+                } else if (mapping.convertType === 'direct' || mapping.convertType === 'expression') {
+                  let value = row[mapping.oldColumn];
+
+                  // Apply expression if exists
+                  if (mapping.expression) {
+                    try {
+                      value = eval(mapping.expression);
+                    } catch (e) {
+                      // Keep original value
+                    }
+                  }
+
+                  // Apply FK mapping if needed
+                  if (mapping.useFkMapping && fkMappings[targetCol]) {
+                    const fk = fkMappings[targetCol];
+                    const mappedValue = fk.mappings[String(value)];
+                    if (mappedValue !== undefined) {
+                      value = mappedValue;
+                    } else if (mapping.nullable) {
+                      value = null;
+                    }
+                  }
+
+                  values[targetCol] = value;
+                }
+              }
+
+              // Insert into MySQL
+              const columns = Object.keys(values);
+              const placeholders = columns.map(() => '?').join(', ');
+              const insertQuery = `INSERT INTO ${requestBody.tableName} (${columns.join(', ')}) VALUES (${placeholders})`;
+
+              await mysqlConn.execute(insertQuery, Object.values(values));
+              inserted++;
+            } catch (err) {
+              errors++;
+              if (errors <= 5) {
+                logger.error(`Error: ${err.message}`);
+              }
+            }
+          }
+
+          await mssqlPool.close();
+          await mysqlConn.end();
+
+          resolve({ inserted, total: sourceData.recordset.length, errors });
+        } catch (err) {
+          reject(err);
+        }
+      });
+    }
+
+    // STEP 1: Run RecruitersGroup migration
+    logger.info('STEP 1: Migrating RecruitersGroups...');
+    results.step1_groups = await runMigration(groupMapping, 'recruitersgroup');
+    logger.info(`Step 1 completed: ${results.step1_groups.inserted}/${results.step1_groups.total} rows`);
+
+    // STEP 2: Generate RecruiterGroupId mapping
+    logger.info('STEP 2: Generating RecruiterGroupId mapping...');
+    const projectMappingPath = path.join(__dirname, '../data/fk-mappings/ProjectId.json');
+    const projectMapping = JSON.parse(fs.readFileSync(projectMappingPath, 'utf-8'));
+
+    const mssqlPool = await sql.connect(mssqlConfig);
+    const mysqlConn = await mysql.createConnection({ ...mysqlConfig, charset: 'utf8mb4' });
+
+    const oldGroupsResult = await mssqlPool.request().query('SELECT ID, Name, ProjectId FROM RecruitersGroups WHERE ProjectId IS NOT NULL');
+    const [newGroups] = await mysqlConn.query('SELECT Id, Name, ProjectId FROM recruitersgroup');
+
+    const newGroupLookup = {};
+    for (const g of newGroups) {
+      newGroupLookup[`${g.Name}|${g.ProjectId}`] = g.Id;
+    }
+
+    const groupIdMapping = {};
+    let matched = 0;
+    for (const old of oldGroupsResult.recordset) {
+      const newProjectId = projectMapping.mappings[String(old.ProjectId)];
+      if (newProjectId) {
+        const newId = newGroupLookup[`${old.Name}|${newProjectId}`];
+        if (newId) {
+          groupIdMapping[old.ID] = newId;
+          matched++;
+        }
+      }
+    }
+
+    const fkMappingPath = path.join(__dirname, '../data/fk-mappings/RecruiterGroupId.json');
+    fs.writeFileSync(fkMappingPath, JSON.stringify({
+      columnName: 'RecruiterGroupId',
+      mappings: groupIdMapping,
+      createdAt: new Date().toISOString()
+    }, null, 2));
+
+    results.step2_mapping = { matched, total: oldGroupsResult.recordset.length };
+    logger.info(`Step 2 completed: ${matched} mappings created`);
+
+    await mssqlPool.close();
+    await mysqlConn.end();
+
+    // STEP 3: Run Recruiter migration
+    logger.info('STEP 3: Migrating Recruiters...');
+    results.step3_recruiters = await runMigration(recruiterMapping, 'recruiter');
+    logger.info(`Step 3 completed: ${results.step3_recruiters.inserted}/${results.step3_recruiters.total} rows`);
+
+    results.success = true;
+    logger.info('='.repeat(60));
+    logger.info('FULL RECRUITERS MIGRATION COMPLETED');
+    logger.info('='.repeat(60));
+
+    res.json({
+      success: true,
+      message: 'Full recruiters migration completed',
+      results
+    });
+
+  } catch (error) {
+    logger.error(`Full migration failed: ${error.message}`);
+    res.status(500).json({
+      success: false,
+      message: error.message,
+      results
+    });
+  }
+});
+
 // Save complete mapping (column mappings + FK mappings + localization mappings + projectItem mappings + projectItemLocalization mappings + media mappings)
 app.post('/api/save-mapping', (req, res) => {
   try {
@@ -463,6 +810,9 @@ app.get('/api/load-mapping/:filename', (req, res) => {
     res.json({
       success: true,
       mapping: {
+        sourceTable: mappingData.sourceTable || null,
+        targetTable: mappingData.targetTable || null,
+        sourceIdColumn: mappingData.sourceIdColumn || 'productsid',
         columnMappings: mappingData.columnMappings || {},
         fkMappings: mappingData.fkMappings || {},
         localizationMappings: mappingData.localizationMappings || {},
@@ -662,8 +1012,11 @@ app.post('/api/migrate', async (req, res) => {
 
       const selectColumns = Array.from(selectColumnsSet).join(', ');
 
+      // Get source ID column from request, default to 'productsid' for backward compatibility
+      const sourceIdColumn = req.body.sourceIdColumn || 'productsid';
+
       // Always include the source table's ID column for tracking
-      let selectQuery = `SELECT productsid, ${selectColumns} FROM ${sourceTable}`;
+      let selectQuery = `SELECT ${sourceIdColumn} as sourceId, ${selectColumns} FROM ${sourceTable}`;
 
       // Add WHERE clause if provided in mapping
       if (req.body.whereClause) {
@@ -755,7 +1108,7 @@ app.post('/api/migrate', async (req, res) => {
 
         // Capture the generated ID
         const newProjectId = result.insertId;
-        const oldProductId = row.productsid;
+        const oldProductId = row.sourceId;
 
         if (oldProductId && newProjectId) {
           idMappings[oldProductId] = newProjectId;
@@ -788,7 +1141,7 @@ app.post('/api/migrate', async (req, res) => {
       const languageIds = { hebrew: 1, english: 2, french: 3 };
 
       for (const [oldProductId, newProjectId] of Object.entries(idMappings)) {
-        const sourceRow = rows.find(r => r.productsid === parseInt(oldProductId));
+        const sourceRow = rows.find(r => r.sourceId === parseInt(oldProductId));
 
         if (!sourceRow) {
           logger.warn(`Source row not found for oldProductId: ${oldProductId}`);
@@ -903,7 +1256,7 @@ app.post('/api/migrate', async (req, res) => {
       // Count expected items
       let expectedItemCount = 0;
       for (const [oldProductId, newProjectId] of Object.entries(idMappings)) {
-        const sourceRow = rows.find(r => r.productsid === parseInt(oldProductId));
+        const sourceRow = rows.find(r => r.sourceId === parseInt(oldProductId));
         if (!sourceRow) continue;
 
         // Determine ProjectType from const mappings or row data
@@ -924,7 +1277,7 @@ app.post('/api/migrate', async (req, res) => {
 
       // Iterate through each project
       for (const [oldProductId, newProjectId] of Object.entries(idMappings)) {
-        const sourceRow = rows.find(r => r.productsid === parseInt(oldProductId));
+        const sourceRow = rows.find(r => r.sourceId === parseInt(oldProductId));
 
         if (!sourceRow) {
           logger.warn(`Source row not found for oldProductId: ${oldProductId}`);
@@ -1280,7 +1633,7 @@ app.post('/api/migrate', async (req, res) => {
 
       // Iterate through each project's items
       for (const [oldProductId, itemIds] of Object.entries(projectItemIdMappings)) {
-        const row = rows.find(r => r.productsid === parseInt(oldProductId));
+        const row = rows.find(r => r.sourceId === parseInt(oldProductId));
 
         if (!row) {
           logger.warn(`Source row not found for oldProductId: ${oldProductId}`);
@@ -1399,7 +1752,7 @@ app.post('/api/migrate', async (req, res) => {
 
       // Iterate through each project
       for (const [oldProductId, newProjectId] of Object.entries(idMappings)) {
-        const row = rows.find(r => r.productsid === parseInt(oldProductId));
+        const row = rows.find(r => r.sourceId === parseInt(oldProductId));
 
         if (!row) {
           logger.warn(`Source row not found for oldProductId: ${oldProductId}`);

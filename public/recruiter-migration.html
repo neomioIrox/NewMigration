@@ -1,0 +1,986 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>מיגרציית מגייסים - Recruiter Migration</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        /* Control Panel */
+        .control-panel {
+            background: #f8f9fa;
+            padding: 25px 30px;
+            border-bottom: 3px solid #e9ecef;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .migration-type-selector {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .migration-type-selector label {
+            font-weight: bold;
+            font-size: 1.1em;
+            color: #495057;
+        }
+
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.2);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-warning {
+            background: #ffc107;
+            color: #212529;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        /* Radio Buttons */
+        input[type="radio"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+
+        .radio-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: white;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .radio-label:hover {
+            border-color: #11998e;
+            background: #f0fff0;
+        }
+
+        input[type="radio"]:checked + .radio-label {
+            border-color: #11998e;
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: white;
+            font-weight: bold;
+        }
+
+        /* Stats Panel */
+        .stats-panel {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 20px;
+            padding: 25px 30px;
+            background: #f8f9fa;
+            border-bottom: 2px solid #e9ecef;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .stat-card .label {
+            font-size: 0.9em;
+            color: #6c757d;
+            margin-bottom: 8px;
+        }
+
+        .stat-card .value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #11998e;
+        }
+
+        /* Content Area */
+        .content {
+            padding: 30px;
+        }
+
+        .section-title {
+            font-size: 1.5em;
+            color: #495057;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 3px solid #11998e;
+        }
+
+        /* Migration Steps */
+        .migration-steps {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .step-card {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 10px;
+            border: 2px solid #dee2e6;
+            transition: all 0.3s ease;
+        }
+
+        .step-card.active {
+            border-color: #11998e;
+            box-shadow: 0 4px 15px rgba(17, 153, 142, 0.3);
+        }
+
+        .step-card.completed {
+            border-color: #28a745;
+            background: #f0fff0;
+        }
+
+        .step-card h3 {
+            color: #11998e;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .step-number {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 35px;
+            height: 35px;
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: white;
+            border-radius: 50%;
+            font-weight: bold;
+        }
+
+        .step-card.completed .step-number {
+            background: #28a745;
+        }
+
+        .step-info {
+            margin-bottom: 15px;
+        }
+
+        .step-info p {
+            margin: 8px 0;
+            color: #495057;
+        }
+
+        .step-info .source-target {
+            background: white;
+            padding: 10px 15px;
+            border-radius: 5px;
+            font-family: monospace;
+            margin: 10px 0;
+        }
+
+        /* Tables */
+        .table-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .table-section h3 {
+            color: #11998e;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        thead {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: white;
+        }
+
+        th {
+            padding: 15px;
+            text-align: right;
+            font-weight: bold;
+        }
+
+        td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #e9ecef;
+            text-align: right;
+        }
+
+        tbody tr:hover {
+            background: #f0fff0;
+        }
+
+        .convert-type {
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.85em;
+            font-weight: bold;
+        }
+
+        .convert-type.direct { background: #d4edda; color: #155724; }
+        .convert-type.const { background: #fff3cd; color: #856404; }
+        .convert-type.expression { background: #cce5ff; color: #004085; }
+        .convert-type.fk { background: #f8d7da; color: #721c24; }
+        .convert-type.no-mapping { background: #e9ecef; color: #495057; }
+
+        /* Progress Bar */
+        .progress-section {
+            margin-top: 30px;
+            display: none;
+        }
+
+        .progress-section.show {
+            display: block;
+        }
+
+        .progress-bar-container {
+            width: 100%;
+            height: 40px;
+            background: #e9ecef;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #11998e 0%, #38ef7d 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+
+        /* Status Messages */
+        .status-message {
+            margin-top: 20px;
+            padding: 15px 20px;
+            border-radius: 8px;
+            display: none;
+        }
+
+        .status-message.show {
+            display: block;
+        }
+
+        .status-message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status-message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .status-message.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .status-message.warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeeba;
+        }
+
+        /* Spinner */
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Log Area */
+        .log-area {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            border-radius: 10px;
+            font-family: 'Consolas', monospace;
+            font-size: 0.9em;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+
+        .log-entry {
+            margin: 5px 0;
+            padding: 5px 10px;
+            border-radius: 4px;
+        }
+
+        .log-entry.info { color: #569cd6; }
+        .log-entry.success { color: #6a9955; }
+        .log-entry.error { color: #f14c4c; }
+        .log-entry.warning { color: #dcdcaa; }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .migration-steps {
+                grid-template-columns: 1fr;
+            }
+
+            .control-panel {
+                flex-direction: column;
+                align-items: stretch;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>👥 מיגרציית מגייסים</h1>
+            <p>Recruiter Migration Tool - קבוצות ומגייסים בודדים</p>
+        </div>
+
+        <!-- Control Panel -->
+        <div class="control-panel">
+            <div class="migration-type-selector">
+                <label>שלב מיגרציה:</label>
+                <div>
+                    <input type="radio" name="migrationType" id="typeGroup" value="recruitersgroup" checked>
+                    <label for="typeGroup" class="radio-label">👥 קבוצות מגייסים</label>
+                </div>
+                <div>
+                    <input type="radio" name="migrationType" id="typeRecruiter" value="recruiter">
+                    <label for="typeRecruiter" class="radio-label">👤 מגייסים בודדים</label>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+                <button class="btn" id="runAllBtn" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); font-size: 1.1em; padding: 12px 24px;">
+                    🚀 הרץ הכל (קבוצות + מגייסים)
+                </button>
+                <button class="btn btn-primary" id="loadDataBtn">
+                    📥 טען נתונים
+                </button>
+                <button class="btn btn-warning" id="testMigrationBtn" disabled>
+                    🧪 Test (10 שורות)
+                </button>
+                <button class="btn btn-success" id="runMigrationBtn" disabled>
+                    🚀 הרץ מיגרציה
+                </button>
+                <button class="btn btn-secondary" id="resetBtn">
+                    🔄 אפס
+                </button>
+                <button class="btn btn-secondary" onclick="window.location.href='/'">
+                    🏠 חזרה לראשי
+                </button>
+            </div>
+        </div>
+
+        <!-- Stats Panel -->
+        <div class="stats-panel">
+            <div class="stat-card">
+                <div class="label">טבלת מקור</div>
+                <div class="value" id="sourceTableName">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">שורות במקור</div>
+                <div class="value" id="sourceRowCount">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">שדות ממופים</div>
+                <div class="value" id="mappedFieldsCount">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">שפות</div>
+                <div class="value">3</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">סה"כ רשומות צפויות</div>
+                <div class="value" id="expectedRows">0</div>
+            </div>
+        </div>
+
+        <!-- Content Area -->
+        <div class="content">
+            <!-- Migration Steps Overview -->
+            <div class="section-title">📋 שלבי המיגרציה</div>
+
+            <div class="migration-steps">
+                <div class="step-card" id="step1Card">
+                    <h3><span class="step-number">1</span> קבוצות מגייסים (RecruitersGroup)</h3>
+                    <div class="step-info">
+                        <p><strong>מקור:</strong> RecruitersGroups</p>
+                        <p><strong>יעד:</strong> recruitersgroup + recruitersgrouplanguage</p>
+                        <div class="source-target">
+                            RecruitersGroups → recruitersgroup<br>
+                            + 3 שפות → recruitersgrouplanguage
+                        </div>
+                        <p><strong>סטטוס:</strong> <span id="step1Status">ממתין</span></p>
+                    </div>
+                </div>
+
+                <div class="step-card" id="step2Card">
+                    <h3><span class="step-number">2</span> מגייסים בודדים (Recruiter)</h3>
+                    <div class="step-info">
+                        <p><strong>מקור:</strong> ProductStock</p>
+                        <p><strong>יעד:</strong> recruiter + recruiterlocalization</p>
+                        <div class="source-target">
+                            ProductStock → recruiter<br>
+                            + 3 שפות → recruiterlocalization
+                        </div>
+                        <p><strong>תלות:</strong> RecruitersGroup (FK)</p>
+                        <p><strong>סטטוס:</strong> <span id="step2Status">ממתין</span></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mapping Preview -->
+            <div class="section-title">🗺️ מיפוי שדות</div>
+
+            <div class="table-section">
+                <h3 id="mappingTableTitle">מיפוי עמודות</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>שדה יעד</th>
+                            <th>סוג המרה</th>
+                            <th>מקור</th>
+                            <th>הערות</th>
+                        </tr>
+                    </thead>
+                    <tbody id="mappingTableBody">
+                        <tr>
+                            <td colspan="4" style="text-align: center; padding: 40px; color: #6c757d;">
+                                לחץ "טען נתונים" להצגת מיפוי
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Localization Preview -->
+            <div class="table-section">
+                <h3>🌐 מיפוי לוקליזציה</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>שדה</th>
+                            <th>עברית 🇮🇱</th>
+                            <th>אנגלית 🇺🇸</th>
+                            <th>צרפתית 🇫🇷</th>
+                        </tr>
+                    </thead>
+                    <tbody id="localizationTableBody">
+                        <tr>
+                            <td colspan="4" style="text-align: center; padding: 40px; color: #6c757d;">
+                                ממתין לנתונים...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Progress Section -->
+            <div class="progress-section" id="progressSection">
+                <div class="section-title">📊 התקדמות מיגרציה</div>
+                <div class="progress-bar-container">
+                    <div class="progress-bar" id="progressBar">0%</div>
+                </div>
+            </div>
+
+            <!-- Status Messages -->
+            <div class="status-message" id="statusMessage"></div>
+
+            <!-- Log Area -->
+            <div class="log-area" id="logArea" style="display: none;">
+                <div class="log-entry info">מוכן להתחלה...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global State
+        let currentMapping = null;
+        let currentMigrationType = 'recruitersgroup';
+        let migrationState = {
+            step1: { status: 'pending', count: 0 },
+            step2: { status: 'pending', count: 0 }
+        };
+
+        // DOM Elements
+        const migrationTypeInputs = document.querySelectorAll('input[name="migrationType"]');
+        const loadDataBtn = document.getElementById('loadDataBtn');
+        const testMigrationBtn = document.getElementById('testMigrationBtn');
+        const runMigrationBtn = document.getElementById('runMigrationBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const runAllBtn = document.getElementById('runAllBtn');
+        const statusMessage = document.getElementById('statusMessage');
+        const progressSection = document.getElementById('progressSection');
+        const progressBar = document.getElementById('progressBar');
+        const logArea = document.getElementById('logArea');
+
+        // Event Listeners
+        migrationTypeInputs.forEach(input => {
+            input.addEventListener('change', (e) => {
+                currentMigrationType = e.target.value;
+                updateStepCards();
+                loadMappingData();
+            });
+        });
+
+        loadDataBtn.addEventListener('click', loadMappingData);
+        testMigrationBtn.addEventListener('click', () => runMigration(true));
+        runMigrationBtn.addEventListener('click', () => runMigration(false));
+        resetBtn.addEventListener('click', resetUI);
+        runAllBtn.addEventListener('click', runAllMigration);
+
+        // Initialize
+        updateStepCards();
+
+        // Update Step Cards
+        function updateStepCards() {
+            const step1Card = document.getElementById('step1Card');
+            const step2Card = document.getElementById('step2Card');
+
+            step1Card.classList.remove('active', 'completed');
+            step2Card.classList.remove('active', 'completed');
+
+            if (currentMigrationType === 'recruitersgroup') {
+                step1Card.classList.add('active');
+            } else {
+                step2Card.classList.add('active');
+            }
+
+            if (migrationState.step1.status === 'completed') {
+                step1Card.classList.add('completed');
+                document.getElementById('step1Status').textContent = `הושלם (${migrationState.step1.count} רשומות)`;
+            }
+            if (migrationState.step2.status === 'completed') {
+                step2Card.classList.add('completed');
+                document.getElementById('step2Status').textContent = `הושלם (${migrationState.step2.count} רשומות)`;
+            }
+        }
+
+        // Load Mapping Data
+        async function loadMappingData() {
+            showStatus('info', 'טוען נתוני מיפוי...');
+            loadDataBtn.disabled = true;
+            loadDataBtn.innerHTML = '<span class="spinner"></span> טוען...';
+
+            try {
+                const mappingFile = currentMigrationType === 'recruitersgroup'
+                    ? 'RecruitersGroupMapping'
+                    : 'RecruiterMapping';
+
+                const response = await fetch(`/api/load-mapping/${mappingFile}`);
+                if (!response.ok) throw new Error('שגיאה בטעינת קובץ המיפוי');
+
+                const data = await response.json();
+                if (!data.success) throw new Error(data.message);
+
+                currentMapping = data.mapping;
+
+                // Update UI
+                updateStats();
+                renderMappingTable();
+                renderLocalizationTable();
+
+                // Enable buttons
+                testMigrationBtn.disabled = false;
+                runMigrationBtn.disabled = false;
+
+                const tableName = currentMigrationType === 'recruitersgroup' ? 'קבוצות מגייסים' : 'מגייסים בודדים';
+                showStatus('success', `✅ נתוני ${tableName} נטענו בהצלחה`);
+
+            } catch (error) {
+                showStatus('error', `❌ שגיאה: ${error.message}`);
+                console.error('Error loading mapping:', error);
+            } finally {
+                loadDataBtn.disabled = false;
+                loadDataBtn.innerHTML = '📥 טען נתונים';
+            }
+        }
+
+        // Update Stats
+        function updateStats() {
+            if (!currentMapping) return;
+
+            document.getElementById('sourceTableName').textContent = currentMapping.sourceTable || '-';
+            document.getElementById('mappingTableTitle').textContent =
+                `מיפוי: ${currentMapping.sourceTable} → ${currentMapping.targetTable}`;
+
+            const mappedFields = Object.keys(currentMapping.columnMappings || {}).length;
+            document.getElementById('mappedFieldsCount').textContent = mappedFields;
+
+            // Calculate expected rows (main + 3 localizations)
+            const sourceCount = currentMapping.sourceRowCount || 0;
+            document.getElementById('sourceRowCount').textContent = sourceCount;
+            document.getElementById('expectedRows').textContent = sourceCount * 4; // 1 main + 3 languages
+        }
+
+        // Render Mapping Table
+        function renderMappingTable() {
+            const tbody = document.getElementById('mappingTableBody');
+
+            if (!currentMapping || !currentMapping.columnMappings) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align: center;">אין נתונים</td></tr>';
+                return;
+            }
+
+            let html = '';
+            for (const [field, config] of Object.entries(currentMapping.columnMappings)) {
+                const convertType = config.convertType || 'direct';
+                let source = '-';
+
+                if (convertType === 'direct' || convertType === 'expression') {
+                    source = config.oldColumn || '-';
+                } else if (convertType === 'FK') {
+                    source = `${config.oldColumn} → ${config.lookupTable}`;
+                } else if (convertType === 'const') {
+                    source = `קבוע: ${config.value}`;
+                }
+
+                html += `
+                    <tr>
+                        <td><strong>${field}</strong></td>
+                        <td><span class="convert-type ${convertType}">${convertType}</span></td>
+                        <td>${source}</td>
+                        <td>${config.comment || ''}</td>
+                    </tr>
+                `;
+            }
+
+            tbody.innerHTML = html;
+        }
+
+        // Render Localization Table
+        function renderLocalizationTable() {
+            const tbody = document.getElementById('localizationTableBody');
+
+            if (!currentMapping || !currentMapping.localizationMappings) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align: center;">אין מיפוי לוקליזציה</td></tr>';
+                return;
+            }
+
+            const loc = currentMapping.localizationMappings;
+            let html = '';
+
+            // Get all field names (excluding metadata like targetTable)
+            const fields = Object.keys(loc).filter(k =>
+                !['targetTable', 'parentFkColumn'].includes(k)
+            );
+
+            for (const field of fields) {
+                const fieldMapping = loc[field];
+                if (!fieldMapping) continue;
+
+                const heSource = fieldMapping.hebrew?.oldColumn || fieldMapping.hebrew?.value || '-';
+                const enSource = fieldMapping.english?.oldColumn || fieldMapping.english?.value || '-';
+                const frSource = fieldMapping.french?.oldColumn || fieldMapping.french?.value || '-';
+
+                html += `
+                    <tr>
+                        <td><strong>${field}</strong></td>
+                        <td>${heSource}</td>
+                        <td>${enSource}</td>
+                        <td>${frSource}</td>
+                    </tr>
+                `;
+            }
+
+            tbody.innerHTML = html || '<tr><td colspan="4">אין שדות לוקליזציה</td></tr>';
+        }
+
+        // Run Migration
+        async function runMigration(isTest = false) {
+            const mode = isTest ? 'test' : 'production';
+            const modeText = isTest ? 'בדיקה (10 שורות)' : 'מלאה';
+
+            showStatus('info', `מתחיל מיגרציה ${modeText}...`);
+            progressSection.classList.add('show');
+            logArea.style.display = 'block';
+
+            testMigrationBtn.disabled = true;
+            runMigrationBtn.disabled = true;
+
+            addLog('info', `התחלת מיגרציה - ${modeText}`);
+
+            try {
+                if (!currentMapping) {
+                    throw new Error('לא נטען קובץ מיפוי');
+                }
+
+                // Format localization mappings for API
+                const formattedLocalization = {};
+                if (currentMapping.localizationMappings) {
+                    const loc = currentMapping.localizationMappings;
+                    const fields = Object.keys(loc).filter(k =>
+                        !['targetTable', 'parentFkColumn'].includes(k)
+                    );
+
+                    for (const field of fields) {
+                        formattedLocalization[field] = loc[field];
+                    }
+                }
+
+                // Build request body matching server API
+                const requestBody = {
+                    tableName: currentMapping.targetTable,
+                    mappings: currentMapping.columnMappings,
+                    localizationMappings: formattedLocalization,
+                    fkMappings: currentMapping.fkMappings || {},
+                    whereClause: currentMapping.whereClause || '',
+                    sourceIdColumn: currentMapping.sourceIdColumn || 'productsid',
+                    testMode: isTest,
+                    limit: isTest ? 10 : null
+                };
+
+                addLog('info', `שולח בקשה ל-API: ${currentMapping.targetTable}`);
+
+                const response = await fetch('/api/migrate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(requestBody)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    const stepKey = currentMigrationType === 'recruitersgroup' ? 'step1' : 'step2';
+                    migrationState[stepKey] = {
+                        status: 'completed',
+                        count: result.insertedCount || result.rowsInserted || 0
+                    };
+                    updateStepCards();
+
+                    progressBar.style.width = '100%';
+                    progressBar.textContent = '100%';
+
+                    const count = result.insertedCount || result.rowsInserted || 0;
+                    addLog('success', `מיגרציה הושלמה: ${count} רשומות`);
+                    showStatus('success', `✅ מיגרציה הושלמה בהצלחה! ${count} רשומות נוספו.`);
+                } else {
+                    throw new Error(result.message || 'שגיאה לא ידועה');
+                }
+
+            } catch (error) {
+                addLog('error', `שגיאה: ${error.message}`);
+                showStatus('error', `❌ שגיאה: ${error.message}`);
+            } finally {
+                testMigrationBtn.disabled = false;
+                runMigrationBtn.disabled = false;
+            }
+        }
+
+        // Show Status Message
+        function showStatus(type, message) {
+            statusMessage.className = `status-message show ${type}`;
+            statusMessage.textContent = message;
+        }
+
+        // Add Log Entry
+        function addLog(type, message) {
+            const timestamp = new Date().toLocaleTimeString('he-IL');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = `[${timestamp}] ${message}`;
+            logArea.appendChild(entry);
+            logArea.scrollTop = logArea.scrollHeight;
+        }
+
+        // Run All Migration (Groups + Recruiters)
+        async function runAllMigration() {
+            showStatus('info', 'מתחיל מיגרציה מלאה...');
+            progressSection.classList.add('show');
+            progressBar.style.width = '10%';
+            progressBar.textContent = '10%';
+            logArea.innerHTML = '';
+            logArea.style.display = 'block';
+
+            runAllBtn.disabled = true;
+            runAllBtn.innerHTML = '<span class="spinner"></span> מריץ...';
+
+            addLog('info', 'שולח בקשה למיגרציה מלאה...');
+            addLog('info', 'שלב 1: קבוצות מגייסים');
+            addLog('info', 'שלב 2: יצירת מיפוי RecruiterGroupId');
+            addLog('info', 'שלב 3: מגייסים בודדים');
+
+            try {
+                const response = await fetch('/api/run-all-recruiters', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    progressBar.style.width = '100%';
+                    progressBar.textContent = '100%';
+
+                    const r = result.results;
+
+                    // Update step cards
+                    if (r.step1_groups) {
+                        migrationState.step1 = { status: 'completed', count: r.step1_groups.inserted };
+                        addLog('success', `שלב 1 הושלם: ${r.step1_groups.inserted}/${r.step1_groups.total} קבוצות`);
+                    }
+
+                    if (r.step2_mapping) {
+                        addLog('success', `שלב 2 הושלם: ${r.step2_mapping.matched} מיפויים נוצרו`);
+                    }
+
+                    if (r.step3_recruiters) {
+                        migrationState.step2 = { status: 'completed', count: r.step3_recruiters.inserted };
+                        addLog('success', `שלב 3 הושלם: ${r.step3_recruiters.inserted}/${r.step3_recruiters.total} מגייסים`);
+                    }
+
+                    updateStepCards();
+
+                    const totalInserted = (r.step1_groups?.inserted || 0) + (r.step3_recruiters?.inserted || 0);
+                    showStatus('success', `מיגרציה מלאה הושלמה! ${totalInserted} רשומות נוספו.`);
+
+                } else {
+                    throw new Error(result.message || 'שגיאה לא ידועה');
+                }
+
+            } catch (error) {
+                addLog('error', `שגיאה: ${error.message}`);
+                showStatus('error', `שגיאה: ${error.message}`);
+            } finally {
+                runAllBtn.disabled = false;
+                runAllBtn.innerHTML = '🚀 הרץ הכל (קבוצות + מגייסים)';
+            }
+        }
+
+        // Reset UI
+        function resetUI() {
+            currentMapping = null;
+            testMigrationBtn.disabled = true;
+            runMigrationBtn.disabled = true;
+            progressSection.classList.remove('show');
+            progressBar.style.width = '0%';
+            progressBar.textContent = '0%';
+            statusMessage.className = 'status-message';
+            logArea.innerHTML = '<div class="log-entry info">מוכן להתחלה...</div>';
+            logArea.style.display = 'none';
+
+            document.getElementById('sourceTableName').textContent = '-';
+            document.getElementById('sourceRowCount').textContent = '0';
+            document.getElementById('mappedFieldsCount').textContent = '0';
+            document.getElementById('expectedRows').textContent = '0';
+
+            document.getElementById('mappingTableBody').innerHTML =
+                '<tr><td colspan="4" style="text-align: center; padding: 40px; color: #6c757d;">לחץ "טען נתונים" להצגת מיפוי</td></tr>';
+            document.getElementById('localizationTableBody').innerHTML =
+                '<tr><td colspan="4" style="text-align: center; padding: 40px; color: #6c757d;">ממתין לנתונים...</td></tr>';
+        }
+    </script>
+</body>
+</html>
