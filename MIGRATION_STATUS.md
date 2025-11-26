@@ -15,7 +15,7 @@
 | entityContent | products | 2,443 | ✅ ~99% (5 errors - Data too long) |
 | entityContentItem | products | 2,438 | ✅ ~99% |
 | recruitersGroup | ProductsGroup | 47 | ✅ 100% |
-| recruitersGroupLanguage | ProductsGroup | 141 | ✅ 100% (3 languages) |
+| recruitersGroupLanguage | ProductsGroup | 111 | ✅ 100% (37 groups × 3 languages) |
 | recruiter | ProductStock | 3,828 | ✅ 100% |
 | recruiterLocalization | ProductStock | 3,337 | ✅ 100% (3,321 HE, 15 EN, 1 FR) |
 
