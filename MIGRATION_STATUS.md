@@ -14,6 +14,10 @@
 | linkSetting | products | 8,100 | ✅ 100% |
 | entityContent | products | 2,443 | ✅ ~99% (5 errors - Data too long) |
 | entityContentItem | products | 2,438 | ✅ ~99% |
+| recruitersGroup | ProductsGroup | 47 | ✅ 100% |
+| recruitersGroupLanguage | ProductsGroup | 141 | ✅ 100% (3 languages) |
+| recruiter | ProductStock | 3,828 | ✅ 100% |
+| recruiterLocalization | ProductStock | 3,337 | ✅ 100% (3,321 HE, 15 EN, 1 FR) |
 
 ### Known Issues Fixed
 
@@ -29,16 +33,31 @@
 4. **Data Too Long** - ItemDefinition column
    - Solution: `ALTER TABLE entitycontentitem MODIFY COLUMN ItemDefinition LONGTEXT`
 
+5. **Recruiter Localization Cascade Failures** - FK mapping dependencies failed due to duplicates
+   - Solution: Created simplified script [migrate-recruiter-localization-simple.js](scripts/migration/migrate-recruiter-localization-simple.js) that:
+     - Matches recruiters by Name instead of complex FK mappings
+     - Inserts localization only for languages with non-empty data
+     - Handles string "null" values correctly
+   - Result: 3,337 rows (3,321 Hebrew, 15 English, 1 French) with 0 errors
+
+6. **Centralized Database Configuration** - Connection settings duplicated across files
+   - Solution: Created [config/database.js](config/database.js) with shared MSSQL and MySQL settings
+   - All scripts now import from single source
+
 ---
 
 ## ID Mappings
 
-Location: `data/id-mappings/product-to-project.json` (local only, not in git)
+Location: `data/fk-mappings/` (auto-generated during migration)
 
 ```javascript
-// Usage:
-const mapping = require('./data/id-mappings/product-to-project.json');
-const newProjectId = mapping.mappings[oldProductId];
+// Project ID mapping
+const projectMapping = require('./data/fk-mappings/ProjectId.json');
+const newProjectId = projectMapping[oldProductId];
+
+// Recruiter Group ID mapping
+const recruiterGroupMapping = require('./data/fk-mappings/RecruiterGroupId.json');
+const newRecruiterGroupId = recruiterGroupMapping[oldProductsGroupId];
 ```
 
 ---
@@ -47,7 +66,7 @@ const newProjectId = mapping.mappings[oldProductId];
 
 ### Priority 1 - Core Tables
 - [ ] Lead
-- [ ] Recruiter
+- [x] ~~Recruiter~~ ✅ Completed
 - [ ] Donation / Payment
 
 ### Priority 2 - Related Tables
@@ -85,10 +104,16 @@ await conn.execute(insertQuery, values); // ❌ Fails after ~1000
 
 | File | Purpose |
 |------|---------|
-| `mappings/ProjectMapping_Funds_Fixed.json` | Main mapping config |
+| `config/database.js` | Centralized MSSQL & MySQL connection settings |
+| `mappings/RecruiterMapping.json` | Recruiter mapping config |
+| `mappings/RecruitersGroupMapping.json` | Recruiter group mapping config |
+| `mappings/ProjectMapping_Funds_Fixed.json` | Project mapping config (Funds) |
 | `mappings/ProjectItemLocalizationMapping.json` | ItemLocalization mapping |
-| `data/id-mappings/product-to-project.json` | ID translation (local) |
-| `src/server.js` | Migration engine |
+| `data/fk-mappings/ProjectId.json` | Product→Project ID translation |
+| `data/fk-mappings/RecruiterGroupId.json` | ProductsGroup→RecruitersGroup ID translation |
+| `public/recruiter-migration.html` | Recruiter migration UI (Hebrew RTL) |
+| `scripts/migration/migrate-recruiter-localization-simple.js` | Simplified recruiter localization script |
+| `src/server.js` | Migration engine with REST API |
 
 ---
 

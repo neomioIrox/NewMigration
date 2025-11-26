@@ -669,6 +669,9 @@
             <button class="btn btn-success" onclick="openSaveMappingModal()">שמור מיפוי</button>
             <button class="btn btn-warning" onclick="openLoadMappingModal()">טען מיפוי</button>
             <button class="btn btn-secondary" onclick="clearLogs()">רוקן קובץ לוג</button>
+            <span style="border-left: 2px solid rgba(255,255,255,0.3); margin: 0 10px;"></span>
+            <button class="btn" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);" onclick="window.location.href='recruiter-migration.html'">👥 מיגרציית מגייסים</button>
+            <button class="btn" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);" onclick="window.location.href='gallery-migration.html'">🎨 מיגרציית גלריות</button>
         </div>
 
         <div id="loading" class="loading">Loading project table data...</div>
@@ -933,6 +936,7 @@
         let projectItemMappings = {};  // Store projectItem mappings (funds & collections)
         let projectItemData = null;  // Store projectItem table structure
         let currentItemType = 'funds';  // Current active item type tab
+        let projectItemLocalizationMappings = {};  // Store projectItemLocalization mappings (hebrew, english, french)
         let mediaMappings = {};  // Store media mappings (hebrew, english, french)
         let mediaData = null;  // Store media table structure
         let whereClause = null;  // WHERE clause filter for source query
@@ -1558,6 +1562,7 @@
             console.log('Sending FK mappings:', fkMappings);
             console.log('Sending localization mappings:', localizationMappings);
             console.log('Sending projectItem mappings:', projectItemMappings);
+            console.log('Sending projectItemLocalization mappings:', projectItemLocalizationMappings);
             console.log('Sending media mappings:', mediaMappings);
             console.log('Sending WHERE clause:', whereClause);
             statusDiv.innerHTML = '<div class="status-message">מתחיל מיגרציה... אנא המתן</div>';
@@ -1572,6 +1577,7 @@
                         fkMappings: fkMappings,
                         localizationMappings: localizationMappings,
                         projectItemMappings: projectItemMappings,
+                        projectItemLocalizationMappings: projectItemLocalizationMappings,
                         mediaMappings: mediaMappings,
                         whereClause: whereClause
                     })
@@ -1614,6 +1620,18 @@
                             resultHtml += `<br><strong>שגיאות ProjectItem (${result.projectItem.errors.length} ראשונות):</strong><br>`;
                             result.projectItem.errors.forEach(err => {
                                 resultHtml += `- [Project ID: ${err.newProjectId}] ${err.error}<br>`;
+                            });
+                        }
+                    }
+
+                    // ProjectItemLocalization results
+                    if (result.projectItemLocalization) {
+                        resultHtml += `<br><strong>טבלת projectItemLocalization:</strong> ${result.projectItemLocalization.insertedCount} שורות נוצרו<br>`;
+
+                        if (result.projectItemLocalization.errors && result.projectItemLocalization.errors.length > 0) {
+                            resultHtml += `<br><strong>שגיאות ProjectItemLocalization (${result.projectItemLocalization.errors.length} ראשונות):</strong><br>`;
+                            result.projectItemLocalization.errors.forEach(err => {
+                                resultHtml += `- [Item ID: ${err.itemId}, Lang: ${err.language}] ${err.error}<br>`;
                             });
                         }
                     }
@@ -1674,6 +1692,7 @@
                         fkMappings: fkMappings,
                         localizationMappings: localizationMappings,
                         projectItemMappings: projectItemMappings,
+                        projectItemLocalizationMappings: projectItemLocalizationMappings,
                         mediaMappings: mediaMappings,
                         whereClause: whereClause
                     })
@@ -1762,6 +1781,7 @@
                 fkMappings = result.mapping.fkMappings || {};
                 localizationMappings = result.mapping.localizationMappings || {};
                 projectItemMappings = result.mapping.projectItemMappings || {};
+                projectItemLocalizationMappings = result.mapping.projectItemLocalizationMappings || {};
                 mediaMappings = result.mapping.mediaMappings || {};
                 whereClause = result.mapping.whereClause || null;
 

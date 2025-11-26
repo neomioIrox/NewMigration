@@ -198,7 +198,7 @@
         /* Migration Steps */
         .migration-steps {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
             gap: 30px;
             margin-bottom: 30px;
         }
@@ -530,13 +530,28 @@
                     <h3><span class="step-number">2</span> מגייסים בודדים (Recruiter)</h3>
                     <div class="step-info">
                         <p><strong>מקור:</strong> ProductStock</p>
-                        <p><strong>יעד:</strong> recruiter + recruiterlocalization</p>
+                        <p><strong>יעד:</strong> recruiter</p>
                         <div class="source-target">
-                            ProductStock → recruiter<br>
-                            + 3 שפות → recruiterlocalization
+                            ProductStock → recruiter
                         </div>
-                        <p><strong>תלות:</strong> RecruitersGroup (FK)</p>
+                        <p><strong>תלות:</strong> RecruiterGroupId (FK)</p>
                         <p><strong>סטטוס:</strong> <span id="step2Status">ממתין</span></p>
+                    </div>
+                </div>
+
+                <div class="step-card" id="step3Card">
+                    <h3><span class="step-number">3</span> לוקליזציה (RecruiterLocalization)</h3>
+                    <div class="step-info">
+                        <p><strong>מקור:</strong> ProductStock</p>
+                        <p><strong>יעד:</strong> recruiterlocalization</p>
+                        <div class="source-target">
+                            Name, Hide, Price → עברית<br>
+                            Name_en, Hide_en, Price_en → אנגלית<br>
+                            Name_fr, Hide_fr, Price_fr → צרפתית
+                        </div>
+                        <p><strong>לוגיקה:</strong> שורה נוצרת רק אם יש לפחות שדה אחד מלא</p>
+                        <p><strong>תלות:</strong> RecruiterId (FK)</p>
+                        <p><strong>סטטוס:</strong> <span id="step3Status">ממתין</span></p>
                     </div>
                 </div>
             </div>
@@ -611,7 +626,8 @@
         let currentMigrationType = 'recruitersgroup';
         let migrationState = {
             step1: { status: 'pending', count: 0 },
-            step2: { status: 'pending', count: 0 }
+            step2: { status: 'pending', count: 0 },
+            step3: { status: 'pending', count: 0 }
         };
 
         // DOM Elements
@@ -665,6 +681,10 @@
             if (migrationState.step2.status === 'completed') {
                 step2Card.classList.add('completed');
                 document.getElementById('step2Status').textContent = `הושלם (${migrationState.step2.count} רשומות)`;
+            }
+            if (migrationState.step3.status === 'completed') {
+                step3Card.classList.add('completed');
+                document.getElementById('step3Status').textContent = `הושלם (${migrationState.step3.count} רשומות)`;
             }
         }
 
@@ -911,6 +931,8 @@
             addLog('info', 'שלב 1: קבוצות מגייסים');
             addLog('info', 'שלב 2: יצירת מיפוי RecruiterGroupId');
             addLog('info', 'שלב 3: מגייסים בודדים');
+            addLog('info', 'שלב 4: יצירת מיפוי RecruiterId');
+            addLog('info', 'שלב 5: לוקליזציה (רק שפות עם נתונים)');
 
             try {
                 const response = await fetch('/api/run-all-recruiters', {
@@ -933,7 +955,7 @@
                     }
 
                     if (r.step2_mapping) {
-                        addLog('success', `שלב 2 הושלם: ${r.step2_mapping.matched} מיפויים נוצרו`);
+                        addLog('success', `שלב 2 הושלם: ${r.step2_mapping.matched} מיפויי RecruiterGroupId`);
                     }
 
                     if (r.step3_recruiters) {
@@ -941,9 +963,18 @@
                         addLog('success', `שלב 3 הושלם: ${r.step3_recruiters.inserted}/${r.step3_recruiters.total} מגייסים`);
                     }
 
+                    if (r.step4_mapping) {
+                        addLog('success', `שלב 4 הושלם: ${r.step4_mapping.matched} מיפויי RecruiterId`);
+                    }
+
+                    if (r.step5_localization) {
+                        migrationState.step3 = { status: 'completed', count: r.step5_localization.inserted };
+                        addLog('success', `שלב 5 הושלם: ${r.step5_localization.inserted} שורות לוקליזציה (${r.step5_localization.languages?.he || 0} עברית, ${r.step5_localization.languages?.en || 0} אנגלית, ${r.step5_localization.languages?.fr || 0} צרפתית)`);
+                    }
+
                     updateStepCards();
 
-                    const totalInserted = (r.step1_groups?.inserted || 0) + (r.step3_recruiters?.inserted || 0);
+                    const totalInserted = (r.step1_groups?.inserted || 0) + (r.step3_recruiters?.inserted || 0) + (r.step5_localization?.inserted || 0);
                     showStatus('success', `מיגרציה מלאה הושלמה! ${totalInserted} רשומות נוספו.`);
 
                 } else {

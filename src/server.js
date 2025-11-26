@@ -700,9 +700,149 @@ app.post('/api/run-all-recruiters', async (req, res) => {
     results.step3_recruiters = await runMigration(recruiterMapping, 'recruiter');
     logger.info(`Step 3 completed: ${results.step3_recruiters.inserted}/${results.step3_recruiters.total} rows`);
 
+    // STEP 4: Generate RecruiterId mapping
+    logger.info('STEP 4: Generating RecruiterId mapping...');
+    const mssqlPool2 = await sql.connect(mssqlConfig);
+    const mysqlConn2 = await mysql.createConnection({ ...mysqlConfig, charset: 'utf8mb4' });
+
+    const recruiterGroupIdMappingPath = path.join(__dirname, '../data/fk-mappings/RecruiterGroupId.json');
+    const recruiterGroupIdMapping = JSON.parse(fs.readFileSync(recruiterGroupIdMappingPath, 'utf-8'));
+
+    const oldRecruitersResult = await mssqlPool2.request().query('SELECT ProductStockId, Name, GroupId FROM ProductStock WHERE GroupId IS NOT NULL');
+    const [newRecruiters] = await mysqlConn2.query('SELECT Id, Name, RecruiterGroupId FROM recruiter');
+
+    const newRecruiterLookup = {};
+    for (const r of newRecruiters) {
+      newRecruiterLookup[`${r.Name}|${r.RecruiterGroupId}`] = r.Id;
+    }
+
+    const recruiterIdMapping = {};
+    let matched2 = 0;
+    for (const old of oldRecruitersResult.recordset) {
+      const newRecruiterGroupId = recruiterGroupIdMapping.mappings[String(old.GroupId)];
+      if (newRecruiterGroupId) {
+        const newId = newRecruiterLookup[`${old.Name}|${newRecruiterGroupId}`];
+        if (newId) {
+          recruiterIdMapping[old.ProductStockId] = newId;
+          matched2++;
+        }
+      }
+    }
+
+    const recruiterIdMappingPath = path.join(__dirname, '../data/fk-mappings/RecruiterId.json');
+    fs.writeFileSync(recruiterIdMappingPath, JSON.stringify({
+      columnName: 'RecruiterId',
+      sourceTable: 'ProductStock',
+      targetTable: 'recruiter',
+      mappings: recruiterIdMapping,
+      createdAt: new Date().toISOString()
+    }, null, 2));
+
+    results.step4_mapping = { matched: matched2, total: oldRecruitersResult.recordset.length };
+    logger.info(`Step 4 completed: ${matched2} mappings created`);
+
+    // STEP 5: Run RecruiterLocalization migration with special logic
+    logger.info('STEP 5: Migrating RecruiterLocalization (only languages with data)...');
+
+    // Get all recruiters from new DB
+    const [allNewRecruiters] = await mysqlConn2.query('SELECT Id, Name FROM recruiter');
+    logger.info(`Found ${allNewRecruiters.length} recruiters in new DB`);
+
+    // Get all ProductStock data
+    const sourceDataResult = await mssqlPool2.request().query(`
+      SELECT Name, Hide, Name_en, Hide_en, Name_fr, Hide_fr
+      FROM ProductStock
+      WHERE GroupId IS NOT NULL
+    `);
+    logger.info(`Found ${sourceDataResult.recordset.length} ProductStock in old DB`);
+
+    // Create lookup: Name -> ProductStock data
+    const productStockLookup = {};
+    for (const ps of sourceDataResult.recordset) {
+      productStockLookup[ps.Name] = ps;
+    }
+
+    // Helper: check if value is empty (including "null" string)
+    const isEmpty = (val) => {
+      if (val === null || val === undefined) return true;
+      const str = String(val).trim();
+      return str === '' || str === 'null';
+    };
+
+    let locInserted = 0;
+    let locErrors = 0;
+    let locSkipped = 0;
+    const langCounts = { he: 0, en: 0, fr: 0 };
+
+    for (const recruiter of allNewRecruiters) {
+      const oldData = productStockLookup[recruiter.Name];
+      if (!oldData) {
+        locSkipped++;
+        continue;
+      }
+
+      // Hebrew - always exists (Name is from recruiter table)
+      try {
+        const displayInSite = (oldData.Hide === 0 || oldData.Hide === null) ? 1 : 0;
+        await mysqlConn2.execute(
+          'INSERT INTO recruiterlocalization (RecruiterId, LanguageId, Name, Description, DisplayInSite, CreatedAt, CreatedBy, UpdatedAt, UpdatedBy) VALUES (?, ?, ?, ?, ?, NOW(), -1, NOW(), -1)',
+          [recruiter.Id, 1, recruiter.Name, null, displayInSite]
+        );
+        locInserted++;
+        langCounts.he++;
+      } catch (err) {
+        locErrors++;
+        if (locErrors <= 5) logger.error(`Hebrew localization error for ${recruiter.Name}: ${err.message}`);
+      }
+
+      // English - check if Name_en has real value
+      if (!isEmpty(oldData.Name_en)) {
+        try {
+          const displayInSite = (oldData.Hide_en === 0 || oldData.Hide_en === null) ? 1 : 0;
+          await mysqlConn2.execute(
+            'INSERT INTO recruiterlocalization (RecruiterId, LanguageId, Name, Description, DisplayInSite, CreatedAt, CreatedBy, UpdatedAt, UpdatedBy) VALUES (?, ?, ?, ?, ?, NOW(), -1, NOW(), -1)',
+            [recruiter.Id, 2, oldData.Name_en, null, displayInSite]
+          );
+          locInserted++;
+          langCounts.en++;
+        } catch (err) {
+          locErrors++;
+          if (locErrors <= 5) logger.error(`English localization error for ${recruiter.Name}: ${err.message}`);
+        }
+      }
+
+      // French - check if Name_fr has real value
+      if (!isEmpty(oldData.Name_fr)) {
+        try {
+          const displayInSite = (oldData.Hide_fr === 0 || oldData.Hide_fr === null) ? 1 : 0;
+          await mysqlConn2.execute(
+            'INSERT INTO recruiterlocalization (RecruiterId, LanguageId, Name, Description, DisplayInSite, CreatedAt, CreatedBy, UpdatedAt, UpdatedBy) VALUES (?, ?, ?, ?, ?, NOW(), -1, NOW(), -1)',
+            [recruiter.Id, 3, oldData.Name_fr, null, displayInSite]
+          );
+          locInserted++;
+          langCounts.fr++;
+        } catch (err) {
+          locErrors++;
+          if (locErrors <= 5) logger.error(`French localization error for ${recruiter.Name}: ${err.message}`);
+        }
+      }
+    }
+
+    results.step5_localization = {
+      inserted: locInserted,
+      errors: locErrors,
+      skipped: locSkipped,
+      total: allNewRecruiters.length,
+      languages: langCounts
+    };
+    logger.info(`Step 5 completed: ${locInserted} localization rows (Hebrew: ${langCounts.he}, English: ${langCounts.en}, French: ${langCounts.fr}, Skipped: ${locSkipped})`);
+
+    await mssqlPool2.close();
+    await mysqlConn2.end();
+
     results.success = true;
     logger.info('='.repeat(60));
-    logger.info('FULL RECRUITERS MIGRATION COMPLETED');
+    logger.info('FULL RECRUITERS MIGRATION COMPLETED (5 STEPS)');
     logger.info('='.repeat(60));
 
     res.json({
