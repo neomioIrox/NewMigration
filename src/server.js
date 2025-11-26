@@ -484,6 +484,7 @@ app.post('/api/generate-recruitersgroup-mapping', async (req, res) => {
 app.post('/api/run-all-recruiters', async (req, res) => {
   const results = {
     step1_groups: null,
+    step1_5_groupLanguage: null,
     step2_mapping: null,
     step3_recruiters: null,
     success: false
@@ -652,6 +653,56 @@ app.post('/api/run-all-recruiters', async (req, res) => {
     logger.info('STEP 1: Migrating RecruitersGroups...');
     results.step1_groups = await runMigration(groupMapping, 'recruitersgroup');
     logger.info(`Step 1 completed: ${results.step1_groups.inserted}/${results.step1_groups.total} rows`);
+
+    // STEP 1.5: Run RecruitersGroupLanguage migration (simple approach - same Name for all languages)
+    logger.info('STEP 1.5: Migrating RecruitersGroupLanguage...');
+    const mysqlConnGroupLang = await mysql.createConnection({ ...mysqlConfig, charset: 'utf8mb4' });
+    const [allGroups] = await mysqlConnGroupLang.query('SELECT Id, Name FROM recruitersgroup');
+
+    let groupLangInserted = 0;
+    let groupLangErrors = 0;
+
+    for (const group of allGroups) {
+      // Hebrew (LanguageId = 1)
+      try {
+        await mysqlConnGroupLang.execute(
+          'INSERT INTO recruitersgrouplanguage (RecruiterGroupId, LanguageId, Name, Description, DisplayInSite, CreatedAt, CreatedBy, UpdatedAt, UpdatedBy) VALUES (?, ?, ?, ?, ?, NOW(), -1, NOW(), -1)',
+          [group.Id, 1, group.Name, null, 1]
+        );
+        groupLangInserted++;
+      } catch (err) {
+        groupLangErrors++;
+        if (groupLangErrors <= 3) logger.error(`Hebrew error for ${group.Name}: ${err.message}`);
+      }
+
+      // English (LanguageId = 2) - same Name
+      try {
+        await mysqlConnGroupLang.execute(
+          'INSERT INTO recruitersgrouplanguage (RecruiterGroupId, LanguageId, Name, Description, DisplayInSite, CreatedAt, CreatedBy, UpdatedAt, UpdatedBy) VALUES (?, ?, ?, ?, ?, NOW(), -1, NOW(), -1)',
+          [group.Id, 2, group.Name, null, 1]
+        );
+        groupLangInserted++;
+      } catch (err) {
+        groupLangErrors++;
+        if (groupLangErrors <= 3) logger.error(`English error for ${group.Name}: ${err.message}`);
+      }
+
+      // French (LanguageId = 3) - same Name
+      try {
+        await mysqlConnGroupLang.execute(
+          'INSERT INTO recruitersgrouplanguage (RecruiterGroupId, LanguageId, Name, Description, DisplayInSite, CreatedAt, CreatedBy, UpdatedAt, UpdatedBy) VALUES (?, ?, ?, ?, ?, NOW(), -1, NOW(), -1)',
+          [group.Id, 3, group.Name, null, 1]
+        );
+        groupLangInserted++;
+      } catch (err) {
+        groupLangErrors++;
+        if (groupLangErrors <= 3) logger.error(`French error for ${group.Name}: ${err.message}`);
+      }
+    }
+
+    await mysqlConnGroupLang.end();
+    results.step1_5_groupLanguage = { inserted: groupLangInserted, total: allGroups.length * 3, errors: groupLangErrors };
+    logger.info(`Step 1.5 completed: ${groupLangInserted}/${allGroups.length * 3} rows (${allGroups.length} groups × 3 languages)`);
 
     // STEP 2: Generate RecruiterGroupId mapping
     logger.info('STEP 2: Generating RecruiterGroupId mapping...');
@@ -842,7 +893,7 @@ app.post('/api/run-all-recruiters', async (req, res) => {
 
     results.success = true;
     logger.info('='.repeat(60));
-    logger.info('FULL RECRUITERS MIGRATION COMPLETED (5 STEPS)');
+    logger.info('FULL RECRUITERS MIGRATION COMPLETED (6 STEPS)');
     logger.info('='.repeat(60));
 
     res.json({
