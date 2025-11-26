@@ -253,6 +253,134 @@
       }
     }
   },
+  "projectItemLocalizationMappings": {
+    "hebrew": {
+      "DisplayInSite": {
+        "convertType": "expression",
+        "oldColumn": "Hide",
+        "expression": "(!row.Hide && row.ShowMainPage) ? 1 : 0"
+      },
+      "Title": {
+        "convertType": "expression",
+        "oldColumn": "ProjectNameForDonationPage",
+        "expression": "(value && value !== row.Name) ? value.substring(0, 150) : (row.Name ? row.Name.substring(0, 150) : null)"
+      },
+      "PaymentSum": {
+        "convertType": "expression",
+        "oldColumn": "DefaultDonationSumFixed",
+        "expression": "row.DefaultDonationSumFixed > 0 ? (row.DefaultDonationSumFixed * (row.DefaultPaymentsNumFixed || 1)) : row.DefaultDonationsSum"
+      },
+      "DefaultPaymentType": {
+        "convertType": "expression",
+        "oldColumn": "DefaultDonationSumFixed",
+        "expression": "row.DefaultDonationSumFixed > 0 ? 1 : 2"
+      },
+      "DefaultPaymentsCount": {
+        "convertType": "expression",
+        "oldColumn": "DefaultDonationSumFixed",
+        "expression": "row.DefaultDonationSumFixed > 0 ? row.DefaultPaymentsNumFixed : row.DefaultPaymentsNumber"
+      },
+      "NameForReceipt": {
+        "convertType": "expression",
+        "oldColumn": "ProjectNameForInvoice",
+        "expression": "value ? value.substring(0, 150) : null"
+      },
+      "OrderInItemsPageView": {
+        "convertType": "expression",
+        "oldColumn": "Sort",
+        "expression": "(value && value <= 30) ? value : null"
+      },
+      "OrderInProjectPageFooter": { "convertType": "const", "value": "1" },
+      "CreatedAt": { "convertType": "const", "value": "GETDATE()" },
+      "CreatedBy": { "convertType": "const", "value": "-1" },
+      "UpdatedAt": { "convertType": "const", "value": "GETDATE()" },
+      "UpdatedBy": { "convertType": "const", "value": "-1" }
+    },
+    "english": {
+      "DisplayInSite": {
+        "convertType": "expression",
+        "oldColumn": "Hide_en",
+        "expression": "(!row.Hide_en && row.ShowMainPage) ? 1 : 0"
+      },
+      "Title": {
+        "convertType": "expression",
+        "oldColumn": "Name_en",
+        "expression": "value ? value.substring(0, 150) : (row.Name ? row.Name.substring(0, 150) : null)"
+      },
+      "PaymentSum": {
+        "convertType": "expression",
+        "oldColumn": "DefaultDonationSumFixed_en",
+        "expression": "row.DefaultDonationSumFixed_en > 0 ? (row.DefaultDonationSumFixed_en * (row.DefaultPaymentsNumFixed_en || 1)) : row.DefaultDonationsSum_en"
+      },
+      "DefaultPaymentType": {
+        "convertType": "expression",
+        "oldColumn": "DefaultDonationSumFixed_en",
+        "expression": "row.DefaultDonationSumFixed_en > 0 ? 1 : 2"
+      },
+      "DefaultPaymentsCount": {
+        "convertType": "expression",
+        "oldColumn": "DefaultDonationSumFixed_en",
+        "expression": "row.DefaultDonationSumFixed_en > 0 ? row.DefaultPaymentsNumFixed_en : row.DefaultPaymentsNumber_en"
+      },
+      "NameForReceipt": {
+        "convertType": "expression",
+        "oldColumn": "ProjectNameForInvoice_en",
+        "expression": "value ? value.substring(0, 150) : null"
+      },
+      "OrderInItemsPageView": {
+        "convertType": "expression",
+        "oldColumn": "Sort",
+        "expression": "(value && value <= 30) ? value : null"
+      },
+      "OrderInProjectPageFooter": { "convertType": "const", "value": "1" },
+      "CreatedAt": { "convertType": "const", "value": "GETDATE()" },
+      "CreatedBy": { "convertType": "const", "value": "-1" },
+      "UpdatedAt": { "convertType": "const", "value": "GETDATE()" },
+      "UpdatedBy": { "convertType": "const", "value": "-1" }
+    },
+    "french": {
+      "DisplayInSite": {
+        "convertType": "expression",
+        "oldColumn": "Hide_fr",
+        "expression": "(!row.Hide_fr && row.ShowMainPage) ? 1 : 0"
+      },
+      "Title": {
+        "convertType": "expression",
+        "oldColumn": "Name_fr",
+        "expression": "value ? value.substring(0, 150) : (row.Name ? row.Name.substring(0, 150) : null)"
+      },
+      "PaymentSum": {
+        "convertType": "expression",
+        "oldColumn": "DefaultDonationSumFixed_fr",
+        "expression": "row.DefaultDonationSumFixed_fr > 0 ? (row.DefaultDonationSumFixed_fr * (row.DefaultPaymentsNumFixed_fr || 1)) : row.DefaultDonationsSum_fr"
+      },
+      "DefaultPaymentType": {
+        "convertType": "expression",
+        "oldColumn": "DefaultDonationSumFixed_fr",
+        "expression": "row.DefaultDonationSumFixed_fr > 0 ? 1 : 2"
+      },
+      "DefaultPaymentsCount": {
+        "convertType": "expression",
+        "oldColumn": "DefaultDonationSumFixed_fr",
+        "expression": "row.DefaultDonationSumFixed_fr > 0 ? row.DefaultPaymentsNumFixed_fr : row.DefaultPaymentsNumber_fr"
+      },
+      "NameForReceipt": {
+        "convertType": "expression",
+        "oldColumn": "ProjectNameForInvoice_fr",
+        "expression": "value ? value.substring(0, 150) : null"
+      },
+      "OrderInItemsPageView": {
+        "convertType": "expression",
+        "oldColumn": "Sort",
+        "expression": "(value && value <= 30) ? value : null"
+      },
+      "OrderInProjectPageFooter": { "convertType": "const", "value": "1" },
+      "CreatedAt": { "convertType": "const", "value": "GETDATE()" },
+      "CreatedBy": { "convertType": "const", "value": "-1" },
+      "UpdatedAt": { "convertType": "const", "value": "GETDATE()" },
+      "UpdatedBy": { "convertType": "const", "value": "-1" }
+    }
+  },
   "projectItemMappings": {
     "funds": {
       "ItemName": {

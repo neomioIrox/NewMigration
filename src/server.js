@@ -291,7 +291,7 @@ app.post('/api/test-mssql', async (req, res) => {
 app.post('/api/test-mysql', async (req, res) => {
   try {
     const { host, database, user, password } = req.body;
-    mysqlConfig = { host, database, user, password };
+    mysqlConfig = { host, database, user, password, charset: 'utf8mb4' };
 
     const connection = await mysql.createConnection(mysqlConfig);
     await connection.end();
@@ -374,10 +374,10 @@ app.get('/api/fk-mapping/:columnName', (req, res) => {
   }
 });
 
-// Save complete mapping (column mappings + FK mappings + localization mappings + projectItem mappings + media mappings)
+// Save complete mapping (column mappings + FK mappings + localization mappings + projectItem mappings + projectItemLocalization mappings + media mappings)
 app.post('/api/save-mapping', (req, res) => {
   try {
-    const { filename, columnMappings, fkMappings, localizationMappings, projectItemMappings, mediaMappings, whereClause } = req.body;
+    const { filename, columnMappings, fkMappings, localizationMappings, projectItemMappings, projectItemLocalizationMappings, mediaMappings, whereClause } = req.body;
 
     if (!filename) {
       return res.status(400).json({ success: false, message: 'Filename is required' });
@@ -399,6 +399,7 @@ app.post('/api/save-mapping', (req, res) => {
       fkMappings,
       localizationMappings: localizationMappings || {},
       projectItemMappings: projectItemMappings || {},
+      projectItemLocalizationMappings: projectItemLocalizationMappings || {},
       mediaMappings: mediaMappings || {},
       whereClause: whereClause || null,
       savedAt: new Date().toISOString()
@@ -466,6 +467,7 @@ app.get('/api/load-mapping/:filename', (req, res) => {
         fkMappings: mappingData.fkMappings || {},
         localizationMappings: mappingData.localizationMappings || {},
         projectItemMappings: mappingData.projectItemMappings || {},
+        projectItemLocalizationMappings: mappingData.projectItemLocalizationMappings || {},
         mediaMappings: mappingData.mediaMappings || {},
         whereClause: mappingData.whereClause || null,
         savedAt: mappingData.savedAt
@@ -496,10 +498,18 @@ app.post('/api/migrate', async (req, res) => {
     const mssqlPool = await sql.connect(mssqlConfig);
     logger.info('MSSQL connected successfully');
 
-    // Connect to MySQL
+    // Connect to MySQL with explicit UTF8MB4 encoding
     logger.info('Connecting to MySQL...');
-    const mysqlConnection = await mysql.createConnection(mysqlConfig);
-    logger.info('MySQL connected successfully');
+    const mysqlConnection = await mysql.createConnection({
+      ...mysqlConfig,
+      charset: 'UTF8MB4_GENERAL_CI'
+    });
+    // Ensure UTF8MB4 encoding for Hebrew support
+    await mysqlConnection.execute("SET NAMES utf8mb4 COLLATE utf8mb4_general_ci");
+    await mysqlConnection.execute("SET character_set_client = utf8mb4");
+    await mysqlConnection.execute("SET character_set_results = utf8mb4");
+    await mysqlConnection.execute("SET character_set_connection = utf8mb4");
+    logger.info('MySQL connected successfully with UTF8MB4 encoding');
 
     // Build SELECT query for MSSQL based on mappings
     const sourceColumns = [];
@@ -1251,6 +1261,130 @@ app.post('/api/migrate', async (req, res) => {
       logger.info('='.repeat(60));
     }
 
+    // ===== ProjectItemLocalization Migration =====
+    let projectItemLocInsertedCount = 0;
+    let projectItemLocErrors = [];
+
+    // Check if projectItemLocalizationMappings were provided
+    const projectItemLocMappings = req.body.projectItemLocalizationMappings;
+
+    if (projectItemLocMappings && Object.keys(projectItemIdMappings).length > 0) {
+      logger.info('='.repeat(60));
+      logger.info('Starting ProjectItemLocalization migration...');
+
+      const languages = {
+        hebrew: 1,
+        english: 2,
+        french: 3
+      };
+
+      // Iterate through each project's items
+      for (const [oldProductId, itemIds] of Object.entries(projectItemIdMappings)) {
+        const row = rows.find(r => r.productsid === parseInt(oldProductId));
+
+        if (!row) {
+          logger.warn(`Source row not found for oldProductId: ${oldProductId}`);
+          continue;
+        }
+
+        // For each projectItem created
+        for (const itemId of itemIds) {
+          // Create localization for each language
+          for (const [langName, langId] of Object.entries(languages)) {
+            const langMapping = projectItemLocMappings[langName];
+            if (!langMapping) {
+              logger.debug(`No mapping for language ${langName}, skipping`);
+              continue;
+            }
+
+            try {
+              const locData = {
+                ItemId: itemId,
+                Language: langId
+              };
+
+              // Apply mappings for this language
+              for (const [fieldName, mapping] of Object.entries(langMapping)) {
+                let value = null;
+
+                if (mapping.convertType === 'const') {
+                  value = mapping.value;
+                  if (value === 'GETDATE()' || value === 'NOW()') {
+                    value = new Date();
+                  } else if (typeof value === 'string' && /^\d+$/.test(value)) {
+                    value = parseInt(value, 10);
+                  }
+                } else if (mapping.convertType === 'direct' && mapping.oldColumn) {
+                  value = row[mapping.oldColumn];
+                } else if (mapping.convertType === 'expression') {
+                  // Get the source value if oldColumn specified
+                  if (mapping.oldColumn) {
+                    value = row[mapping.oldColumn];
+                  }
+
+                  // Apply expression
+                  if (mapping.expression) {
+                    try {
+                      const expressionFunc = new Function('value', 'row', `return ${mapping.expression}`);
+                      value = expressionFunc(value, row);
+                    } catch (exprErr) {
+                      logger.error(`Expression evaluation failed for ${fieldName} (${langName}): ${exprErr.message}`);
+                    }
+                  }
+                }
+
+                // Apply defaultValue if value is null
+                if ((value === null || value === undefined) && mapping.defaultValue !== undefined) {
+                  if (mapping.defaultValue === 'GETDATE()' || mapping.defaultValue === 'NOW()') {
+                    value = new Date();
+                  } else {
+                    value = mapping.defaultValue;
+                  }
+                }
+
+                // Convert undefined to null, and numeric strings to numbers
+                if (value === undefined) {
+                  value = null;
+                } else if (typeof value === 'string' && /^\d+$/.test(value)) {
+                  value = parseInt(value, 10);
+                }
+
+                // Truncate string fields if needed
+                if (fieldName === 'Title' && typeof value === 'string' && value.length > 150) {
+                  value = value.substring(0, 150);
+                }
+                if (fieldName === 'NameForReceipt' && typeof value === 'string' && value.length > 150) {
+                  value = value.substring(0, 150);
+                }
+
+                locData[fieldName] = value;
+              }
+
+              // Insert projectItemLocalization record
+              const columns = Object.keys(locData).join(', ');
+              const placeholders = Object.keys(locData).map(() => '?').join(', ');
+              const values = Object.values(locData).map(v => v === undefined ? null : v);
+              const insertQuery = `INSERT INTO projectitemlocalization (${columns}) VALUES (${placeholders})`;
+
+              await mysqlConnection.query(insertQuery, values);
+              projectItemLocInsertedCount++;
+              logger.debug(`Created ProjectItemLocalization for ItemId ${itemId}, language ${langName}`);
+
+            } catch (err) {
+              logger.error(`Error creating ProjectItemLocalization for ItemId ${itemId}, language ${langName}: ${err.message}`);
+              projectItemLocErrors.push({ itemId, language: langName, error: err.message });
+            }
+          }
+        }
+      }
+
+      logger.info(`ProjectItemLocalization migration completed: ${projectItemLocInsertedCount} rows created`);
+      if (projectItemLocErrors.length > 0) {
+        logger.warn(`ProjectItemLocalization errors: ${projectItemLocErrors.length}`);
+      }
+      logger.info('='.repeat(60));
+    }
+
     // ===== Media Migration =====
     let mediaInsertedCount = 0;
     let mediaErrors = [];
@@ -1913,6 +2047,15 @@ app.post('/api/migrate', async (req, res) => {
       response.message += ` + ${projectItemInsertedCount} projectItem rows.`;
     }
 
+    // Add projectItemLocalization stats if applicable
+    if (projectItemLocInsertedCount > 0 || projectItemLocErrors.length > 0) {
+      response.projectItemLocalization = {
+        insertedCount: projectItemLocInsertedCount,
+        errors: projectItemLocErrors.slice(0, 10)
+      };
+      response.message += ` + ${projectItemLocInsertedCount} projectItemLocalization rows.`;
+    }
+
     // Add media stats if applicable
     if (mediaInsertedCount > 0 || mediaErrors.length > 0) {
       response.media = {
@@ -1966,7 +2109,7 @@ app.get('/api/check-projectitem', async (req, res) => {
       return res.status(400).json({ success: false, message: 'MySQL connection not configured' });
     }
 
-    const connection = await mysql.createConnection(mysqlConfig);
+    const connection = await mysql.createConnection({ ...mysqlConfig, charset: 'utf8mb4' });
 
     try {
       // Get total counts
