@@ -2728,6 +2728,35 @@ app.post('/api/run-all-affiliates-sources', async (req, res) => {
   }
 });
 
+// Run full prayers migration
+app.post('/api/run-all-prayers', async (req, res) => {
+  try {
+    logger.info('='.repeat(60));
+    logger.info('STARTING PRAYERS MIGRATION');
+    logger.info('='.repeat(60));
+
+    // Import and run migration script
+    const { migratePrayers } = require('../scripts/migration/migrate-prayers');
+    const results = await migratePrayers();
+
+    logger.info('Prayers migration completed successfully');
+
+    res.json({
+      success: true,
+      step1_projects: results.step1_projects,
+      step2_projectitems: results.step2_projectitems,
+      step3_localizations: results.step3_localizations,
+      step4_item_localizations: results.step4_item_localizations,
+      step5_mapping: results.step5_mapping ? 'Created' : 'Not created',
+      errors: results.errors
+    });
+
+  } catch (error) {
+    logger.error('Prayers migration failed: ' + error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 app.listen(PORT, () => {
   logger.info(`Migration Helper running at http://localhost:${PORT}`);
   logger.info('Logs are being written to migration-logs.log');
