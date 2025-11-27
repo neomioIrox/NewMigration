@@ -2704,6 +2704,30 @@ app.get('/api/check-projectitem', async (req, res) => {
   }
 });
 
+// Run full affiliates & sources migration
+app.post('/api/run-all-affiliates-sources', async (req, res) => {
+  try {
+    logger.info('='.repeat(60));
+    logger.info('STARTING FULL AFFILIATES & SOURCES MIGRATION');
+    logger.info('='.repeat(60));
+
+    // Import and run migration script
+    const { migrateAffiliatesAndSources } = require('../scripts/migration/migrate-affiliates-sources-all');
+    const results = await migrateAffiliatesAndSources();
+
+    logger.info('Migration completed successfully');
+
+    res.json({
+      success: true,
+      results: results
+    });
+
+  } catch (error) {
+    logger.error('Affiliates & Sources migration failed: ' + error.message);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 app.listen(PORT, () => {
   logger.info(`Migration Helper running at http://localhost:${PORT}`);
   logger.info('Logs are being written to migration-logs.log');

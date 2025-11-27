@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>מיגרציית מקורות - Affiliates & Sources Migration</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        /* Control Panel */
+        .control-panel {
+            background: #f8f9fa;
+            padding: 25px 30px;
+            border-bottom: 3px solid #e9ecef;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.2);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-warning {
+            background: #ffc107;
+            color: #212529;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        /* Stats Panel */
+        .stats-panel {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 20px;
+            padding: 25px 30px;
+            background: #f8f9fa;
+            border-bottom: 2px solid #e9ecef;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .stat-card .label {
+            font-size: 0.9em;
+            color: #6c757d;
+            margin-bottom: 8px;
+        }
+
+        .stat-card .value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #f5576c;
+        }
+
+        /* Content Area */
+        .content {
+            padding: 30px;
+        }
+
+        .section-title {
+            font-size: 1.5em;
+            color: #495057;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 3px solid #f5576c;
+        }
+
+        /* Migration Steps */
+        .migration-steps {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .step-card {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 10px;
+            border: 2px solid #dee2e6;
+            transition: all 0.3s ease;
+        }
+
+        .step-card.active {
+            border-color: #f5576c;
+            box-shadow: 0 4px 15px rgba(245, 87, 108, 0.3);
+        }
+
+        .step-card.completed {
+            border-color: #28a745;
+            background: #f0fff0;
+        }
+
+        .step-card h3 {
+            color: #f5576c;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .step-number {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 35px;
+            height: 35px;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            border-radius: 50%;
+            font-weight: bold;
+        }
+
+        .step-card.completed .step-number {
+            background: #28a745;
+        }
+
+        .step-info {
+            margin-bottom: 15px;
+        }
+
+        .step-info p {
+            margin: 8px 0;
+            color: #495057;
+        }
+
+        .step-info .source-target {
+            background: white;
+            padding: 10px 15px;
+            border-radius: 5px;
+            font-family: monospace;
+            margin: 10px 0;
+            font-size: 0.9em;
+        }
+
+        /* Tables */
+        .table-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .table-section h3 {
+            color: #f5576c;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        thead {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+
+        th {
+            padding: 15px;
+            text-align: right;
+            font-weight: bold;
+        }
+
+        td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #e9ecef;
+            text-align: right;
+        }
+
+        tbody tr:hover {
+            background: #fff5f7;
+        }
+
+        .convert-type {
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.85em;
+            font-weight: bold;
+        }
+
+        .convert-type.direct { background: #d4edda; color: #155724; }
+        .convert-type.const { background: #fff3cd; color: #856404; }
+        .convert-type.expression { background: #cce5ff; color: #004085; }
+        .convert-type.fk { background: #f8d7da; color: #721c24; }
+        .convert-type.FK { background: #f8d7da; color: #721c24; }
+
+        /* Progress Bar */
+        .progress-section {
+            margin-top: 30px;
+            display: none;
+        }
+
+        .progress-section.show {
+            display: block;
+        }
+
+        .progress-bar-container {
+            width: 100%;
+            height: 40px;
+            background: #e9ecef;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #f093fb 0%, #f5576c 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+
+        /* Status Messages */
+        .status-message {
+            margin-top: 20px;
+            padding: 15px 20px;
+            border-radius: 8px;
+            display: none;
+        }
+
+        .status-message.show {
+            display: block;
+        }
+
+        .status-message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status-message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .status-message.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .status-message.warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeeba;
+        }
+
+        /* Spinner */
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Log Area */
+        .log-area {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            border-radius: 10px;
+            font-family: 'Consolas', monospace;
+            font-size: 0.9em;
+            max-height: 400px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+
+        .log-entry {
+            margin: 5px 0;
+            padding: 5px 10px;
+            border-radius: 4px;
+        }
+
+        .log-entry.info { color: #569cd6; }
+        .log-entry.success { color: #6a9955; }
+        .log-entry.error { color: #f14c4c; }
+        .log-entry.warning { color: #dcdcaa; }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .migration-steps {
+                grid-template-columns: 1fr;
+            }
+
+            .control-panel {
+                flex-direction: column;
+                align-items: stretch;
+            }
+        }
+
+        .info-box {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .info-box h4 {
+            color: #856404;
+            margin-bottom: 10px;
+        }
+
+        .info-box ul {
+            margin-right: 20px;
+            color: #856404;
+        }
+
+        .info-box li {
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🔗 מיגרציית מקורות</h1>
+            <p>Affiliates & Sources Migration - מקורות אב ומקורות משניים</p>
+        </div>
+
+        <!-- Control Panel -->
+        <div class="control-panel">
+            <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+                <button class="btn" id="runAllBtn" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); font-size: 1.1em; padding: 12px 24px;">
+                    🚀 הרץ הכל (מקורות אב + מקורות)
+                </button>
+                <button class="btn btn-primary" id="loadDataBtn">
+                    📥 טען נתונים
+                </button>
+                <button class="btn btn-secondary" id="resetBtn">
+                    🔄 אפס
+                </button>
+                <button class="btn btn-secondary" onclick="window.location.href='/'">
+                    🏠 חזרה לראשי
+                </button>
+            </div>
+        </div>
+
+        <!-- Stats Panel -->
+        <div class="stats-panel">
+            <div class="stat-card">
+                <div class="label">מקורות אב (Affiliates)</div>
+                <div class="value" id="affiliatesCount">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">מקורות (Sources)</div>
+                <div class="value" id="sourcesCount">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">מקורות עם ParentId</div>
+                <div class="value" id="sourcesWithParentCount">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">סה"כ רשומות</div>
+                <div class="value" id="totalExpectedRows">0</div>
+            </div>
+        </div>
+
+        <!-- Content Area -->
+        <div class="content">
+            <!-- Info Box -->
+            <div class="info-box">
+                <h4>⚠️ הערות חשובות למיגרציה:</h4>
+                <ul>
+                    <li><strong>משתמשים:</strong> 78 user records נוצרים (RoleId=3 "שותף")</li>
+                    <li><strong>מקורות אב:</strong> 78 שורות מ-ParentSources → affiliate (עם UserId)</li>
+                    <li><strong>מקורות:</strong> 1,879 שורות מ-UserSources (רק שורות עם ParentSourcesId תקין) → source</li>
+                    <li><strong>DefaultSourceId:</strong> יישאר NULL (יעודכן בשלב מאוחר יותר)</li>
+                    <li><strong>UserName/Password:</strong> נשמרים בטבלת user (ללא הצפנה כרגע)</li>
+                    <li><strong>Orphans:</strong> 23 שורות עם ParentSourcesId=0 לא ימוגרו (לא קיים בבסיס)</li>
+                </ul>
+            </div>
+
+            <!-- Migration Steps Overview -->
+            <div class="section-title">📋 שלבי המיגרציה</div>
+
+            <div class="migration-steps">
+                <div class="step-card" id="step0Card">
+                    <h3><span class="step-number">0.5</span> משתמשים (User)</h3>
+                    <div class="step-info">
+                        <p><strong>מקור:</strong> ParentSources (78 שורות)</p>
+                        <p><strong>יעד:</strong> user (טבלת משתמשים)</p>
+                        <div class="source-target">
+ParentSources → user
+UserName, Password, FirstName, LastName
+RoleId = 3 (שותף)
+                        </div>
+                        <p><strong>סטטוס:</strong> <span id="step0Status">ממתין</span></p>
+                    </div>
+                </div>
+
+                <div class="step-card" id="step1Card">
+                    <h3><span class="step-number">1</span> מקורות אב (Affiliate)</h3>
+                    <div class="step-info">
+                        <p><strong>מקור:</strong> ParentSources (78 שורות)</p>
+                        <p><strong>יעד:</strong> affiliate</p>
+                        <div class="source-target">
+ParentSources → affiliate
+Id, Name, UserId (FK to user)
+DefaultSourceId = NULL
+RecordStatus, Timestamps
+                        </div>
+                        <p><strong>תלות:</strong> UserId (FK to user)</p>
+                        <p><strong>סטטוס:</strong> <span id="step1Status">ממתין</span></p>
+                    </div>
+                </div>
+
+                <div class="step-card" id="step2Card">
+                    <h3><span class="step-number">2</span> יצירת FK Mapping</h3>
+                    <div class="step-info">
+                        <p><strong>תיאור:</strong> מיפוי ParentSourcesId → AffiliateId</p>
+                        <p><strong>קובץ:</strong> data/fk-mappings/AffiliateId.json</p>
+                        <div class="source-target">
+{
+  "oldId": newId,
+  ...
+}
+                        </div>
+                        <p><strong>סטטוס:</strong> <span id="step2Status">ממתין</span></p>
+                    </div>
+                </div>
+
+                <div class="step-card" id="step3Card">
+                    <h3><span class="step-number">3</span> מקורות (Source)</h3>
+                    <div class="step-info">
+                        <p><strong>מקור:</strong> UserSources (1,879 שורות עם ParentSourcesId)</p>
+                        <p><strong>יעד:</strong> source</p>
+                        <div class="source-target">
+UserSources → source
+AffiliateId (FK mapping)
+SourceCode = Name
+Description = LEFT(Title, 100)
+                        </div>
+                        <p><strong>תלות:</strong> AffiliateId (FK)</p>
+                        <p><strong>הערה:</strong> לא כולל 23 orphans (ParentSourcesId=0)</p>
+                        <p><strong>סטטוס:</strong> <span id="step3Status">ממתין</span></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Data Overview -->
+            <div class="section-title">📊 סקירת נתונים</div>
+
+            <div class="table-section">
+                <h3>מבנה טבלת affiliate (יעד)</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>שדה</th>
+                            <th>סוג</th>
+                            <th>מקור</th>
+                            <th>הערות</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Id</strong></td>
+                            <td><span class="convert-type direct">direct</span></td>
+                            <td>ParentSources.Id</td>
+                            <td>מזהה ייחודי</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Name</strong></td>
+                            <td><span class="convert-type direct">direct</span></td>
+                            <td>ParentSources.Name</td>
+                            <td>שם המקור האב</td>
+                        </tr>
+                        <tr>
+                            <td><strong>DefaultSourceId</strong></td>
+                            <td><span class="convert-type const">const</span></td>
+                            <td>NULL</td>
+                            <td>אין התאמה מדויקת</td>
+                        </tr>
+                        <tr>
+                            <td><strong>UserId</strong></td>
+                            <td><span class="convert-type FK">FK</span></td>
+                            <td>user.Id (נוצר בשלב 0.5)</td>
+                            <td>קישור למשתמש (RoleId=3)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>RecordStatus</strong></td>
+                            <td><span class="convert-type const">const</span></td>
+                            <td>2</td>
+                            <td>Accept</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Timestamps</strong></td>
+                            <td><span class="convert-type const">const</span></td>
+                            <td>GETDATE() / -1</td>
+                            <td>CreatedAt, UpdatedAt, etc.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="table-section">
+                <h3>מבנה טבלת source (יעד)</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>שדה</th>
+                            <th>סוג</th>
+                            <th>מקור</th>
+                            <th>הערות</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Id</strong></td>
+                            <td><span class="convert-type const">auto</span></td>
+                            <td>AUTO_INCREMENT</td>
+                            <td>MySQL auto</td>
+                        </tr>
+                        <tr>
+                            <td><strong>AffiliateId</strong></td>
+                            <td><span class="convert-type FK">FK</span></td>
+                            <td>UserSources.ParentSourcesId</td>
+                            <td>מיפוי מ-AffiliateId.json</td>
+                        </tr>
+                        <tr>
+                            <td><strong>SourceCode</strong></td>
+                            <td><span class="convert-type direct">direct</span></td>
+                            <td>UserSources.Name</td>
+                            <td>קוד המקור</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Description</strong></td>
+                            <td><span class="convert-type expression">expression</span></td>
+                            <td>LEFT(UserSources.Title, 100)</td>
+                            <td>תיאור (מקוצץ ל-100 תווים)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>RecordStatus</strong></td>
+                            <td><span class="convert-type const">const</span></td>
+                            <td>2</td>
+                            <td>Accept</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Timestamps</strong></td>
+                            <td><span class="convert-type const">const</span></td>
+                            <td>GETDATE() / -1</td>
+                            <td>CreatedAt, UpdatedAt, etc.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Progress Section -->
+            <div class="progress-section" id="progressSection">
+                <div class="section-title">📊 התקדמות מיגרציה</div>
+                <div class="progress-bar-container">
+                    <div class="progress-bar" id="progressBar">0%</div>
+                </div>
+            </div>
+
+            <!-- Status Messages -->
+            <div class="status-message" id="statusMessage"></div>
+
+            <!-- Log Area -->
+            <div class="log-area" id="logArea" style="display: none;">
+                <div class="log-entry info">מוכן להתחלה...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global State
+        let migrationState = {
+            step1: { status: 'pending', count: 0 },
+            step2: { status: 'pending', count: 0 },
+            step3: { status: 'pending', count: 0 }
+        };
+
+        // DOM Elements
+        const loadDataBtn = document.getElementById('loadDataBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const runAllBtn = document.getElementById('runAllBtn');
+        const statusMessage = document.getElementById('statusMessage');
+        const progressSection = document.getElementById('progressSection');
+        const progressBar = document.getElementById('progressBar');
+        const logArea = document.getElementById('logArea');
+
+        // Event Listeners
+        loadDataBtn.addEventListener('click', loadDataPreview);
+        resetBtn.addEventListener('click', resetUI);
+        runAllBtn.addEventListener('click', runAllMigration);
+
+        // Load Data Preview
+        async function loadDataPreview() {
+            showStatus('info', 'טוען נתוני תצוגה מקדימה...');
+            loadDataBtn.disabled = true;
+            loadDataBtn.innerHTML = '<span class="spinner"></span> טוען...';
+
+            try {
+                // In real implementation, fetch from API
+                // For now, use static values from check script
+                document.getElementById('affiliatesCount').textContent = '78';
+                document.getElementById('sourcesCount').textContent = '7,605';
+                document.getElementById('sourcesWithParentCount').textContent = '1,879';
+                document.getElementById('totalExpectedRows').textContent = '2,035';  // 78 users + 78 affiliates + 1,879 sources
+
+                showStatus('success', '✅ נתונים נטענו בהצלחה');
+
+            } catch (error) {
+                showStatus('error', `❌ שגיאה: ${error.message}`);
+                console.error('Error loading data:', error);
+            } finally {
+                loadDataBtn.disabled = false;
+                loadDataBtn.innerHTML = '📥 טען נתונים';
+            }
+        }
+
+        // Run All Migration
+        async function runAllMigration() {
+            if (!confirm('האם להתחיל מיגרציה מלאה של מקורות אב ומקורות?\n\nשים לב: זה ימחק נתונים קיימים בטבלאות affiliate ו-source!')) {
+                return;
+            }
+
+            showStatus('info', 'מתחיל מיגרציה מלאה...');
+            progressSection.classList.add('show');
+            progressBar.style.width = '10%';
+            progressBar.textContent = '10%';
+            logArea.innerHTML = '';
+            logArea.style.display = 'block';
+
+            runAllBtn.disabled = true;
+            runAllBtn.innerHTML = '<span class="spinner"></span> מריץ...';
+
+            addLog('info', 'שולח בקשה למיגרציה מלאה...');
+            addLog('info', 'שלב 1: מקורות אב (affiliate)');
+            addLog('info', 'שלב 2: יצירת מיפוי AffiliateId');
+            addLog('info', 'שלב 3: מקורות (source)');
+
+            try {
+                const response = await fetch('/api/run-all-affiliates-sources', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    progressBar.style.width = '100%';
+                    progressBar.textContent = '100%';
+
+                    const r = result.results;
+
+                    // Update step cards
+                    if (r.step0_5_users) {
+                        migrationState.step0 = { status: 'completed', count: r.step0_5_users.inserted };
+                        updateStepCard('step0Card', 'step0Status', `הושלם (${r.step0_5_users.inserted} משתמשים)`);
+                        addLog('success', `שלב 0.5 הושלם: ${r.step0_5_users.inserted} משתמשים נוצרו`);
+
+                        if (r.step0_5_users.truncated && r.step0_5_users.truncated.length > 0) {
+                            addLog('warning', `${r.step0_5_users.truncated.length} UserNames נחתכו ל-20 תווים`);
+                        }
+                    }
+
+                    if (r.step1_affiliates) {
+                        migrationState.step1 = { status: 'completed', count: r.step1_affiliates.inserted };
+                        updateStepCard('step1Card', 'step1Status', `הושלם (${r.step1_affiliates.inserted} רשומות)`);
+                        addLog('success', `שלב 1 הושלם: ${r.step1_affiliates.inserted} מקורות אב`);
+                    }
+
+                    if (r.step2_mapping) {
+                        migrationState.step2 = { status: 'completed', count: r.step2_mapping.matched };
+                        updateStepCard('step2Card', 'step2Status', `הושלם (${r.step2_mapping.matched} מיפויים)`);
+                        addLog('success', `שלב 2 הושלם: ${r.step2_mapping.matched} מיפויי AffiliateId`);
+                    }
+
+                    if (r.step3_sources) {
+                        migrationState.step3 = { status: 'completed', count: r.step3_sources.inserted };
+                        updateStepCard('step3Card', 'step3Status', `הושלם (${r.step3_sources.inserted} רשומות)`);
+                        addLog('success', `שלב 3 הושלם: ${r.step3_sources.inserted} מקורות`);
+                    }
+
+                    const totalInserted = (r.step0_5_users?.inserted || 0) + (r.step1_affiliates?.inserted || 0) + (r.step3_sources?.inserted || 0);
+                    showStatus('success', `✅ מיגרציה מלאה הושלמה! ${totalInserted} רשומות נוספו.`);
+
+                } else {
+                    throw new Error(result.message || 'שגיאה לא ידועה');
+                }
+
+            } catch (error) {
+                addLog('error', `שגיאה: ${error.message}`);
+                showStatus('error', `❌ שגיאה: ${error.message}`);
+            } finally {
+                runAllBtn.disabled = false;
+                runAllBtn.innerHTML = '🚀 הרץ הכל (מקורות אב + מקורות)';
+            }
+        }
+
+        // Update Step Card
+        function updateStepCard(cardId, statusId, statusText) {
+            const card = document.getElementById(cardId);
+            const status = document.getElementById(statusId);
+
+            card.classList.add('completed');
+            status.textContent = statusText;
+        }
+
+        // Show Status Message
+        function showStatus(type, message) {
+            statusMessage.className = `status-message show ${type}`;
+            statusMessage.textContent = message;
+        }
+
+        // Add Log Entry
+        function addLog(type, message) {
+            const timestamp = new Date().toLocaleTimeString('he-IL');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = `[${timestamp}] ${message}`;
+            logArea.appendChild(entry);
+            logArea.scrollTop = logArea.scrollHeight;
+        }
+
+        // Reset UI
+        function resetUI() {
+            migrationState = {
+                step1: { status: 'pending', count: 0 },
+                step2: { status: 'pending', count: 0 },
+                step3: { status: 'pending', count: 0 }
+            };
+
+            progressSection.classList.remove('show');
+            progressBar.style.width = '0%';
+            progressBar.textContent = '0%';
+            statusMessage.className = 'status-message';
+            logArea.innerHTML = '<div class="log-entry info">מוכן להתחלה...</div>';
+            logArea.style.display = 'none';
+
+            // Reset step cards
+            document.getElementById('step1Card').classList.remove('completed', 'active');
+            document.getElementById('step2Card').classList.remove('completed', 'active');
+            document.getElementById('step3Card').classList.remove('completed', 'active');
+
+            document.getElementById('step1Status').textContent = 'ממתין';
+            document.getElementById('step2Status').textContent = 'ממתין';
+            document.getElementById('step3Status').textContent = 'ממתין';
+        }
+    </script>
+</body>
+</html>
