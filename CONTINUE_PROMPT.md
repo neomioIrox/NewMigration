@@ -9,8 +9,8 @@ Copy and paste this into your next Claude Code session:
 I'm working on a database migration project from SQL Server to MySQL for a fundraising system (Kupat Hair).
 
 **Current Status:**
-- ✅ Completed: 19 tables (20,942 rows total)
-- ✅ Last migration: **Prayer** (4 tables, 2,065 rows) - **100% success** ⭐
+- ✅ Completed: 16 tables (20,818 rows total)
+- ✅ Last migration: **CustomerUser** (3,839 rows) - **100% success** ⭐
 - ✅ Previous: Affiliates & Sources (3 tables, 1,941 rows) - 99.1% success
 - ✅ Previous: Recruiters (4 tables, 7,313 rows) - 100% success
 - 📂 Working directory: `c:\Users\NeomiOs\Documents\NewMigration`
@@ -25,35 +25,43 @@ I'm working on a database migration project from SQL Server to MySQL for a fundr
 
 ## 🎯 What We Accomplished Last Session
 
-**Prayer Migration - Phase 1 of Donation Migration - Perfect Success:**
+**CustomerUser Migration - Phase 2 of Donation Migration - Perfect Success:**
 
-1. **project (Prayer)** (259 rows) - 100%
-   - Migrated from Prayers table
-   - ProjectType=3 (Campaign)
-   - TerminalId=1, RecordStatus=2 (Accept)
-   - **Smart skip logic:** Check existing by Name
+**customeruser** (3,839 rows) - 100% ⭐
 
-2. **projectItem (Prayer)** (258 rows) - 100%
-   - ItemType=3 (PrayerName)
-   - PriceType=1 (Fixed)
-   - HasEngravingName=0, AllowFreeAddPrayerNames=0
+1. **Data Analysis:**
+   - Source: Old DB Users table
+   - Found 3,839 Users total
+   - 1,916 unique customers with Orders (1,314,813 Orders dependent)
+   - Verified column structure and NULL values
 
-3. **projectLocalization (Prayer)** (774 rows = 258 × 3 languages) - 100%
-   - Languages: Hebrew (1), English (2), French (3)
-   - DisplayInSite = !Hide (inverted logic)
-   - **Fallback:** Use Hebrew name if en/fr is empty
-   - **Smart skip logic:** Check existing by ProjectId+Language
+2. **Migration Features:**
+   - **Smart skip logic:** Check existing by Id before INSERT
+   - **Duplicate UserName handling:** Check UNIQUE constraint, add suffix if needed
+   - **NULL handling:**
+     - FirstName/LastName NULL → "Unknown" / "Name"
+     - Email NULL → `user{Id}@unknown.com`
+     - Gender → NULL, RecordStatus → 2 (Accept)
+   - **Same ID preservation:** Old UserId = New CustomerId (no translation needed)
 
-4. **projectItemLocalization (Prayer)** (774 rows = 258 × 3 languages) - 100%
-   - Same localization pattern as project
-   - Title fallback to Hebrew name
-   - **Smart skip logic:** Check existing by ProjectItemId+Language
+3. **Migration Results:**
+   - First run: 3,837/3,839 (2 duplicate UserName errors)
+   - Fixed: Added duplicate detection with `_{UserId}` suffix
+   - Second run: 2/2 remaining users (100% success)
+   - Total: 3,839/3,839 with 0 errors ⭐
 
 **Critical Output:**
-- ✅ Generated `data/fk-mappings/PrayerProjectItemId.json` (264 mappings)
-- ✅ Will be used in Donation migration to map PrayerId → ProjectItemId
-- ✅ UI page: `public/prayer-migration.html` (matches style of other pages)
-- ✅ Server endpoint: `/api/run-all-prayers`
+- ✅ Generated `data/fk-mappings/UserId.json` (3,839 mappings)
+- ✅ Will be used in Donation migration to map Orders.UserId → donation.CustomerId
+- ✅ UI page: `public/customeruser-migration.html` (Hebrew RTL)
+- ✅ Server endpoint: `/api/run-all-customerusers`
+- ✅ Button added to main index.html page
+
+**Key Technical Decisions:**
+- UserName max 40 chars → Truncate to 35 (leave room for suffix)
+- Duplicate detection: `SELECT Id FROM customeruser WHERE UserName = ?`
+- If duplicate exists: `userName = '${userName}_${userId}'`
+- Preserves PasswordHash from old DB for user login continuity
 
 **Previous Session - Affiliates & Sources Migration (99.1%):**
 
@@ -177,31 +185,42 @@ inserted++;
 
 **Current Focus: Donation Migration (Multi-Phase)**
 
-We are following the plan in `docs/DONATION_MIGRATION_PLAN.md`:
+We are following a simplified plan (Prayer removed due to requirements clarification):
 
-- [x] **Phase 1: Prayer Migration** ✅ COMPLETED (259 projects, 258 items, 1,548 localizations)
-- [ ] **Phase 2: CustomerUser Migration** ← **NEXT** (3,839 users needed)
-- [ ] **Phase 3: Donation Part 1 (Categories A+C)** (1,027,244 orders - ProjectId or orphaned)
-- [ ] **Phase 4: Donation Part 2 (Category B)** (38,149 orders - PrayerId dependent)
+- ~~**Phase 1: Prayer Migration**~~ ❌ SKIPPED (will handle during Donation: PrayerId exists → ItemId=2, else ItemId=1)
+- [x] **Phase 2: CustomerUser Migration** ✅ COMPLETED (3,839/3,839 users, 100% success)
+- [ ] **Phase 3: Donation Migration** ← **NEXT** (~1.2M orders from Orders table)
 
-**Phase 2 Details:**
-- Source: Old DB Users table (filter for customers only)
-- Target: customeruser table
-- Rows needed: 3,839 unique UserIds from Orders
-- Dependencies: None (this is standalone)
-- Output: CustomerUserId.json mapping file
+**Phase 3 Details (Donation):**
+- Source: Old DB Orders table (~1.2M rows)
+- Target: donation table
+- Dependencies:
+  - ✅ customeruser (CustomerId FK) - READY
+  - ✅ projectitem (ItemId FK) - READY (existing items)
+  - ✅ source (SourceId FK) - READY
+  - ✅ recruiter (RecruiterId FK) - READY
+  - ⚠️ address (AddressId FK) - Need to create inline
+  - ⚠️ clearingmethodarea (ClearingMethodAreaId FK) - Complex 22-case mapping
+- Special handling:
+  - PrayerId exists → ItemId=2
+  - PrayerId NULL and ProjectId exists → Use ItemId from project
+  - Both NULL → ItemId=1 (default fund)
+- Output: donation rows with proper FK references
 
 **Alternative Tasks (if needed):**
 - [ ] **Lead** - Lead/contact management table
 - [ ] **Other tables** - Check MIGRATION_STATUS.md for pending tables
 
-**Before Starting Phase 2 (CustomerUser):**
-1. Read `LESSONS_LEARNED.md` (10 min) ⭐⭐⭐
-2. Check old DB structure: `sp_help [TableName]`
-3. Check sample data: `SELECT TOP 10 * FROM [TableName]`
-4. Identify unique matching field (ID, Name, Email)
-5. Check for orphaned data: `SELECT COUNT(*) WHERE FK IS NULL`
-6. Verify FK targets exist (e.g., RoleId in role table)
+**Before Starting Phase 3 (Donation):**
+1. Read `docs/DONATION_MIGRATION_PLAN.md` for complete strategy ⭐⭐⭐
+2. Check Orders table structure: `sp_help Orders`
+3. Understand ItemId logic:
+   - PrayerId exists → ItemId=2
+   - PrayerId NULL + ProjectId exists → lookup ItemId from project
+   - Both NULL → ItemId=1 (default fund)
+4. Prepare address inline creation (21 existing + create new as needed)
+5. Implement ClearingMethodAreaId mapping (22-case logic)
+6. Test with small batch first (100 rows)
 
 **Recommended Workflow:**
 1. Create standalone script: `scripts/migration/migrate-[table]-simple.js`
@@ -320,7 +339,7 @@ git log --oneline -5
 
 ## 📊 Current Progress
 
-**Completed Tables (15):**
+**Completed Tables (16):**
 - ✅ project (1,350)
 - ✅ projectLocalization (4,050)
 - ✅ projectItem (1,350)
@@ -333,13 +352,14 @@ git log --oneline -5
 - ✅ recruitersGroupLanguage (111)
 - ✅ recruiter (3,828)
 - ✅ recruiterLocalization (3,337)
-- ✅ user (78 affiliate users) ⭐NEW
-- ✅ affiliate (78) ⭐NEW
-- ✅ source (1,863) ⭐NEW
+- ✅ user (78 affiliate users)
+- ✅ affiliate (78)
+- ✅ source (1,863)
+- ✅ customeruser (3,839) ⭐NEW
 
-**Total migrated:** 18,877 rows across 15 tables
+**Total migrated:** 20,818 rows across 16 tables
 
-**Next up:** Lead or Donation tables
+**Next up:** Donation table (~1.2M rows)
 
 ---
 

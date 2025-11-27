@@ -2,6 +2,16 @@
 
 ## הסטוריה
 
+### CustomerUser Migration (Nov 27, 2025)
+השלמנו בהצלחה את מיגרציית ה-CustomerUser (3,839 משתמשים) עם 100% הצלחה - Phase 2 למיגרציית Donation.
+
+**תוצאות סופיות:**
+- Total Users migrated: 3,839/3,839 (100%)
+- First run: 3,837/3,839 (2 duplicate UserName errors)
+- Fixed duplicate detection + suffix
+- Second run: 2/2 remaining users
+- 0 errors after fix ⭐
+
 ### Affiliates & Sources Migration (Nov 27, 2025)
 השלמנו בהצלחה את מיגרציית ה-Affiliates & Sources (3 טבלאות, ~1,941 שורות).
 
@@ -287,6 +297,43 @@ const isEmpty = (val) => {
   return str === '' || str === 'null';  // ← Handle string "null"
 };
 ```
+
+### UNIQUE Constraint Duplicate Detection (CustomerUser Migration) ⭐NEW
+**הבעיה:**
+- ה-UserName field יש לו UNIQUE constraint
+- שני משתמשים עם אותו UserName → שגיאת duplicate entry
+- MySQL UNIQUE constraints הם case-insensitive (utf8mb4_general_ci)
+
+**הפתרון:**
+```javascript
+// 1. Truncate UserName to leave room for suffix (max 40 chars)
+let userName = user.UserName ? user.UserName.substring(0, 35) : `user${user.Id}`;
+
+// 2. Check for duplicates BEFORE INSERT
+const [dupUserName] = await mysqlConn.query(
+  'SELECT Id FROM customeruser WHERE UserName = ?',
+  [userName]
+);
+
+// 3. Add unique suffix if duplicate exists
+if (dupUserName.length > 0) {
+  userName = `${userName}_${user.Id}`;  // e.g., "john_doe_2798"
+}
+
+// 4. Now INSERT with unique UserName
+await mysqlConn.query(insertQuery, [userName, ...otherFields]);
+```
+
+**תוצאה:**
+- First run: 3,837/3,839 success (2 duplicates)
+- After fix: 2/2 remaining users (100% success)
+- 0 errors ⭐
+
+**לקחים:**
+✅ Always check UNIQUE constraints before INSERT
+✅ Add unique suffix (ID, timestamp) for duplicates
+✅ Truncate strings to leave room for suffix
+✅ Test with edge cases (duplicate names, NULL values)
 
 ### Name-based Lookup Pattern
 ```javascript
