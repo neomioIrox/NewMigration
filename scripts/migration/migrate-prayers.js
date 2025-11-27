@@ -289,12 +289,12 @@ async function migratePrayers() {
 
           // Check if localization exists
           const [existing] = await mysqlConn.query(
-            'SELECT Id FROM projectitemlocalization WHERE ProjectItemId = ? AND Language = ?',
+            'SELECT Id FROM projectitemlocalization WHERE ItemId = ? AND Language = ?',
             [projectItemId, lang.id]
           );
 
           if (existing.length > 0) {
-            console.log(`⏭️  Item localization exists: ProjectItemId=${projectItemId}, Lang=${lang.name}`);
+            console.log(`⏭️  Item localization exists: ItemId=${projectItemId}, Lang=${lang.name}`);
             continue;
           }
 
@@ -303,7 +303,7 @@ async function migratePrayers() {
           // Insert projectItemLocalization
           await mysqlConn.query(`
             INSERT INTO projectitemlocalization (
-              ProjectItemId,
+              ItemId,
               Language,
               DisplayInSite,
               Title,
