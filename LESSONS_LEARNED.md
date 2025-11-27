@@ -1,7 +1,11 @@
-# Lessons Learned - Recruiter Migration (Nov 26, 2025)
+# Lessons Learned - Database Migration
 
-## סיכום המשימה
+## הסטוריה
 
+### Affiliates & Sources Migration (Nov 27, 2025)
+השלמנו בהצלחה את מיגרציית ה-Affiliates & Sources (3 טבלאות, ~1,941 שורות).
+
+### Recruiter Migration (Nov 26, 2025)
 השלמנו בהצלחה את מיגרציית ה-Recruiters (4 טבלאות, 7,313 שורות) עם 100% הצלחה.
 
 ### תוצאות סופיות
@@ -352,27 +356,344 @@ powershell -Command "Stop-Process -Id <PID> -Force; Start-Sleep -Seconds 2" && n
 
 ---
 
+## תובנות ממיגרציית Affiliates & Sources 🔗
+
+### 6. **Foreign Key Validation - בדוק תלויות לפני INSERT**
+
+**הבעיה שנתקלנו:**
+- ניסינו להכניס users עם RoleId=3
+- הטבלה `role` לא הכילה RoleId=3
+- כל ה-78 users נכשלו עם שגיאת FK constraint:
+```
+Cannot add or update a child row: a foreign key constraint fails
+FK_User_RI_Role FOREIGN KEY (RoleId) REFERENCES role (Id)
+```
+
+**מה שניסינו:**
+1. ריצה ראשונה: RoleId=3 לא קיים → 78 errors
+2. יצירת role חדש: `scripts/utils/create-affiliate-role.js` → RoleId=3 "שותף"
+3. החלטה פשוטה יותר: שימוש ב-RoleId=1 (admin) קיים
+
+**הפתרון הסופי:**
+```javascript
+const AFFILIATE_ROLE_ID = 1; // Use existing admin role
+```
+
+**לקח:**
+⚠️ לפני יצירת רשומות עם FK - בדוק שהרשומות המקושרות קיימות!
+⚠️ שאל: "האם צריך role חדש או אפשר להשתמש בקיים?"
+✅ פשוט = טוב: שימוש בקיים (RoleId=1) > יצירת חדש (RoleId=3)
+
+---
+
+### 7. **Smart Skip Logic - תן למשתמש שליטה על מחיקות**
+
+**הבעיה המקורית:**
+- הסקריפט מחק אוטומטית את כל הנתונים בכל הרצה
+```javascript
+// Old approach - BAD!
+await mysqlConn.query('DELETE FROM user WHERE RoleId = ?', [AFFILIATE_ROLE_ID]);
+await mysqlConn.query('DELETE FROM affiliate');
+await mysqlConn.query('DELETE FROM source');
+```
+
+**בעיות:**
+1. המשתמש איבדה שליטה - הכל נמחק בלי שאלה
+2. לא ניתן להריץ מיגרציה על DB עם נתונים קיימים
+3. מסוכן - עלול למחוק דברים שלא צריך
+
+**הפתרון - Smart Skip:**
+```javascript
+// Check if user exists before inserting
+const [existingUser] = await mysqlConn.query(
+  'SELECT Id FROM user WHERE UserName = ?',
+  [userName]
+);
+
+if (existingUser.length > 0) {
+  userIdMapping[row.Id] = existingUser[0].Id;
+  usersSkipped++;
+  continue;  // Skip, don't error!
+}
+
+// Insert only if doesn't exist
+await mysqlConn.query(insertQuery, values);
+usersInserted++;
+```
+
+**תוצאה:**
+```
+✅ Step 0.5 completed: 5 new users, 73 skipped (already exist)
+✅ Step 1 completed: 3 new affiliates, 75 skipped (already exist)
+✅ Step 3 completed: 12 new sources, 1,851 skipped (already exist)
+```
+
+**לקח:**
+✅ בדוק קיום לפני INSERT - מונע duplicates ונותן גמישות
+✅ דווח "X new, Y skipped" - תמיד תן visibility למשתמש
+✅ המשתמש שולט על מחיקות - לא הסקריפט!
+📝 השאר `clear-*.js` כעזר ידני - לא חלק מהמיגרציה האוטומטית
+
+**שיטות בדיקה:**
+- Users: `WHERE UserName = ?` (unique field)
+- Affiliates: `WHERE Id = ?` (PK)
+- Sources: `WHERE AffiliateId = ? AND SourceCode = ?` (composite unique)
+
+---
+
+### 8. **Case-Insensitive UNIQUE Constraints במMySQL**
+
+**הבעיה:**
+- רצינו להכניס user עם UserName='YNET'
+- כבר היה user עם UserName='ynet' (lowercase)
+- שגיאה:
+```
+Duplicate entry 'YNET' for key 'user.UserName'
+```
+
+**הסיבה:**
+- MySQL מטפל ב-UNIQUE constraints כ-case-insensitive (default collation)
+- 'ynet' = 'YNET' = 'YnEt' - כולם נחשבים זהים
+
+**הפתרון:**
+```javascript
+// Check with case-insensitive comparison
+const [existingUser] = await mysqlConn.query(
+  'SELECT Id FROM user WHERE UserName = ?',  // MySQL handles case-insensitivity
+  [userName]
+);
+```
+
+**הבנה נוספת:**
+```sql
+-- These are considered duplicates in MySQL (default utf8mb4_general_ci)
+INSERT INTO user (UserName) VALUES ('ynet');
+INSERT INTO user (UserName) VALUES ('YNET');  -- ❌ Error!
+```
+
+**לקח:**
+⚠️ שים לב: MySQL UNIQUE constraints הם case-insensitive (ברירת מחדל)
+✅ תמיד בדוק קיום עם אותה השוואה שהמערכת משתמשת
+📝 אם צריך case-sensitive: השתמש ב-BINARY collation או בדוק ידנית
+
+---
+
+### 9. **FK Constraints ומחיקות - סדר חשוב!**
+
+**הבעיה:**
+כשניסינו למחוק affiliates, קיבלנו:
+```
+Cannot delete or update a parent row: a foreign key constraint fails
+(`kupathairnew`.`source`, CONSTRAINT `FK_Source_AI_Affiliate`
+FOREIGN KEY (`AffiliateId`) REFERENCES `affiliate` (`Id`))
+```
+
+**הסיבה:**
+- `source.AffiliateId` מצביע על `affiliate.Id`
+- לא ניתן למחוק affiliate אם יש sources שמצביעים אליו
+
+**הפתרון (למחיקות בלבד!):**
+```javascript
+// Disable FK checks temporarily
+await mysqlConn.query('SET FOREIGN_KEY_CHECKS = 0');
+
+// Now we can delete in any order
+await mysqlConn.query('DELETE FROM source');
+await mysqlConn.query('DELETE FROM affiliate');
+await mysqlConn.query('DELETE FROM user WHERE RoleId = 3');
+
+// Re-enable FK checks
+await mysqlConn.query('SET FOREIGN_KEY_CHECKS = 1');
+```
+
+**⚠️ אזהרה:**
+- השתמש ב-`SET FOREIGN_KEY_CHECKS = 0` רק לסקריפטי ניקוי!
+- לעולם אל תשתמש בזה במיגרציה רגילה
+- תמיד enable מחדש אחרי המחיקות
+
+**לקח:**
+✅ כשמוחקים - השתמש ב-SET FOREIGN_KEY_CHECKS=0 (בזהירות!)
+✅ כשמכניסים - שמור על הסדר הנכון (parent → child)
+❌ אל תשתמש ב-flag הזה במיגרציה רגילה - רק בסקריפטי cleanup
+
+**סדר נכון להכנסה:**
+1. user (אין תלויות)
+2. affiliate (תלוי ב-user.Id)
+3. source (תלוי ב-affiliate.Id)
+
+---
+
+### 10. **Multi-Table Migration עם Intermediate Mappings**
+
+**הארכיטקטורה:**
+```
+Old DB                    New DB
+┌─────────────────┐      ┌─────────────┐
+│ ParentSources   │ ───→ │ user        │ (RoleId=1)
+│ (78 rows)       │   ┌→ │ affiliate   │
+└─────────────────┘   │  └─────────────┘
+                      │         ↓
+┌─────────────────┐   │  ┌─────────────┐
+│ UserSources     │ ──┴→ │ source      │
+│ (1,902 rows)    │      └─────────────┘
+└─────────────────┘
+```
+
+**4 שלבים:**
+1. STEP 0.5: `ParentSources` → `user` (78 users)
+2. STEP 1: `ParentSources` → `affiliate` (78 affiliates)
+3. STEP 2: Generate `AffiliateId.json` mapping (ParentSourcesId → AffiliateId)
+4. STEP 3: `UserSources` → `source` (1,902 sources) using mapping
+
+**קובץ המיפוי:**
+```json
+// data/fk-mappings/AffiliateId.json
+{
+  "1": 1,   // ParentSourcesId=1 → AffiliateId=1
+  "2": 2,
+  "3": 3,
+  ...
+  "83": 83
+}
+```
+
+**שימוש במיפוי:**
+```javascript
+// Load mapping
+const affiliateMapping = JSON.parse(fs.readFileSync(mappingPath, 'utf-8'));
+
+// Use it for source migration
+for (const row of userSources) {
+  const affiliateId = affiliateMapping[row.ParentSourcesId];
+
+  if (!affiliateId) {
+    console.error(`No FK mapping for ParentSourcesId=${row.ParentSourcesId}`);
+    continue;
+  }
+
+  await mysqlConn.query(
+    'INSERT INTO source (AffiliateId, SourceCode, ...) VALUES (?, ?, ...)',
+    [affiliateId, row.Name, ...]
+  );
+}
+```
+
+**יתרונות הגישה:**
+✅ ברור וקריא - כל שלב עצמאי
+✅ ניתן לשחזור - המיפוי נשמר בקובץ JSON
+✅ ניתן לבדיקה - אפשר לראות בדיוק איזה ID הפך למה
+✅ ניתן לדיבוג - אם source נכשל, אפשר לבדוק את המיפוי
+
+**לקח:**
+✅ מיגרציות מרובות טבלאות - שבור לשלבים ברורים
+✅ שמור FK mappings בקבצי JSON - שקיxxxxxxיבוג
+✅ בדוק קיום mapping לפני שימוש - מונע שגיאות FK
+
+---
+
+### 11. **Orphaned Data Handling - מה לעשות עם שורות בלי parent**
+
+**הגילוי:**
+```sql
+SELECT COUNT(*) FROM UserSources WHERE ParentSourcesId IS NULL;
+-- Result: 5,703 orphaned sources
+
+SELECT COUNT(*) FROM UserSources WHERE ParentSourcesId = 0;
+-- Result: 23 orphaned sources
+
+SELECT COUNT(*) FROM UserSources WHERE ParentSourcesId IN (4, 8);
+-- Result: 16 sources pointing to non-existent parents
+```
+
+**החלטת המשתמש:**
+- לא למגרר שורות orphaned (אין להן affiliate parent)
+- סה"כ: 5,703 + 23 + 16 = 5,742 שורות שלא מיגרציה
+
+**המימוש:**
+```javascript
+const userSourcesQuery = `
+  SELECT UserSourcesId, Name, ParentSourcesId, Title, ExpirationNum
+  FROM UserSources
+  WHERE ParentSourcesId IS NOT NULL    -- Exclude NULL
+    AND ParentSourcesId <> 0           -- Exclude 0
+  ORDER BY UserSourcesId
+`;
+
+// After querying, also check if parent exists in mapping
+for (const row of userSources) {
+  const affiliateId = affiliateMapping[row.ParentSourcesId];
+
+  if (!affiliateId) {
+    sourcesErrors.push({
+      id: row.UserSourcesId,
+      error: `No FK mapping found for ParentSourcesId=${row.ParentSourcesId}`
+    });
+    continue;  // Skip orphaned source
+  }
+
+  // Proceed with migration...
+}
+```
+
+**תוצאה:**
+```
+Total UserSources: 7,605
+- Valid (migrated): 1,863
+- Orphaned (skipped): 5,742
+  • NULL parent: 5,703
+  • Zero parent: 23
+  • Non-existent parent: 16
+```
+
+**לקח:**
+⚠️ תמיד בדוק orphaned data לפני מיגרציה
+✅ שאל את המשתמש: "מה לעשות עם X שורות orphaned?"
+✅ דווח בבירור: "Migrated X, Skipped Y orphaned"
+📝 תעדוק את ההחלטה - למה לא מיגרציה orphans
+
+---
+
 ## סיכום לשיחה הבאה 📝
 
 ### מה השלמנו:
-✅ 4 טבלאות Recruiter (7,313 שורות)
+✅ 7 טבלאות (Recruiters + Affiliates) - 9,254 שורות
+✅ 4 טבלאות Recruiter (7,313 שורות) - 100% הצלחה
+✅ 3 טבלאות Affiliates & Sources (1,941 שורות) - 99.1% הצלחה
 ✅ Centralized database config
+✅ Smart skip logic - אין מחיקות אוטומטיות
 ✅ Standalone scripts + UI integration
-✅ 0 errors בגישה הפשוטה
 
-### מה למדנו:
+### מה למדנו (Recruiters):
 1. Name matching > FK cascading
 2. תמיד בדוק מבנה טבלה לפני!
 3. שלב UI + standalone ביחד
 4. הרוג server אחרי כל שינוי
 5. isEmpty עם "null" string handling
 
+### מה למדנו (Affiliates & Sources):
+6. בדוק שFK targets קיימים לפני INSERT
+7. Smart skip logic > auto-delete
+8. MySQL UNIQUE constraints = case-insensitive
+9. SET FOREIGN_KEY_CHECKS=0 רק לניקוי (בזהירות!)
+10. Multi-table migration עם intermediate JSON mappings
+11. זהה ופלטר orphaned data לפני מיגרציה
+
 ### הכנה למיגרציה הבאה:
-1. תחקור טבלה ישנה וחדשה (10 דקות)
-2. תכתוב standalone script עם Name matching
-3. תשלב מיד ב-server.js
-4. תבדוק שני הפלואים
-5. תתעד ותקמיט
+1. קרא LESSONS_LEARNED.md (10 דקות) ⭐
+2. תחקור טבלה ישנה וחדשה
+   ```sql
+   sp_help [TableName]           -- MSSQL
+   SELECT TOP 10 * FROM [table]  -- Sample data
+   DESCRIBE table;               -- MySQL
+   ```
+3. בדוק FK dependencies ו-orphaned data
+4. תכתוב standalone script עם:
+   - Smart skip logic (check existing before INSERT)
+   - Name matching או FK mapping (JSON file)
+   - Orphaned data filtering
+5. תשלב מיד ב-server.js
+6. תבדוק שני הפלואים (standalone + UI)
+7. תתעד ותקמיט
 
 ### הטבלאות הבאות בתור (Priority 1):
 - [ ] Lead (טבלת לידים)
@@ -380,6 +701,8 @@ powershell -Command "Stop-Process -Id <PID> -Force; Start-Sleep -Seconds 2" && n
 
 ---
 
-**נוצר:** 26 נובמבר 2025
-**מיגרציה:** Recruiters (4 tables, 7,313 rows)
-**תוצאה:** ✅ 100% Success
+**נוצר:** 26-27 נובמבר 2025
+**מיגרציות:**
+- Recruiters (4 tables, 7,313 rows) - ✅ 100% Success
+- Affiliates & Sources (3 tables, 1,941 rows) - ✅ 99.1% Success
+**סה"כ:** 7 tables, 9,254 rows
