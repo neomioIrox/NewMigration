@@ -18,6 +18,12 @@
 | recruitersGroupLanguage | ProductsGroup | 111 | ✅ 100% (37 groups × 3 languages) |
 | recruiter | ProductStock | 3,828 | ✅ 100% |
 | recruiterLocalization | ProductStock | 3,337 | ✅ 100% (3,321 HE, 15 EN, 1 FR) |
+| affiliate | ParentSources | 78 | ✅ 100% |
+| source | UserSources | 1,863 | ✅ 100% |
+| **project (Prayer)** | **Prayers** | **259** | **✅ 100%** |
+| **projectItem (Prayer)** | **Prayers** | **258** | **✅ 100%** |
+| **projectLocalization (Prayer)** | **Prayers** | **774** | **✅ 100% (258 × 3 languages)** |
+| **projectItemLocalization (Prayer)** | **Prayers** | **774** | **✅ 100% (258 × 3 languages)** |
 
 ### Known Issues Fixed
 
@@ -58,6 +64,10 @@ const newProjectId = projectMapping[oldProductId];
 // Recruiter Group ID mapping
 const recruiterGroupMapping = require('./data/fk-mappings/RecruiterGroupId.json');
 const newRecruiterGroupId = recruiterGroupMapping[oldProductsGroupId];
+
+// Prayer ProjectItem ID mapping (for Donation migration)
+const prayerMapping = require('./data/fk-mappings/PrayerProjectItemId.json');
+const newProjectItemId = prayerMapping[oldPrayerId];
 ```
 
 ---
@@ -67,7 +77,9 @@ const newRecruiterGroupId = recruiterGroupMapping[oldProductsGroupId];
 ### Priority 1 - Core Tables
 - [ ] Lead
 - [x] ~~Recruiter~~ ✅ Completed
-- [ ] Donation / Payment
+- [x] ~~Prayer~~ ✅ Completed (Phase 1 of Donation migration)
+- [ ] CustomerUser (Phase 2 of Donation migration)
+- [ ] Donation / Payment (Phases 3-4)
 
 ### Priority 2 - Related Tables
 - [ ] User assignments
@@ -111,8 +123,18 @@ await conn.execute(insertQuery, values); // ❌ Fails after ~1000
 | `mappings/ProjectItemLocalizationMapping.json` | ItemLocalization mapping |
 | `data/fk-mappings/ProjectId.json` | Product→Project ID translation |
 | `data/fk-mappings/RecruiterGroupId.json` | ProductsGroup→RecruitersGroup ID translation |
+| `data/fk-mappings/AffiliateId.json` | ParentSources→Affiliate ID translation |
+| `data/fk-mappings/PrayerProjectItemId.json` | Prayer→ProjectItem ID translation |
 | `public/recruiter-migration.html` | Recruiter migration UI (Hebrew RTL) |
+| `public/affiliates-migration.html` | Affiliates/Sources migration UI (Hebrew RTL) |
+| `public/prayer-migration.html` | Prayer migration UI (Hebrew RTL) |
 | `scripts/migration/migrate-recruiter-localization-simple.js` | Simplified recruiter localization script |
+| `scripts/migration/migrate-affiliates-sources-all.js` | Affiliates & Sources migration |
+| `scripts/migration/migrate-prayers.js` | Prayer migration (5 steps) |
+| `scripts/checks/check-prayers-data.js` | Prayer data analysis |
+| `scripts/checks/check-orders-data.js` | Orders data analysis |
+| `scripts/checks/check-donation-dependencies.js` | Donation dependencies checker |
+| `docs/DONATION_MIGRATION_PLAN.md` | Complete Donation migration plan |
 | `src/server.js` | Migration engine with REST API |
 
 ---

@@ -9,8 +9,9 @@ Copy and paste this into your next Claude Code session:
 I'm working on a database migration project from SQL Server to MySQL for a fundraising system (Kupat Hair).
 
 **Current Status:**
-- ✅ Completed: 15 tables (18,877 rows total)
-- ✅ Last migration: Affiliates & Sources (3 tables, 1,941 rows) - 99.1% success
+- ✅ Completed: 19 tables (20,942 rows total)
+- ✅ Last migration: **Prayer** (4 tables, 2,065 rows) - **100% success** ⭐
+- ✅ Previous: Affiliates & Sources (3 tables, 1,941 rows) - 99.1% success
 - ✅ Previous: Recruiters (4 tables, 7,313 rows) - 100% success
 - 📂 Working directory: `c:\Users\NeomiOs\Documents\NewMigration`
 
@@ -24,7 +25,37 @@ I'm working on a database migration project from SQL Server to MySQL for a fundr
 
 ## 🎯 What We Accomplished Last Session
 
-**Affiliates & Sources Migration - Near Perfect Success:**
+**Prayer Migration - Phase 1 of Donation Migration - Perfect Success:**
+
+1. **project (Prayer)** (259 rows) - 100%
+   - Migrated from Prayers table
+   - ProjectType=3 (Campaign)
+   - TerminalId=1, RecordStatus=2 (Accept)
+   - **Smart skip logic:** Check existing by Name
+
+2. **projectItem (Prayer)** (258 rows) - 100%
+   - ItemType=3 (PrayerName)
+   - PriceType=1 (Fixed)
+   - HasEngravingName=0, AllowFreeAddPrayerNames=0
+
+3. **projectLocalization (Prayer)** (774 rows = 258 × 3 languages) - 100%
+   - Languages: Hebrew (1), English (2), French (3)
+   - DisplayInSite = !Hide (inverted logic)
+   - **Fallback:** Use Hebrew name if en/fr is empty
+   - **Smart skip logic:** Check existing by ProjectId+Language
+
+4. **projectItemLocalization (Prayer)** (774 rows = 258 × 3 languages) - 100%
+   - Same localization pattern as project
+   - Title fallback to Hebrew name
+   - **Smart skip logic:** Check existing by ProjectItemId+Language
+
+**Critical Output:**
+- ✅ Generated `data/fk-mappings/PrayerProjectItemId.json` (264 mappings)
+- ✅ Will be used in Donation migration to map PrayerId → ProjectItemId
+- ✅ UI page: `public/prayer-migration.html` (matches style of other pages)
+- ✅ Server endpoint: `/api/run-all-prayers`
+
+**Previous Session - Affiliates & Sources Migration (99.1%):**
 
 1. **user** (78 affiliate users) - 100%
    - Migrated from ParentSources table
@@ -144,11 +175,27 @@ inserted++;
 
 ## 🎯 Next Migration Task
 
-**Priority 1 Tables (choose one):**
-- [ ] **Lead** - Lead/contact management table
-- [ ] **Donation / Payment** - Transaction records
+**Current Focus: Donation Migration (Multi-Phase)**
 
-**Before Starting:**
+We are following the plan in `docs/DONATION_MIGRATION_PLAN.md`:
+
+- [x] **Phase 1: Prayer Migration** ✅ COMPLETED (259 projects, 258 items, 1,548 localizations)
+- [ ] **Phase 2: CustomerUser Migration** ← **NEXT** (3,839 users needed)
+- [ ] **Phase 3: Donation Part 1 (Categories A+C)** (1,027,244 orders - ProjectId or orphaned)
+- [ ] **Phase 4: Donation Part 2 (Category B)** (38,149 orders - PrayerId dependent)
+
+**Phase 2 Details:**
+- Source: Old DB Users table (filter for customers only)
+- Target: customeruser table
+- Rows needed: 3,839 unique UserIds from Orders
+- Dependencies: None (this is standalone)
+- Output: CustomerUserId.json mapping file
+
+**Alternative Tasks (if needed):**
+- [ ] **Lead** - Lead/contact management table
+- [ ] **Other tables** - Check MIGRATION_STATUS.md for pending tables
+
+**Before Starting Phase 2 (CustomerUser):**
 1. Read `LESSONS_LEARNED.md` (10 min) ⭐⭐⭐
 2. Check old DB structure: `sp_help [TableName]`
 3. Check sample data: `SELECT TOP 10 * FROM [TableName]`
