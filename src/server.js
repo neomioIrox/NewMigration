@@ -2728,31 +2728,29 @@ app.post('/api/run-all-affiliates-sources', async (req, res) => {
   }
 });
 
-// Run full prayers migration
-app.post('/api/run-all-prayers', async (req, res) => {
+// Run full customeruser migration
+app.post('/api/run-all-customerusers', async (req, res) => {
   try {
     logger.info('='.repeat(60));
-    logger.info('STARTING PRAYERS MIGRATION');
+    logger.info('STARTING CUSTOMERUSER MIGRATION');
     logger.info('='.repeat(60));
 
     // Import and run migration script
-    const { migratePrayers } = require('../scripts/migration/migrate-prayers');
-    const results = await migratePrayers();
+    const { migrateCustomerUsers } = require('../scripts/migration/migrate-customerusers');
+    const results = await migrateCustomerUsers();
 
-    logger.info('Prayers migration completed successfully');
+    logger.info('CustomerUser migration completed successfully');
 
     res.json({
       success: true,
-      step1_projects: results.step1_projects,
-      step2_projectitems: results.step2_projectitems,
-      step3_localizations: results.step3_localizations,
-      step4_item_localizations: results.step4_item_localizations,
-      step5_mapping: results.step5_mapping ? 'Created' : 'Not created',
-      errors: results.errors
+      inserted: results.inserted,
+      skipped: results.skipped,
+      errors: results.errors,
+      mappingCreated: Object.keys(results.userMapping).length > 0
     });
 
   } catch (error) {
-    logger.error('Prayers migration failed: ' + error.message);
+    logger.error('CustomerUser migration failed: ' + error.message);
     res.status(500).json({ success: false, error: error.message });
   }
 });

@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>מיגרציית משתמשים (CustomerUser)</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            direction: rtl;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            padding: 30px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #667eea;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }
+
+        .info-box {
+            background: #f0f4ff;
+            border-right: 4px solid #667eea;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+        }
+
+        .info-box h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .info-box p {
+            color: #555;
+            line-height: 1.6;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            flex: 1;
+            min-width: 200px;
+            padding: 15px 30px;
+            font-size: 1.1em;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: bold;
+            color: white;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        .btn-secondary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(240, 147, 251, 0.4);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        #results {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            display: none;
+        }
+
+        #results.show {
+            display: block;
+        }
+
+        .result-item {
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 5px;
+            background: white;
+        }
+
+        .result-success {
+            border-right: 4px solid #28a745;
+        }
+
+        .result-error {
+            border-right: 4px solid #dc3545;
+        }
+
+        .result-warning {
+            border-right: 4px solid #ffc107;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            display: none;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            color: #667eea;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .stat-number {
+            font-size: 2em;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-label {
+            color: #666;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="index.html" class="back-link">← חזרה לדף הראשי</a>
+
+        <h1>👤 מיגרציית משתמשים</h1>
+
+        <div class="info-box">
+            <h3>מה מתבצע כאן?</h3>
+            <p>מיגרציה של משתמשים מטבלת <strong>Users</strong> בבסיס הנתונים הישן לטבלת <strong>customeruser</strong> בבסיס הנתונים החדש.</p>
+            <p><strong>סה"כ משתמשים למיגרציה:</strong> 3,839</p>
+            <p><strong>תכונות:</strong></p>
+            <ul>
+                <li>Smart skip logic - בדיקה לפני הכנסה</li>
+                <li>טיפול ב-UserName כפול (הוספת סיומת ייחודית)</li>
+                <li>טיפול ב-NULL names (שימוש ב-"Unknown Name")</li>
+                <li>יצירת קובץ מיפוי UserId.json</li>
+            </ul>
+        </div>
+
+        <div class="button-group">
+            <button id="runBtn" class="btn-primary" onclick="runMigration()">
+                ▶️ הרץ מיגרציה
+            </button>
+            <button class="btn-secondary" onclick="location.reload()">
+                🔄 רענן דף
+            </button>
+        </div>
+
+        <div id="loading" class="loading">
+            <div class="spinner"></div>
+            <p>מריץ מיגרציה... אנא המתן</p>
+        </div>
+
+        <div id="results">
+            <h2>תוצאות המיגרציה</h2>
+            <div id="stats" class="stats"></div>
+            <div id="details" style="margin-top: 20px;"></div>
+        </div>
+    </div>
+
+    <script>
+        async function runMigration() {
+            const runBtn = document.getElementById('runBtn');
+            const loading = document.getElementById('loading');
+            const results = document.getElementById('results');
+            const stats = document.getElementById('stats');
+            const details = document.getElementById('details');
+
+            // Disable button
+            runBtn.disabled = true;
+            loading.classList.add('show');
+            results.classList.remove('show');
+
+            try {
+                const response = await fetch('/api/run-all-customerusers', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+
+                loading.classList.remove('show');
+                results.classList.add('show');
+
+                if (data.success) {
+                    // Show statistics
+                    stats.innerHTML = `
+                        <div class="stat-card">
+                            <div class="stat-number">${data.inserted || 0}</div>
+                            <div class="stat-label">משתמשים חדשים</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number">${data.skipped || 0}</div>
+                            <div class="stat-label">משתמשים קיימים (נדלגו)</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number">${(data.errors || []).length}</div>
+                            <div class="stat-label">שגיאות</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number">${data.inserted + data.skipped}</div>
+                            <div class="stat-label">סה"כ</div>
+                        </div>
+                    `;
+
+                    // Show details
+                    let detailsHtml = '<div class="result-item result-success">✅ מיגרציה הושלמה בהצלחה!</div>';
+
+                    if (data.mappingCreated) {
+                        detailsHtml += '<div class="result-item result-success">✅ קובץ מיפוי UserId.json נוצר</div>';
+                    }
+
+                    if (data.errors && data.errors.length > 0) {
+                        detailsHtml += `<div class="result-item result-warning">⚠️ ${data.errors.length} שגיאות:</div>`;
+                        data.errors.slice(0, 10).forEach(err => {
+                            detailsHtml += `<div class="result-item result-error">❌ ${err}</div>`;
+                        });
+                        if (data.errors.length > 10) {
+                            detailsHtml += `<div class="result-item result-warning">... ועוד ${data.errors.length - 10} שגיאות</div>`;
+                        }
+                    }
+
+                    details.innerHTML = detailsHtml;
+
+                } else {
+                    details.innerHTML = `<div class="result-item result-error">❌ שגיאה: ${data.error || data.message}</div>`;
+                }
+
+            } catch (error) {
+                loading.classList.remove('show');
+                results.classList.add('show');
+                details.innerHTML = `<div class="result-item result-error">❌ שגיאה בתקשורת: ${error.message}</div>`;
+            } finally {
+                runBtn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>
