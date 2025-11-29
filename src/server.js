@@ -2755,6 +2755,33 @@ app.post('/api/run-all-customerusers', async (req, res) => {
   }
 });
 
+// Run full Campaign Type 3 migration (ProductGroup campaigns)
+app.post('/api/run-all-campaign-type3', async (req, res) => {
+  try {
+    logger.info('='.repeat(60));
+    logger.info('STARTING CAMPAIGN TYPE 3 MIGRATION - ProductGroup Campaigns');
+    logger.info('='.repeat(60));
+
+    // Import and run migration script
+    const { migrateCampaignType3 } = require('../scripts/migration/migrate-campaign-type3');
+    const results = await migrateCampaignType3();
+
+    logger.info('Campaign Type 3 migration completed successfully');
+    logger.info(`Projects: ${results.projects.inserted} inserted, ${results.projects.skipped} skipped`);
+    logger.info(`ProjectItems: ${results.projectItems.inserted} inserted, ${results.projectItems.skipped} skipped`);
+
+    res.json({
+      success: true,
+      results: results
+    });
+
+  } catch (error) {
+    logger.error('Campaign Type 3 migration failed: ' + error.message);
+    logger.error(error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 app.listen(PORT, () => {
   logger.info(`Migration Helper running at http://localhost:${PORT}`);
   logger.info('Logs are being written to migration-logs.log');
