@@ -674,6 +674,7 @@
             <button class="btn" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);" onclick="window.location.href='gallery-migration.html'">🎨 מיגרציית גלריות</button>
             <button class="btn" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);" onclick="window.location.href='affiliates-migration.html'">🔗 מיגרציית מקורות</button>
             <button class="btn" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);" onclick="window.location.href='customeruser-migration.html'">👤 מיגרציית לקוחות</button>
+            <button class="btn" style="background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);" onclick="runCampaignType2Migration()">📜 מיגרציית מגביות סוג 2</button>
         </div>
 
         <div id="loading" class="loading">Loading project table data...</div>
@@ -1416,6 +1417,43 @@
                 }
             } catch (error) {
                 alert('✗ שגיאה: ' + error.message);
+            }
+        }
+
+        // Campaign Type 2 Migration Function
+        async function runCampaignType2Migration() {
+            if (!confirm('האם להתחיל מיגרציית מגביות סוג 2 (מגבית עם שטר בלבד)?\n\nסה"כ 26 מגביות ייוצרו.')) {
+                return;
+            }
+
+            try {
+                // Load Type 2 mapping
+                const response = await fetch('/api/load-mapping/ProjectMapping_Collections_Type2');
+                const result = await response.json();
+
+                if (!result.success) {
+                    alert('שגיאה בטעינת מיפוי: ' + result.message);
+                    return;
+                }
+
+                // Load mappings into variables
+                columnMappings = result.mapping.columnMappings || {};
+                fkMappings = result.mapping.fkMappings || {};
+                localizationMappings = result.mapping.localizationMappings || {};
+                projectItemMappings = result.mapping.projectItemMappings || {};
+                projectItemLocalizationMappings = result.mapping.projectItemLocalizationMappings || {};
+                mediaMappings = result.mapping.mediaMappings || {};
+                whereClause = result.mapping.whereClause || null;
+
+                // Prompt to execute
+                if (confirm('מיפוי נטען בהצלחה!\n\nהאם לבצע מיגרציה כעת?\n(המיגרציה תיצור פרויקטים, לוקליזציות, ופריטים)')) {
+                    await executeMigration();
+                } else {
+                    alert('מיפוי נטען. לחץ על "הגדרות חיבור ומיגרציה" ולאחר מכן "בצע מיגרציה" כשאתה מוכן.');
+                    openConnectionModal();
+                }
+            } catch (error) {
+                alert('שגיאה: ' + error.message);
             }
         }
 
