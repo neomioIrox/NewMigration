@@ -298,13 +298,13 @@
 
                 if (data.success) {
                     // Show statistics
-                    const projectCount = data.rowsInserted || 0;
-                    const localizationCount = data.localizationRowsInserted || 0;
-                    const itemCount = data.itemRowsInserted || 0;
-                    const itemLocalizationCount = data.itemLocalizationRowsInserted || 0;
-                    const linkSettingCount = data.linkSettingRowsInserted || 0;
-                    const entityContentCount = data.entityContentRowsInserted || 0;
-                    const entityContentItemCount = data.entityContentItemRowsInserted || 0;
+                    const projectCount = data.project?.insertedCount || 0;
+                    const localizationCount = data.projectLocalization?.insertedCount || 0;
+                    const itemCount = data.projectItem?.insertedCount || 0;
+                    const itemLocalizationCount = data.projectItemLocalization?.insertedCount || 0;
+                    const linkSettingCount = (data.linkSetting?.insertedCount || 0) + (data.linkSettingListView?.insertedCount || 0);
+                    const entityContentCount = data.entityContent?.insertedCount || 0;
+                    const entityContentItemCount = data.entityContent?.contentItemInsertedCount || 0;
                     const totalRows = projectCount + localizationCount + itemCount + itemLocalizationCount + linkSettingCount + entityContentCount + entityContentItemCount;
 
                     stats.innerHTML = `
@@ -353,13 +353,25 @@
                     detailsHtml += `<div class="result-item result-success">✅ נוצרו ${entityContentCount} תכנים</div>`;
                     detailsHtml += `<div class="result-item result-success">✅ נוצרו ${entityContentItemCount} פריטי תוכן</div>`;
 
-                    if (data.errors && data.errors.length > 0) {
-                        detailsHtml += `<div class="result-item result-warning">⚠️ ${data.errors.length} שגיאות:</div>`;
-                        data.errors.slice(0, 10).forEach(err => {
-                            detailsHtml += `<div class="result-item result-error">❌ ${err}</div>`;
+                    // Collect all errors from all tables
+                    const allErrors = [
+                        ...(data.project?.errors || []),
+                        ...(data.projectLocalization?.errors || []),
+                        ...(data.projectItem?.errors || []),
+                        ...(data.projectItemLocalization?.errors || []),
+                        ...(data.linkSetting?.errors || []),
+                        ...(data.linkSettingListView?.errors || []),
+                        ...(data.entityContent?.errors || [])
+                    ];
+
+                    if (allErrors.length > 0) {
+                        detailsHtml += `<div class="result-item result-warning">⚠️ ${allErrors.length} שגיאות:</div>`;
+                        allErrors.slice(0, 10).forEach(err => {
+                            const errMsg = typeof err === 'string' ? err : err.error || JSON.stringify(err);
+                            detailsHtml += `<div class="result-item result-error">❌ ${errMsg}</div>`;
                         });
-                        if (data.errors.length > 10) {
-                            detailsHtml += `<div class="result-item result-warning">... ועוד ${data.errors.length - 10} שגיאות</div>`;
+                        if (allErrors.length > 10) {
+                            detailsHtml += `<div class="result-item result-warning">... ועוד ${allErrors.length - 10} שגיאות</div>`;
                         }
                     }
 
