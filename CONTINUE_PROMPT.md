@@ -25,7 +25,35 @@ I'm working on a database migration project from SQL Server to MySQL for a fundr
 
 ## 🎯 What We Accomplished Last Session
 
-**CustomerUser Migration - Phase 2 of Donation Migration - Perfect Success:**
+**Campaign Type 3 Migration - ISSUE DISCOVERED - Not Completed! ⚠️**
+
+Discovered critical migration order issue while implementing Campaign Type 3 (ProductGroup campaigns):
+
+**The Problem:**
+- 194 Products should ONLY be Type 3 (ProductGroup)
+- 70 already exist as ProjectType=1 (Funds)
+- 117 already exist as ProjectType=2 (Campaign Type 2)
+- **Root cause:** WHERE clauses in Funds/Type2 migrations not enforced properly
+
+**WHERE Clause (correct - from mapping files):**
+```sql
+NOT EXISTS (
+  SELECT 1 FROM ProductGroup g
+  WHERE g.ParentProductId = Products.ProductsId
+  OR g.SubProductId = Products.ProductsId
+)
+```
+
+**What We Fixed:**
+1. ✅ Updated `migrate-campaign-type3.js` - Smart Skip now checks ANY ProjectType
+2. ✅ Created `scripts/utils/delete-productgroup-duplicates.js` - cleanup script
+3. ✅ Updated `LESSONS_LEARNED.md` with critical lesson
+
+**What User Needs to Do:**
+1. Delete 187 duplicate Products from project table (user will handle this)
+2. Re-run Type 3 migration after cleanup
+
+**Previous Session: CustomerUser Migration - Phase 2 of Donation Migration - Perfect Success:**
 
 **customeruser** (3,839 rows) - 100% ⭐
 

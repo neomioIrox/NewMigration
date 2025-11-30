@@ -69,13 +69,22 @@ async function migrateCampaignType3() {
 
     for (const parentProductId of parentProductIds) {
       try {
-        // Check if project already exists
+        // Check if project already exists (ANY ProjectType)
+        // IMPORTANT: Products in ProductGroup should ONLY be Type 3
+        // If they exist as Type 1 (Funds) or Type 2 (Collections),
+        // this indicates a migration order issue!
         const [existing] = await mysqlConn.query(
-          'SELECT Id FROM project WHERE Id = ? AND ProjectType = 2',
+          'SELECT Id, ProjectType FROM project WHERE Id = ?',
           [parentProductId]
         );
 
         if (existing.length > 0) {
+          const existingType = existing[0].ProjectType;
+          if (existingType !== 2) {
+            console.warn(`⚠️  WARNING: Product ${parentProductId} already exists as ProjectType=${existingType} (should be Type 3 only!)`);
+            console.warn(`    This Product should NOT have been migrated in Funds/Collections.`);
+            console.warn(`    Please delete this Product from project table before running Type 3 migration.`);
+          }
           results.projects.skipped++;
           continue;
         }
@@ -375,14 +384,14 @@ async function migrateCampaignType3() {
     console.log('━'.repeat(60));
 
     // Get all ProjectItems we just created
+    // Filter by the ParentProductIds we migrated in this session
+    const parentIdsStr = parentProductIds.join(',');
     const [allProjectItems] = await mysqlConn.query(`
       SELECT pi.Id, pi.ProjectId, pi.ItemName, pi.ItemType
       FROM projectitem pi
       JOIN project p ON pi.ProjectId = p.Id
       WHERE p.ProjectType = 2
-      AND EXISTS (
-        SELECT 1 FROM ProductGroup pg WHERE pg.ParentProductId = p.Id
-      )
+      AND p.Id IN (${parentIdsStr})
     `);
 
     for (const item of allProjectItems) {

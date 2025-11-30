@@ -2,6 +2,38 @@
 
 ## הסטוריה
 
+### Campaign Type 3 Migration (Nov 29, 2025) ⚠️
+**בעיה קריטית בסדר המיגרציות - לא הושלמה!**
+
+התחלנו מיגרציה של Campaign Type 3 (ProductGroup campaigns) ומצאנו בעיה חמורה:
+- **194 Products** ב-ProductGroup צריכים להיות רק Type 3
+- **70 מהם כבר קיימים** בבסיס החדש כ-ProjectType=1 (Funds)
+- **117 מהם כבר קיימים** כ-ProjectType=2 (Campaign Type 2)
+- **הסיבה:** WHERE clauses ב-Funds/Type2 לא נאכפו כמו שצריך
+
+**WHERE Clause הנכון** (מופיע בכל המיפויים):
+```sql
+NOT EXISTS (
+  SELECT 1 FROM ProductGroup g
+  WHERE g.ParentProductId = Products.ProductsId
+  OR g.SubProductId = Products.ProductsId
+)
+```
+
+**הפתרון:**
+1. מחיקת 187 Products שמופיעים גם ב-ProductGroup מטבלת project
+2. הרצת Type 3 migration מחדש
+
+**קבצים שנוצרו:**
+- `scripts/utils/delete-productgroup-duplicates.js` - סקריפט cleanup
+- תיקון ב-`migrate-campaign-type3.js` - Smart Skip משופר
+
+**לקח חשוב:**
+⚠️ **Smart Skip צריך לבדוק ProjectType בכלל**, לא רק ProjectType ספציפי!
+⚠️ **WHERE clauses חייבים להיאכף** - לא מספיק לכתוב אותם, צריך לוודא שהמנוע מאכף!
+
+---
+
 ### CustomerUser Migration (Nov 27, 2025)
 השלמנו בהצלחה את מיגרציית ה-CustomerUser (3,839 משתמשים) עם 100% הצלחה - Phase 2 למיגרציית Donation.
 
