@@ -6,6 +6,7 @@ const sql = require('mssql');
 const mysql = require('mysql2/promise');
 const winston = require('winston');
 const { mssqlConfig: defaultMssqlConfig, mysqlConfig: defaultMysqlConfig } = require('../config/database');
+const { createProductsMapping } = require('../scripts/checks/create-products-mapping');
 
 const app = express();
 const PORT = 3030;
@@ -895,6 +896,16 @@ app.post('/api/run-all-recruiters', async (req, res) => {
     logger.info('='.repeat(60));
     logger.info('FULL RECRUITERS MIGRATION COMPLETED (6 STEPS)');
     logger.info('='.repeat(60));
+
+    // Regenerate Products mapping after successful migration
+    logger.info('Regenerating Products mapping...');
+    try {
+      await createProductsMapping();
+      logger.info('✅ Products mapping updated successfully');
+    } catch (mappingError) {
+      logger.warn(`⚠️  Products mapping generation failed: ${mappingError.message}`);
+      // Don't fail the migration if mapping fails
+    }
 
     res.json({
       success: true,
@@ -2637,6 +2648,16 @@ app.post('/api/migrate', async (req, res) => {
       response.message += ` + ${contentInsertedCount} entityContent records + ${contentItemInsertedCount} entityContentItem records.`;
     }
 
+    // Regenerate Products mapping after successful migration
+    logger.info('Regenerating Products mapping...');
+    try {
+      await createProductsMapping();
+      logger.info('✅ Products mapping updated successfully');
+    } catch (mappingError) {
+      logger.warn(`⚠️  Products mapping generation failed: ${mappingError.message}`);
+      // Don't fail the migration if mapping fails
+    }
+
     res.json(response);
 
   } catch (error) {
@@ -2717,6 +2738,16 @@ app.post('/api/run-all-affiliates-sources', async (req, res) => {
 
     logger.info('Migration completed successfully');
 
+    // Regenerate Products mapping after successful migration
+    logger.info('Regenerating Products mapping...');
+    try {
+      await createProductsMapping();
+      logger.info('✅ Products mapping updated successfully');
+    } catch (mappingError) {
+      logger.warn(`⚠️  Products mapping generation failed: ${mappingError.message}`);
+      // Don't fail the migration if mapping fails
+    }
+
     res.json({
       success: true,
       results: results
@@ -2740,6 +2771,16 @@ app.post('/api/run-all-customerusers', async (req, res) => {
     const results = await migrateCustomerUsers();
 
     logger.info('CustomerUser migration completed successfully');
+
+    // Regenerate Products mapping after successful migration
+    logger.info('Regenerating Products mapping...');
+    try {
+      await createProductsMapping();
+      logger.info('✅ Products mapping updated successfully');
+    } catch (mappingError) {
+      logger.warn(`⚠️  Products mapping generation failed: ${mappingError.message}`);
+      // Don't fail the migration if mapping fails
+    }
 
     res.json({
       success: true,
@@ -2769,6 +2810,16 @@ app.post('/api/run-all-campaign-type3', async (req, res) => {
     logger.info('Campaign Type 3 migration completed successfully');
     logger.info(`Projects: ${results.projects.inserted} inserted, ${results.projects.skipped} skipped`);
     logger.info(`ProjectItems: ${results.projectItems.inserted} inserted, ${results.projectItems.skipped} skipped`);
+
+    // Regenerate Products mapping after successful migration
+    logger.info('Regenerating Products mapping...');
+    try {
+      await createProductsMapping();
+      logger.info('✅ Products mapping updated successfully');
+    } catch (mappingError) {
+      logger.warn(`⚠️  Products mapping generation failed: ${mappingError.message}`);
+      // Don't fail the migration if mapping fails
+    }
 
     res.json({
       success: true,
