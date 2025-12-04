@@ -7,6 +7,7 @@ const mysql = require('mysql2/promise');
 const winston = require('winston');
 const { mssqlConfig: defaultMssqlConfig, mysqlConfig: defaultMysqlConfig } = require('../config/database');
 const { createProductsMapping } = require('../scripts/checks/create-products-mapping');
+const { createPrayerMapping } = require('../scripts/utils/create-prayer-mapping');
 
 const app = express();
 const PORT = 3030;
@@ -588,11 +589,15 @@ app.post('/api/run-all-recruiters', async (req, res) => {
           }
 
           let inserted = 0;
+          let skipped = 0;
           let errors = 0;
+          const skippedReasons = {};
 
           for (const row of sourceData.recordset) {
             try {
               const values = {};
+              let shouldSkip = false;
+              let skipReason = '';
 
               // Process mappings
               for (const [targetCol, mapping] of Object.entries(requestBody.mappings)) {
@@ -618,11 +623,26 @@ app.post('/api/run-all-recruiters', async (req, res) => {
                       value = mappedValue;
                     } else if (mapping.nullable) {
                       value = null;
+                    } else {
+                      // FK mapping required but not found - SKIP this row!
+                      shouldSkip = true;
+                      skipReason = `Missing FK mapping: ${targetCol}=${value}`;
+                      break; // Stop processing this row
                     }
                   }
 
                   values[targetCol] = value;
                 }
+              }
+
+              // Skip row if FK mapping was missing
+              if (shouldSkip) {
+                skipped++;
+                skippedReasons[skipReason] = (skippedReasons[skipReason] || 0) + 1;
+                if (skipped <= 10) {
+                  logger.warn(`Skipped row: ${skipReason}`);
+                }
+                continue;
               }
 
               // Insert into MySQL
@@ -643,7 +663,15 @@ app.post('/api/run-all-recruiters', async (req, res) => {
           await mssqlPool.close();
           await mysqlConn.end();
 
-          resolve({ inserted, total: sourceData.recordset.length, errors });
+          // Log skipped reasons summary
+          if (skipped > 0) {
+            logger.warn(`⚠️  Skipped ${skipped} rows:`);
+            for (const [reason, count] of Object.entries(skippedReasons)) {
+              logger.warn(`   ${reason}: ${count} rows`);
+            }
+          }
+
+          resolve({ inserted, skipped, total: sourceData.recordset.length, errors });
         } catch (err) {
           reject(err);
         }
@@ -747,10 +775,98 @@ app.post('/api/run-all-recruiters', async (req, res) => {
     await mssqlPool.close();
     await mysqlConn.end();
 
+    // ========================================
+    // STEP 2.5: Validate ProjectId.json before recruiter migration
+    // ========================================
+    logger.info('STEP 2.5: Validating ProjectId.json FK mapping...');
+
+    const projectIdMappingPath = path.join(__dirname, '../data/fk-mappings/ProjectId.json');
+
+    // Check if ProjectId.json exists
+    if (!fs.existsSync(projectIdMappingPath)) {
+      const errorMsg = '❌ CRITICAL ERROR: ProjectId.json not found!';
+      logger.error(errorMsg);
+      logger.error('   This file is required for recruiter migration.');
+      logger.error('   Please run project migration first to generate ProjectId.json');
+      throw new Error(errorMsg);
+    }
+
+    // Load ProjectId mapping
+    const projectIdMapping = JSON.parse(fs.readFileSync(projectIdMappingPath, 'utf-8'));
+    const mappings = projectIdMapping.mappings || {};
+    logger.info(`✅ ProjectId.json found: ${Object.keys(mappings).length} mappings loaded`);
+
+    // Validate: Check if all ProductIds from ProductStock have mappings
+    const mssqlPoolValidation = await sql.connect(mssqlConfig);
+    const productIdsResult = await mssqlPoolValidation.request().query(`
+      SELECT DISTINCT ProductId
+      FROM ProductStock
+      WHERE ProductId IS NOT NULL
+    `);
+
+    const distinctProductIds = productIdsResult.recordset.map(r => String(r.ProductId));
+    const missingMappings = [];
+
+    for (const productId of distinctProductIds) {
+      if (!mappings[productId]) {
+        missingMappings.push(productId);
+      }
+    }
+
+    await mssqlPoolValidation.close();
+
+    if (missingMappings.length > 0) {
+      logger.warn('⚠️  WARNING: Some ProductIds are missing from ProjectId.json!');
+      logger.warn(`   Missing mappings for ${missingMappings.length} ProductIds`);
+      logger.warn(`   First 10 missing: ${missingMappings.slice(0, 10).join(', ')}`);
+      logger.warn(`   Recruiters for these Products will be SKIPPED!`);
+      logger.warn('');
+      logger.warn('   To fix: Re-run project migration to regenerate ProjectId.json');
+
+      // Calculate impact
+      const mssqlPoolImpact = await sql.connect(mssqlConfig);
+      const impactResult = await mssqlPoolImpact.request().query(`
+        SELECT COUNT(*) as affectedRecruiters
+        FROM ProductStock
+        WHERE ProductId IN (${missingMappings.join(',')})
+      `);
+      await mssqlPoolImpact.close();
+
+      const affectedCount = impactResult.recordset[0].affectedRecruiters;
+      logger.warn(`   ⚠️  This will affect ${affectedCount} recruiters!`);
+
+      results.validation = {
+        projectIdMappingExists: true,
+        totalProductIds: distinctProductIds.length,
+        missingMappings: missingMappings.length,
+        affectedRecruiters: affectedCount,
+        status: 'WARNING'
+      };
+    } else {
+      logger.info('✅ All ProductIds have valid mappings in ProjectId.json');
+      results.validation = {
+        projectIdMappingExists: true,
+        totalProductIds: distinctProductIds.length,
+        missingMappings: 0,
+        status: 'OK'
+      };
+    }
+
+    logger.info(`Step 2.5 completed: Validation ${results.validation.status}`);
+
     // STEP 3: Run Recruiter migration
     logger.info('STEP 3: Migrating Recruiters...');
     results.step3_recruiters = await runMigration(recruiterMapping, 'recruiter');
-    logger.info(`Step 3 completed: ${results.step3_recruiters.inserted}/${results.step3_recruiters.total} rows`);
+    logger.info(`Step 3 completed:`);
+    logger.info(`  ✅ Inserted: ${results.step3_recruiters.inserted}`);
+    logger.info(`  ⏭️  Skipped: ${results.step3_recruiters.skipped || 0}`);
+    logger.info(`  ❌ Errors: ${results.step3_recruiters.errors || 0}`);
+    logger.info(`  📊 Total: ${results.step3_recruiters.total}`);
+
+    if (results.step3_recruiters.skipped > 0) {
+      logger.warn(`⚠️  WARNING: ${results.step3_recruiters.skipped} recruiters were skipped!`);
+      logger.warn(`   Check logs above for skip reasons.`);
+    }
 
     // STEP 4: Generate RecruiterId mapping
     logger.info('STEP 4: Generating RecruiterId mapping...');
@@ -897,14 +1013,82 @@ app.post('/api/run-all-recruiters', async (req, res) => {
     logger.info('FULL RECRUITERS MIGRATION COMPLETED (6 STEPS)');
     logger.info('='.repeat(60));
 
-    // Regenerate Products mapping after successful migration
-    logger.info('Regenerating Products mapping...');
+    // ========================================
+    // CRITICAL: Save Products mapping IMMEDIATELY
+    // Must happen BEFORE idMappings is lost from memory
+    // ========================================
+    logger.info('Saving Products mapping from migration data...');
     try {
+      const mappingFilePath = path.join(__dirname, '../data/fk-mappings/ProductsMapping.json');
+
+      // Load existing mapping or create new
+      let existingMapping = { metadata: {}, mapping: {} };
+      if (fs.existsSync(mappingFilePath)) {
+        try {
+          existingMapping = JSON.parse(fs.readFileSync(mappingFilePath, 'utf-8'));
+        } catch (err) {
+          logger.warn(`Could not parse existing mapping file: ${err.message}`);
+        }
+      }
+
+      // Update mapping with migration data from idMappings (if exists)
+      let updatedCount = 0;
+      if (typeof idMappings !== 'undefined' && Object.keys(idMappings).length > 0) {
+        for (const [oldProductIdStr, newProjectId] of Object.entries(idMappings)) {
+          const oldProductId = parseInt(oldProductIdStr);
+
+          // Get ProjectItems for this product
+          const projectItemIds = (typeof projectItemIdMappings !== 'undefined' && projectItemIdMappings[oldProductId]) || [];
+          const projectItemsData = projectItemIds.map(itemId => ({
+            Id: itemId,
+            ItemName: 'Item',
+            ItemType: null
+          }));
+
+          // Get project type if available
+          let projectType = null;
+          if (typeof mappings !== 'undefined' && mappings['ProjectType']) {
+            const projectTypeMapping = mappings['ProjectType'];
+            if (projectTypeMapping.convertType === 'const') {
+              projectType = parseInt(projectTypeMapping.value);
+            }
+          }
+
+          // Create/update mapping entry
+          existingMapping.mapping[oldProductId] = {
+            ProductsId: oldProductId,
+            Name: existingMapping.mapping[oldProductId]?.Name || 'Product',
+            ProjectId: newProjectId,
+            ProjectType: projectType,
+            ProjectItemIds: projectItemsData,
+            Status: 'MIGRATED',
+            Note: `${projectItemIds.length} items, ProjectType=${projectType}`,
+            LastUpdated: new Date().toISOString()
+          };
+          updatedCount++;
+        }
+
+        // Update metadata
+        existingMapping.metadata = {
+          createdAt: existingMapping.metadata.createdAt || new Date().toISOString(),
+          lastUpdated: new Date().toISOString(),
+          totalProducts: Object.keys(existingMapping.mapping).length,
+          migratedInThisRun: updatedCount
+        };
+
+        // Write to file
+        fs.writeFileSync(mappingFilePath, JSON.stringify(existingMapping, null, 2), 'utf-8');
+        logger.info(`✅ Products mapping saved: ${updatedCount} products updated in mapping file`);
+      }
+
+      // Now run full regeneration to fill in missing details
+      logger.info('Running full Products mapping regeneration...');
       await createProductsMapping();
-      logger.info('✅ Products mapping updated successfully');
+      logger.info('✅ Products mapping fully regenerated');
+
     } catch (mappingError) {
-      logger.warn(`⚠️  Products mapping generation failed: ${mappingError.message}`);
-      // Don't fail the migration if mapping fails
+      logger.error(`❌ Products mapping error: ${mappingError.message}`);
+      logger.warn('Migration succeeded but mapping update failed - please regenerate mapping manually');
     }
 
     res.json({
@@ -2557,6 +2741,116 @@ app.post('/api/migrate', async (req, res) => {
       logger.info('='.repeat(60));
     }
 
+    // ========================================
+    // CRITICAL: Save Products mapping IMMEDIATELY
+    // Must happen BEFORE connections are closed and BEFORE idMappings is lost from memory
+    // ========================================
+    logger.info('Saving Products mapping from migration data...');
+    try {
+      const mappingFilePath = path.join(__dirname, '../data/fk-mappings/ProductsMapping.json');
+
+      // Load existing mapping or create new
+      let existingMapping = { metadata: {}, mapping: {} };
+      if (fs.existsSync(mappingFilePath)) {
+        try {
+          existingMapping = JSON.parse(fs.readFileSync(mappingFilePath, 'utf-8'));
+        } catch (err) {
+          logger.warn(`Could not parse existing mapping file: ${err.message}`);
+        }
+      }
+
+      // Update mapping with migration data from idMappings (if exists)
+      let updatedCount = 0;
+      if (typeof idMappings !== 'undefined' && Object.keys(idMappings).length > 0) {
+        for (const [oldProductIdStr, newProjectId] of Object.entries(idMappings)) {
+          const oldProductId = parseInt(oldProductIdStr);
+
+          // Get ProjectItems for this product
+          const projectItemIds = (typeof projectItemIdMappings !== 'undefined' && projectItemIdMappings[oldProductId]) || [];
+          const projectItemsData = projectItemIds.map(itemId => ({
+            Id: itemId,
+            ItemName: 'Item',
+            ItemType: null
+          }));
+
+          // Get project type if available
+          let projectType = null;
+          if (typeof mappings !== 'undefined' && mappings['ProjectType']) {
+            const projectTypeMapping = mappings['ProjectType'];
+            if (projectTypeMapping.convertType === 'const') {
+              projectType = parseInt(projectTypeMapping.value);
+            }
+          }
+
+          // Create/update mapping entry
+          existingMapping.mapping[oldProductId] = {
+            ProductsId: oldProductId,
+            Name: existingMapping.mapping[oldProductId]?.Name || 'Product',
+            ProjectId: newProjectId,
+            ProjectType: projectType,
+            ProjectItemIds: projectItemsData,
+            Status: 'MIGRATED',
+            Note: `${projectItemIds.length} items, ProjectType=${projectType}`,
+            LastUpdated: new Date().toISOString()
+          };
+          updatedCount++;
+        }
+
+        // Update metadata
+        existingMapping.metadata = {
+          createdAt: existingMapping.metadata.createdAt || new Date().toISOString(),
+          lastUpdated: new Date().toISOString(),
+          totalProducts: Object.keys(existingMapping.mapping).length,
+          migratedInThisRun: updatedCount
+        };
+
+        // Write to file
+        fs.writeFileSync(mappingFilePath, JSON.stringify(existingMapping, null, 2), 'utf-8');
+        logger.info(`✅ Products mapping saved: ${updatedCount} products updated in mapping file`);
+      }
+
+      // ========================================
+      // CRITICAL: Save ProjectId.json mapping
+      // This is the FK mapping file that recruiter migration depends on!
+      // ========================================
+      logger.info('Saving ProjectId.json FK mapping from idMappings...');
+
+      if (typeof idMappings !== 'undefined' && Object.keys(idMappings).length > 0) {
+        const projectIdMappingPath = path.join(__dirname, '../data/fk-mappings/ProjectId.json');
+
+        const projectIdMappingData = {
+          columnName: 'ProjectId',
+          sourceTable: 'Products',
+          targetTable: 'project',
+          keyColumn: 'productsid',
+          description: 'Mapping from old Products.ProductsId to new project.Id (AUTO_INCREMENT)',
+          totalMappings: Object.keys(idMappings).length,
+          mappings: idMappings,
+          createdAt: new Date().toISOString()
+        };
+
+        fs.writeFileSync(projectIdMappingPath, JSON.stringify(projectIdMappingData, null, 2), 'utf-8');
+        logger.info(`✅ ProjectId.json saved: ${Object.keys(idMappings).length} mappings`);
+        logger.info(`   File: ${projectIdMappingPath}`);
+
+        // Log sample mappings for verification
+        const sampleMappings = Object.entries(idMappings).slice(0, 5);
+        logger.info(`   Sample mappings: ${sampleMappings.map(([old, newId]) => `${old}→${newId}`).join(', ')}`);
+      } else {
+        logger.warn('⚠️  WARNING: idMappings is empty or undefined - ProjectId.json not created!');
+        logger.warn('   This will cause recruiter migration to fail!');
+      }
+
+      // Now run full regeneration to fill in missing details
+      logger.info('Running full Products mapping regeneration...');
+      await createProductsMapping();
+      logger.info('✅ Products mapping fully regenerated');
+
+    } catch (mappingError) {
+      logger.error(`❌ Products mapping error: ${mappingError.message}`);
+      logger.warn('Migration succeeded but mapping update failed - please regenerate mapping manually');
+    }
+
     await mssqlPool.close();
     await mysqlConnection.end();
 
@@ -2648,14 +2942,94 @@ app.post('/api/migrate', async (req, res) => {
       response.message += ` + ${contentInsertedCount} entityContent records + ${contentItemInsertedCount} entityContentItem records.`;
     }
 
-    // Regenerate Products mapping after successful migration
-    logger.info('Regenerating Products mapping...');
+    // ========================================
+    // CRITICAL: Save Products mapping IMMEDIATELY
+    // Must happen BEFORE idMappings is lost from memory
+    // ========================================
+    logger.info('Saving Products mapping from migration data...');
     try {
+      const mappingFilePath = path.join(__dirname, '../data/fk-mappings/ProductsMapping.json');
+
+      // Load existing mapping or create new
+      let existingMapping = { metadata: {}, mapping: {} };
+      if (fs.existsSync(mappingFilePath)) {
+        try {
+          existingMapping = JSON.parse(fs.readFileSync(mappingFilePath, 'utf-8'));
+        } catch (err) {
+          logger.warn(`Could not parse existing mapping file: ${err.message}`);
+        }
+      }
+
+      // Update mapping with migration data from idMappings (if exists)
+      let updatedCount = 0;
+      if (typeof idMappings !== 'undefined' && Object.keys(idMappings).length > 0) {
+        for (const [oldProductIdStr, newProjectId] of Object.entries(idMappings)) {
+          const oldProductId = parseInt(oldProductIdStr);
+
+          // Get ProjectItems for this product
+          const projectItemIds = (typeof projectItemIdMappings !== 'undefined' && projectItemIdMappings[oldProductId]) || [];
+          const projectItemsData = projectItemIds.map(itemId => ({
+            Id: itemId,
+            ItemName: 'Item',
+            ItemType: null
+          }));
+
+          // Get project type if available
+          let projectType = null;
+          if (typeof mappings !== 'undefined' && mappings['ProjectType']) {
+            const projectTypeMapping = mappings['ProjectType'];
+            if (projectTypeMapping.convertType === 'const') {
+              projectType = parseInt(projectTypeMapping.value);
+            }
+          }
+
+          // Create/update mapping entry
+          existingMapping.mapping[oldProductId] = {
+            ProductsId: oldProductId,
+            Name: existingMapping.mapping[oldProductId]?.Name || 'Product',
+            ProjectId: newProjectId,
+            ProjectType: projectType,
+            ProjectItemIds: projectItemsData,
+            Status: 'MIGRATED',
+            Note: `${projectItemIds.length} items, ProjectType=${projectType}`,
+            LastUpdated: new Date().toISOString()
+          };
+          updatedCount++;
+        }
+
+        // Update metadata
+        existingMapping.metadata = {
+          createdAt: existingMapping.metadata.createdAt || new Date().toISOString(),
+          lastUpdated: new Date().toISOString(),
+          totalProducts: Object.keys(existingMapping.mapping).length,
+          migratedInThisRun: updatedCount
+        };
+
+        // Write to file
+        fs.writeFileSync(mappingFilePath, JSON.stringify(existingMapping, null, 2), 'utf-8');
+        logger.info(`✅ Products mapping saved: ${updatedCount} products updated in mapping file`);
+      }
+
+      // Now run full regeneration to fill in missing details
+      logger.info('Running full Products mapping regeneration...');
       await createProductsMapping();
-      logger.info('✅ Products mapping updated successfully');
+      logger.info('✅ Products mapping fully regenerated');
+
     } catch (mappingError) {
-      logger.warn(`⚠️  Products mapping generation failed: ${mappingError.message}`);
-      // Don't fail the migration if mapping fails
+      logger.error(`❌ Products mapping error: ${mappingError.message}`);
+      logger.warn('Migration succeeded but mapping update failed - please regenerate mapping manually');
+    }
+
+    // If this is a Prayers migration, also generate Prayer → ProjectItem mapping
+    if (req.body.sourceTable === 'Prayers') {
+      logger.info('Generating Prayer → ProjectItem mapping...');
+      try {
+        await createPrayerMapping();
+        logger.info('✅ Prayer mapping created successfully (PrayerProjectItemId.json)');
+      } catch (prayerMappingError) {
+        logger.warn(`⚠️  Prayer mapping generation failed: ${prayerMappingError.message}`);
+        // Don't fail the migration if mapping fails
+      }
     }
 
     res.json(response);
@@ -2738,14 +3112,82 @@ app.post('/api/run-all-affiliates-sources', async (req, res) => {
 
     logger.info('Migration completed successfully');
 
-    // Regenerate Products mapping after successful migration
-    logger.info('Regenerating Products mapping...');
+    // ========================================
+    // CRITICAL: Save Products mapping IMMEDIATELY
+    // Must happen BEFORE idMappings is lost from memory
+    // ========================================
+    logger.info('Saving Products mapping from migration data...');
     try {
+      const mappingFilePath = path.join(__dirname, '../data/fk-mappings/ProductsMapping.json');
+
+      // Load existing mapping or create new
+      let existingMapping = { metadata: {}, mapping: {} };
+      if (fs.existsSync(mappingFilePath)) {
+        try {
+          existingMapping = JSON.parse(fs.readFileSync(mappingFilePath, 'utf-8'));
+        } catch (err) {
+          logger.warn(`Could not parse existing mapping file: ${err.message}`);
+        }
+      }
+
+      // Update mapping with migration data from idMappings (if exists)
+      let updatedCount = 0;
+      if (typeof idMappings !== 'undefined' && Object.keys(idMappings).length > 0) {
+        for (const [oldProductIdStr, newProjectId] of Object.entries(idMappings)) {
+          const oldProductId = parseInt(oldProductIdStr);
+
+          // Get ProjectItems for this product
+          const projectItemIds = (typeof projectItemIdMappings !== 'undefined' && projectItemIdMappings[oldProductId]) || [];
+          const projectItemsData = projectItemIds.map(itemId => ({
+            Id: itemId,
+            ItemName: 'Item',
+            ItemType: null
+          }));
+
+          // Get project type if available
+          let projectType = null;
+          if (typeof mappings !== 'undefined' && mappings['ProjectType']) {
+            const projectTypeMapping = mappings['ProjectType'];
+            if (projectTypeMapping.convertType === 'const') {
+              projectType = parseInt(projectTypeMapping.value);
+            }
+          }
+
+          // Create/update mapping entry
+          existingMapping.mapping[oldProductId] = {
+            ProductsId: oldProductId,
+            Name: existingMapping.mapping[oldProductId]?.Name || 'Product',
+            ProjectId: newProjectId,
+            ProjectType: projectType,
+            ProjectItemIds: projectItemsData,
+            Status: 'MIGRATED',
+            Note: `${projectItemIds.length} items, ProjectType=${projectType}`,
+            LastUpdated: new Date().toISOString()
+          };
+          updatedCount++;
+        }
+
+        // Update metadata
+        existingMapping.metadata = {
+          createdAt: existingMapping.metadata.createdAt || new Date().toISOString(),
+          lastUpdated: new Date().toISOString(),
+          totalProducts: Object.keys(existingMapping.mapping).length,
+          migratedInThisRun: updatedCount
+        };
+
+        // Write to file
+        fs.writeFileSync(mappingFilePath, JSON.stringify(existingMapping, null, 2), 'utf-8');
+        logger.info(`✅ Products mapping saved: ${updatedCount} products updated in mapping file`);
+      }
+
+      // Now run full regeneration to fill in missing details
+      logger.info('Running full Products mapping regeneration...');
       await createProductsMapping();
-      logger.info('✅ Products mapping updated successfully');
+      logger.info('✅ Products mapping fully regenerated');
+
     } catch (mappingError) {
-      logger.warn(`⚠️  Products mapping generation failed: ${mappingError.message}`);
-      // Don't fail the migration if mapping fails
+      logger.error(`❌ Products mapping error: ${mappingError.message}`);
+      logger.warn('Migration succeeded but mapping update failed - please regenerate mapping manually');
     }
 
     res.json({
@@ -2772,14 +3214,82 @@ app.post('/api/run-all-customerusers', async (req, res) => {
 
     logger.info('CustomerUser migration completed successfully');
 
-    // Regenerate Products mapping after successful migration
-    logger.info('Regenerating Products mapping...');
+    // ========================================
+    // CRITICAL: Save Products mapping IMMEDIATELY
+    // Must happen BEFORE idMappings is lost from memory
+    // ========================================
+    logger.info('Saving Products mapping from migration data...');
     try {
+      const mappingFilePath = path.join(__dirname, '../data/fk-mappings/ProductsMapping.json');
+
+      // Load existing mapping or create new
+      let existingMapping = { metadata: {}, mapping: {} };
+      if (fs.existsSync(mappingFilePath)) {
+        try {
+          existingMapping = JSON.parse(fs.readFileSync(mappingFilePath, 'utf-8'));
+        } catch (err) {
+          logger.warn(`Could not parse existing mapping file: ${err.message}`);
+        }
+      }
+
+      // Update mapping with migration data from idMappings (if exists)
+      let updatedCount = 0;
+      if (typeof idMappings !== 'undefined' && Object.keys(idMappings).length > 0) {
+        for (const [oldProductIdStr, newProjectId] of Object.entries(idMappings)) {
+          const oldProductId = parseInt(oldProductIdStr);
+
+          // Get ProjectItems for this product
+          const projectItemIds = (typeof projectItemIdMappings !== 'undefined' && projectItemIdMappings[oldProductId]) || [];
+          const projectItemsData = projectItemIds.map(itemId => ({
+            Id: itemId,
+            ItemName: 'Item',
+            ItemType: null
+          }));
+
+          // Get project type if available
+          let projectType = null;
+          if (typeof mappings !== 'undefined' && mappings['ProjectType']) {
+            const projectTypeMapping = mappings['ProjectType'];
+            if (projectTypeMapping.convertType === 'const') {
+              projectType = parseInt(projectTypeMapping.value);
+            }
+          }
+
+          // Create/update mapping entry
+          existingMapping.mapping[oldProductId] = {
+            ProductsId: oldProductId,
+            Name: existingMapping.mapping[oldProductId]?.Name || 'Product',
+            ProjectId: newProjectId,
+            ProjectType: projectType,
+            ProjectItemIds: projectItemsData,
+            Status: 'MIGRATED',
+            Note: `${projectItemIds.length} items, ProjectType=${projectType}`,
+            LastUpdated: new Date().toISOString()
+          };
+          updatedCount++;
+        }
+
+        // Update metadata
+        existingMapping.metadata = {
+          createdAt: existingMapping.metadata.createdAt || new Date().toISOString(),
+          lastUpdated: new Date().toISOString(),
+          totalProducts: Object.keys(existingMapping.mapping).length,
+          migratedInThisRun: updatedCount
+        };
+
+        // Write to file
+        fs.writeFileSync(mappingFilePath, JSON.stringify(existingMapping, null, 2), 'utf-8');
+        logger.info(`✅ Products mapping saved: ${updatedCount} products updated in mapping file`);
+      }
+
+      // Now run full regeneration to fill in missing details
+      logger.info('Running full Products mapping regeneration...');
       await createProductsMapping();
-      logger.info('✅ Products mapping updated successfully');
+      logger.info('✅ Products mapping fully regenerated');
+
     } catch (mappingError) {
-      logger.warn(`⚠️  Products mapping generation failed: ${mappingError.message}`);
-      // Don't fail the migration if mapping fails
+      logger.error(`❌ Products mapping error: ${mappingError.message}`);
+      logger.warn('Migration succeeded but mapping update failed - please regenerate mapping manually');
     }
 
     res.json({
@@ -2811,14 +3321,82 @@ app.post('/api/run-all-campaign-type3', async (req, res) => {
     logger.info(`Projects: ${results.projects.inserted} inserted, ${results.projects.skipped} skipped`);
     logger.info(`ProjectItems: ${results.projectItems.inserted} inserted, ${results.projectItems.skipped} skipped`);
 
-    // Regenerate Products mapping after successful migration
-    logger.info('Regenerating Products mapping...');
+    // ========================================
+    // CRITICAL: Save Products mapping IMMEDIATELY
+    // Must happen BEFORE idMappings is lost from memory
+    // ========================================
+    logger.info('Saving Products mapping from migration data...');
     try {
+      const mappingFilePath = path.join(__dirname, '../data/fk-mappings/ProductsMapping.json');
+
+      // Load existing mapping or create new
+      let existingMapping = { metadata: {}, mapping: {} };
+      if (fs.existsSync(mappingFilePath)) {
+        try {
+          existingMapping = JSON.parse(fs.readFileSync(mappingFilePath, 'utf-8'));
+        } catch (err) {
+          logger.warn(`Could not parse existing mapping file: ${err.message}`);
+        }
+      }
+
+      // Update mapping with migration data from idMappings (if exists)
+      let updatedCount = 0;
+      if (typeof idMappings !== 'undefined' && Object.keys(idMappings).length > 0) {
+        for (const [oldProductIdStr, newProjectId] of Object.entries(idMappings)) {
+          const oldProductId = parseInt(oldProductIdStr);
+
+          // Get ProjectItems for this product
+          const projectItemIds = (typeof projectItemIdMappings !== 'undefined' && projectItemIdMappings[oldProductId]) || [];
+          const projectItemsData = projectItemIds.map(itemId => ({
+            Id: itemId,
+            ItemName: 'Item',
+            ItemType: null
+          }));
+
+          // Get project type if available
+          let projectType = null;
+          if (typeof mappings !== 'undefined' && mappings['ProjectType']) {
+            const projectTypeMapping = mappings['ProjectType'];
+            if (projectTypeMapping.convertType === 'const') {
+              projectType = parseInt(projectTypeMapping.value);
+            }
+          }
+
+          // Create/update mapping entry
+          existingMapping.mapping[oldProductId] = {
+            ProductsId: oldProductId,
+            Name: existingMapping.mapping[oldProductId]?.Name || 'Product',
+            ProjectId: newProjectId,
+            ProjectType: projectType,
+            ProjectItemIds: projectItemsData,
+            Status: 'MIGRATED',
+            Note: `${projectItemIds.length} items, ProjectType=${projectType}`,
+            LastUpdated: new Date().toISOString()
+          };
+          updatedCount++;
+        }
+
+        // Update metadata
+        existingMapping.metadata = {
+          createdAt: existingMapping.metadata.createdAt || new Date().toISOString(),
+          lastUpdated: new Date().toISOString(),
+          totalProducts: Object.keys(existingMapping.mapping).length,
+          migratedInThisRun: updatedCount
+        };
+
+        // Write to file
+        fs.writeFileSync(mappingFilePath, JSON.stringify(existingMapping, null, 2), 'utf-8');
+        logger.info(`✅ Products mapping saved: ${updatedCount} products updated in mapping file`);
+      }
+
+      // Now run full regeneration to fill in missing details
+      logger.info('Running full Products mapping regeneration...');
       await createProductsMapping();
-      logger.info('✅ Products mapping updated successfully');
+      logger.info('✅ Products mapping fully regenerated');
+
     } catch (mappingError) {
-      logger.warn(`⚠️  Products mapping generation failed: ${mappingError.message}`);
-      // Don't fail the migration if mapping fails
+      logger.error(`❌ Products mapping error: ${mappingError.message}`);
+      logger.warn('Migration succeeded but mapping update failed - please regenerate mapping manually');
     }
 
     res.json({
@@ -2828,6 +3406,44 @@ app.post('/api/run-all-campaign-type3', async (req, res) => {
 
   } catch (error) {
     logger.error('Campaign Type 3 migration failed: ' + error.message);
+    logger.error(error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Run full donations migration
+app.post('/api/run-all-donations', async (req, res) => {
+  try {
+    logger.info('='.repeat(60));
+    logger.info('STARTING DONATIONS MIGRATION');
+    logger.info('='.repeat(60));
+
+    const { batchSize, limit, dryRun } = req.body;
+
+    logger.info(`Options: batchSize=${batchSize || 1000}, limit=${limit || 'all'}, dryRun=${dryRun ? 'YES' : 'NO'}`);
+
+    // Import and run migration script
+    const { migrateDonations } = require('../scripts/migration/migrate-donations');
+    const results = await migrateDonations({ batchSize, limit, dryRun });
+
+    logger.info('Donations migration completed successfully');
+    logger.info(`Inserted: ${results.inserted}, Skipped: ${results.skipped}, Addresses: ${results.addressesCreated}`);
+    logger.info(`ItemId Stats - Prayer: ${results.itemIdStats.fromPrayer}, Product: ${results.itemIdStats.fromProduct}, Orphaned: ${results.itemIdStats.orphaned}`);
+
+    res.json({
+      success: true,
+      donations: {
+        inserted: results.inserted,
+        skipped: results.skipped,
+        addressesCreated: results.addressesCreated,
+        errors: results.errors,
+        itemIdStats: results.itemIdStats
+      },
+      message: dryRun ? 'Dry run completed - no data written to database' : 'Donations migration completed successfully'
+    });
+
+  } catch (error) {
+    logger.error('Donations migration failed: ' + error.message);
     logger.error(error);
     res.status(500).json({ success: false, error: error.message });
   }
