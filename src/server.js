@@ -485,6 +485,7 @@ app.post('/api/generate-recruitersgroup-mapping', async (req, res) => {
 // Run full recruiters migration (groups + individual recruiters)
 app.post('/api/run-all-recruiters', async (req, res) => {
   const results = {
+    step0_schema: null,
     step1_groups: null,
     step1_5_groupLanguage: null,
     step2_mapping: null,
@@ -678,6 +679,47 @@ app.post('/api/run-all-recruiters', async (req, res) => {
       });
     }
 
+    // ========================================
+    // STEP 0: Check and fix schema - ensure ProjectId allows NULL
+    // ========================================
+    logger.info('STEP 0: Checking recruitersgroup schema...');
+    try {
+      const mysqlConnSchema = await mysql.createConnection({ ...mysqlConfig, charset: 'utf8mb4' });
+
+      // Check if ProjectId column allows NULL
+      const [columns] = await mysqlConnSchema.query(`
+        SHOW COLUMNS FROM recruitersgroup WHERE Field = 'ProjectId'
+      `);
+
+      if (columns.length > 0) {
+        const projectIdColumn = columns[0];
+        const allowsNull = projectIdColumn.Null === 'YES';
+
+        if (!allowsNull) {
+          logger.warn('⚠️  ProjectId column does NOT allow NULL - fixing schema...');
+
+          // Alter table to allow NULL
+          await mysqlConnSchema.query('ALTER TABLE recruitersgroup MODIFY COLUMN ProjectId INT NULL');
+
+          logger.info('✅ Schema fixed: ProjectId now allows NULL');
+          results.step0_schema = { status: 'fixed', message: 'ProjectId column altered to allow NULL' };
+        } else {
+          logger.info('✅ Schema OK: ProjectId already allows NULL');
+          results.step0_schema = { status: 'ok', message: 'ProjectId column already allows NULL' };
+        }
+      } else {
+        logger.warn('⚠️  ProjectId column not found in recruitersgroup table');
+        results.step0_schema = { status: 'warning', message: 'ProjectId column not found' };
+      }
+
+      await mysqlConnSchema.end();
+      logger.info('Step 0 completed');
+    } catch (schemaError) {
+      logger.error(`❌ Schema check error: ${schemaError.message}`);
+      results.step0_schema = { status: 'error', message: schemaError.message };
+      // Don't throw - continue with migration even if schema check fails
+    }
+
     // STEP 1: Run RecruitersGroup migration
     logger.info('STEP 1: Migrating RecruitersGroups...');
     results.step1_groups = await runMigration(groupMapping, 'recruitersgroup');
@@ -741,24 +783,41 @@ app.post('/api/run-all-recruiters', async (req, res) => {
     const mssqlPool = await sql.connect(mssqlConfig);
     const mysqlConn = await mysql.createConnection({ ...mysqlConfig, charset: 'utf8mb4' });
 
-    const oldGroupsResult = await mssqlPool.request().query('SELECT ID, Name, ProjectId FROM RecruitersGroups WHERE ProjectId IS NOT NULL');
+    // Get ALL groups, including those with ProjectId=NULL
+    const oldGroupsResult = await mssqlPool.request().query('SELECT ID, Name, ProjectId FROM RecruitersGroups');
     const [newGroups] = await mysqlConn.query('SELECT Id, Name, ProjectId FROM recruitersgroup');
 
+    // Build lookup with support for NULL ProjectId
     const newGroupLookup = {};
     for (const g of newGroups) {
-      newGroupLookup[`${g.Name}|${g.ProjectId}`] = g.Id;
+      if (g.ProjectId !== null) {
+        newGroupLookup[`${g.Name}|${g.ProjectId}`] = g.Id;
+      } else {
+        newGroupLookup[`${g.Name}|NULL`] = g.Id;
+      }
     }
 
     const groupIdMapping = {};
     let matched = 0;
+    let matchedWithNull = 0;
     for (const old of oldGroupsResult.recordset) {
-      const newProjectId = projectMapping.mappings[String(old.ProjectId)];
-      if (newProjectId) {
-        const newId = newGroupLookup[`${old.Name}|${newProjectId}`];
-        if (newId) {
-          groupIdMapping[old.ID] = newId;
-          matched++;
+      let newId;
+
+      if (old.ProjectId !== null) {
+        // Group has ProjectId - map it
+        const newProjectId = projectMapping.mappings[String(old.ProjectId)];
+        if (newProjectId) {
+          newId = newGroupLookup[`${old.Name}|${newProjectId}`];
         }
+      } else {
+        // Group has ProjectId=NULL - match by Name with NULL key
+        newId = newGroupLookup[`${old.Name}|NULL`];
+        if (newId) matchedWithNull++;
+      }
+
+      if (newId) {
+        groupIdMapping[old.ID] = newId;
+        matched++;
       }
     }
 
@@ -769,8 +828,8 @@ app.post('/api/run-all-recruiters', async (req, res) => {
       createdAt: new Date().toISOString()
     }, null, 2));
 
-    results.step2_mapping = { matched, total: oldGroupsResult.recordset.length };
-    logger.info(`Step 2 completed: ${matched} mappings created`);
+    results.step2_mapping = { matched, matchedWithNull, total: oldGroupsResult.recordset.length };
+    logger.info(`Step 2 completed: ${matched} mappings created (${matchedWithNull} with ProjectId=NULL)`);
 
     await mssqlPool.close();
     await mysqlConn.end();
@@ -1089,6 +1148,63 @@ app.post('/api/run-all-recruiters', async (req, res) => {
     } catch (mappingError) {
       logger.error(`❌ Products mapping error: ${mappingError.message}`);
       logger.warn('Migration succeeded but mapping update failed - please regenerate mapping manually');
+    }
+
+    // STEP 6: Fix NULL ProjectId in recruitersgroup by taking from recruiters
+    try {
+      logger.info('============================================================');
+      logger.info('STEP 6: Fixing NULL ProjectId in recruitersgroup...');
+      logger.info('============================================================');
+
+      const mysqlConnFix = await mysql.createConnection({ ...mysqlConfig, charset: 'utf8mb4' });
+
+      // Find all groups with NULL ProjectId
+      const [groupsWithNull] = await mysqlConnFix.query(`
+        SELECT Id, Name
+        FROM recruitersgroup
+        WHERE ProjectId IS NULL
+      `);
+
+      logger.info(`Found ${groupsWithNull.length} groups with ProjectId=NULL`);
+
+      let fixed = 0;
+      let noRecruiters = 0;
+
+      // For each group, find its recruiters and get ProjectId
+      for (const group of groupsWithNull) {
+        const [recruiters] = await mysqlConnFix.query(`
+          SELECT ProjectId
+          FROM recruiter
+          WHERE RecruiterGroupId = ?
+          LIMIT 1
+        `, [group.Id]);
+
+        if (recruiters.length > 0 && recruiters[0].ProjectId !== null) {
+          const projectId = recruiters[0].ProjectId;
+
+          await mysqlConnFix.query(`
+            UPDATE recruitersgroup
+            SET ProjectId = ?
+            WHERE Id = ?
+          `, [projectId, group.Id]);
+
+          logger.info(`✅ Updated group ${group.Id} ("${group.Name}"): ProjectId=${projectId}`);
+          fixed++;
+        } else {
+          logger.warn(`⚠️  Group ${group.Id} ("${group.Name}"): No recruiters with ProjectId found`);
+          noRecruiters++;
+        }
+      }
+
+      await mysqlConnFix.end();
+
+      results.step6_fixProjectId = { fixed, noRecruiters, total: groupsWithNull.length };
+      logger.info(`Step 6 completed: ${fixed} groups fixed, ${noRecruiters} with no recruiters`);
+      logger.info('============================================================');
+
+    } catch (fixError) {
+      logger.error(`❌ Fix ProjectId error: ${fixError.message}`);
+      results.step6_fixProjectId = { error: fixError.message };
     }
 
     res.json({

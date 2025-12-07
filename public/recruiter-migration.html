@@ -949,6 +949,16 @@
                     const r = result.results;
 
                     // Update step cards
+                    if (r.step0_schema) {
+                        if (r.step0_schema.status === 'fixed') {
+                            addLog('success', `שלב 0 הושלם: תוקן סכימת טבלה - ProjectId מאפשר NULL`);
+                        } else if (r.step0_schema.status === 'ok') {
+                            addLog('info', `שלב 0: סכימת טבלה תקינה - ProjectId כבר מאפשר NULL`);
+                        } else if (r.step0_schema.status === 'warning' || r.step0_schema.status === 'error') {
+                            addLog('warning', `שלב 0: ${r.step0_schema.message}`);
+                        }
+                    }
+
                     if (r.step1_groups) {
                         migrationState.step1 = { status: 'completed', count: r.step1_groups.inserted };
                         addLog('success', `שלב 1 הושלם: ${r.step1_groups.inserted}/${r.step1_groups.total} קבוצות`);
@@ -970,6 +980,15 @@
                     if (r.step5_localization) {
                         migrationState.step3 = { status: 'completed', count: r.step5_localization.inserted };
                         addLog('success', `שלב 5 הושלם: ${r.step5_localization.inserted} שורות לוקליזציה (${r.step5_localization.languages?.he || 0} עברית, ${r.step5_localization.languages?.en || 0} אנגלית, ${r.step5_localization.languages?.fr || 0} צרפתית)`);
+                    }
+
+                    if (r.step6_fixProjectId) {
+                        if (r.step6_fixProjectId.fixed > 0) {
+                            addLog('success', `שלב 6 הושלם: ${r.step6_fixProjectId.fixed} קבוצות תוקנו (ProjectId=NULL → ProjectId מהמגייסים)`);
+                        }
+                        if (r.step6_fixProjectId.noRecruiters > 0) {
+                            addLog('warning', `שלב 6: ${r.step6_fixProjectId.noRecruiters} קבוצות נשארו עם NULL (אין להן מגייסים)`);
+                        }
                     }
 
                     updateStepCards();
