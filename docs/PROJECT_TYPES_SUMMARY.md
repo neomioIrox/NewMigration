@@ -1,6 +1,6 @@
-# 📋 סיכום 3 סוגי Project במערכת קופת האיר
+# 📋 סיכום 4 סוגי Project במערכת קופת האיר
 
-## מסמך זה מפרט את 3 סוגי ה-Project במיגרציה מ-SQL Server ל-MySQL
+## מסמך זה מפרט את 4 סוגי ה-Project במיגרציה מ-SQL Server ל-MySQL
 
 ---
 
@@ -52,7 +52,42 @@ AND NOT EXISTS (
 
 ---
 
-## 🟣 **Type 3: Campaign - ProductGroup (מגביות מורכבות)**
+## 🟣 **Type 2B: Prayers (תפילות קבועות)**
+**ProjectType = 2**
+
+### מקור:
+```sql
+טבלת Prayers (294 תפילות)
+```
+
+### מאפיינים:
+- **מקור:** טבלת Prayers (תפילות מוגדרות מראש)
+- **מספר תפילות:** 294
+- **ProjectItems:** **תמיד פריט אחד (ItemType=3 PrayerName)**
+- **דוגמאות:** "כותל 40 יום", "עמוקה", "מירון שנה שלמה", "קבר רחל"
+- **קובץ מיפוי:** `mappings/PrayerMapping.json`
+- **סקריפט מיגרציה:** משתמש ב-`/api/migrate` endpoint עם המיפוי
+- **UI:** `public/prayer-migration.html`
+- **חשיבות:** קריטי למיגרציית Donation - 38,149 Orders תלויים ב-PrayerId
+
+### תכונות מיוחדות:
+- **לוקליזציה מלאה:** Name, Name_en, Name_fr
+- **מחירים לפי שפה:** Price, Price_en, Price_fr
+- **סטטוס תצוגה:** Hide, Hide_en, Hide_fr
+- **AllowFreeAddPrayerNames:** מאפשר הוספת שמות לתפילה
+- **יצירת מיפוי:** PrayersId → ProjectItemId (ייחסxxxxxxxxxxx `data/fk-mappings/PrayerProjectItemId.json`)
+
+### שימוש במיגרציית Donation:
+```javascript
+if (Orders.PrayerId > 0) {
+  const mapping = require('./data/fk-mappings/PrayerProjectItemId.json');
+  donation.ItemId = mapping[Orders.PrayerId];
+}
+```
+
+---
+
+## 🔴 **Type 3: Campaign - ProductGroup (מגביות מורכבות)**
 **ProjectType = 2** (גם Type 3 הוא ProjectType=2!)
 
 ### תנאי WHERE:
@@ -105,12 +140,13 @@ if (Product מופיע ב-ProductGroup) {
 
 ## 📊 סיכום מספרי:
 
-| סוג | ProjectType | כמות Products | פריטים למגבית | WHERE קריטי |
-|-----|-------------|---------------|----------------|-------------|
-| **Funds** | 1 | ~1,251 | 1-2 | `Certificate=0 AND NOT IN ProductGroup` |
-| **Type 2** | 2 | 26 | **תמיד 2** | `Certificate=1 AND NOT IN ProductGroup` |
-| **Type 3** | 2 | 194 | **1-11 (משתנה)** | `IN ProductGroup` |
-| **סה"כ** | - | **~1,471** | - | - |
+| סוג | ProjectType | כמות | פריטים למגבית | מקור |
+|-----|-------------|------|----------------|------|
+| **Funds** | 1 | ~1,251 | 1-2 | Products (`Certificate=0 AND NOT IN ProductGroup`) |
+| **Type 2 (Certificate)** | 2 | 26 | **תמיד 2** | Products (`Certificate=1 AND NOT IN ProductGroup`) |
+| **Type 2B (Prayers)** | 2 | **294** | **תמיד 1 (PrayerName)** | **Prayers (טבלה נפרדת)** |
+| **Type 3 (ProductGroup)** | 2 | 194 | **1-11 (משתנה)** | ProductGroup |
+| **סה"כ** | - | **~1,765** | - | - |
 
 ---
 

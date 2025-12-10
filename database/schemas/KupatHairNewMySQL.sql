@@ -2458,7 +2458,7 @@ DROP TABLE IF EXISTS `recruitersgroup`;
 CREATE TABLE `recruitersgroup` (
   `Id` int NOT NULL AUTO_INCREMENT,
   `Name` varchar(200) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci NOT NULL,
-  `ProjectId` int NOT NULL,
+  `ProjectId` int NULL,
   `RecordStatus` int NOT NULL,
   `StatusChangedAt` datetime NOT NULL,
   `StatusChangedBy` int NOT NULL,
