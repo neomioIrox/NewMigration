@@ -2928,11 +2928,31 @@ app.post('/api/migrate', async (req, res) => {
       // ========================================
       // CRITICAL: Save ProjectId.json mapping
       // This is the FK mapping file that recruiter migration depends on!
+      // IMPORTANT: MERGE with existing mappings, don't overwrite!
       // ========================================
       logger.info('Saving ProjectId.json FK mapping from idMappings...');
 
       if (typeof idMappings !== 'undefined' && Object.keys(idMappings).length > 0) {
         const projectIdMappingPath = path.join(__dirname, '../data/fk-mappings/ProjectId.json');
+
+        // Load existing mappings if file exists
+        let existingMappings = {};
+        let createdAt = new Date().toISOString();
+        if (fs.existsSync(projectIdMappingPath)) {
+          try {
+            const existing = JSON.parse(fs.readFileSync(projectIdMappingPath, 'utf-8'));
+            existingMappings = existing.mappings || {};
+            createdAt = existing.createdAt || createdAt;
+            logger.info(`📂 Loaded ${Object.keys(existingMappings).length} existing mappings from ProjectId.json`);
+          } catch (err) {
+            logger.warn(`⚠️  Could not read existing ProjectId.json: ${err.message}`);
+          }
+        }
+
+        // MERGE: Combine existing + new mappings
+        const mergedMappings = { ...existingMappings, ...idMappings };
+        const newCount = Object.keys(idMappings).length;
+        const totalCount = Object.keys(mergedMappings).length;
 
         const projectIdMappingData = {
           columnName: 'ProjectId',
@@ -2940,21 +2960,22 @@ app.post('/api/migrate', async (req, res) => {
           targetTable: 'project',
           keyColumn: 'productsid',
           description: 'Mapping from old Products.ProductsId to new project.Id (AUTO_INCREMENT)',
-          totalMappings: Object.keys(idMappings).length,
-          mappings: idMappings,
-          createdAt: new Date().toISOString()
+          totalMappings: totalCount,
+          mappings: mergedMappings,
+          createdAt: createdAt,
+          lastUpdated: new Date().toISOString()
         };
 
         fs.writeFileSync(projectIdMappingPath, JSON.stringify(projectIdMappingData, null, 2), 'utf-8');
-        logger.info(`✅ ProjectId.json saved: ${Object.keys(idMappings).length} mappings`);
+        logger.info(`✅ ProjectId.json saved: ${newCount} new + ${Object.keys(existingMappings).length} existing = ${totalCount} total mappings`);
         logger.info(`   File: ${projectIdMappingPath}`);
 
         // Log sample mappings for verification
         const sampleMappings = Object.entries(idMappings).slice(0, 5);
-        logger.info(`   Sample mappings: ${sampleMappings.map(([old, newId]) => `${old}→${newId}`).join(', ')}`);
+        logger.info(`   Sample new mappings: ${sampleMappings.map(([old, newId]) => `${old}→${newId}`).join(', ')}`);
       } else {
-        logger.warn('⚠️  WARNING: idMappings is empty or undefined - ProjectId.json not created!');
-        logger.warn('   This will cause recruiter migration to fail!');
+        logger.warn('⚠️  WARNING: idMappings is empty or undefined - ProjectId.json not updated!');
+        logger.warn('   This might cause recruiter/donation migrations to fail if mappings are missing!');
       }
 
       // Now run full regeneration to fill in missing details
@@ -3534,16 +3555,16 @@ app.post('/api/run-all-donations', async (req, res) => {
     logger.info('STARTING DONATIONS MIGRATION');
     logger.info('='.repeat(60));
 
-    const { batchSize, limit, dryRun } = req.body;
+    const { batchSize, limit, dryRun, sharlinOnly } = req.body;
 
-    logger.info(`Options: batchSize=${batchSize || 1000}, limit=${limit || 'all'}, dryRun=${dryRun ? 'YES' : 'NO'}`);
+    logger.info(`Options: batchSize=${batchSize || 1000}, limit=${limit || 'all'}, dryRun=${dryRun ? 'YES' : 'NO'}, sharlinOnly=${sharlinOnly ? 'YES (ProductId=1957)' : 'NO'}`);
 
     // Import and run migration script
     const { migrateDonations } = require('../scripts/migration/migrate-donations');
-    const results = await migrateDonations({ batchSize, limit, dryRun });
+    const results = await migrateDonations({ batchSize, limit, dryRun, sharlinOnly });
 
     logger.info('Donations migration completed successfully');
-    logger.info(`Inserted: ${results.inserted}, Skipped: ${results.skipped}, Addresses: ${results.addressesCreated}`);
+    logger.info(`Inserted: ${results.inserted}, Skipped: ${results.skipped}, Addresses: ${results.addressesCreated}, Currency Values: ${results.currencyValuesInserted || 0}`);
     logger.info(`ItemId Stats - Prayer: ${results.itemIdStats.fromPrayer}, Product: ${results.itemIdStats.fromProduct}, Orphaned: ${results.itemIdStats.orphaned}`);
 
     res.json({
@@ -3552,6 +3573,7 @@ app.post('/api/run-all-donations', async (req, res) => {
         inserted: results.inserted,
         skipped: results.skipped,
         addressesCreated: results.addressesCreated,
+        currencyValuesInserted: results.currencyValuesInserted || 0,
         errors: results.errors,
         itemIdStats: results.itemIdStats
       },

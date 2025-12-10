@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>מיגרציית תרומות (Donations)</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #FF6B6B 0%, #C92A2A 100%);
+            min-height: 100vh;
+            padding: 20px;
+            direction: rtl;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            padding: 30px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #C92A2A;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }
+
+        .warning-box {
+            background: #fff3cd;
+            border-right: 4px solid #ff9800;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+        }
+
+        .warning-box h3 {
+            color: #ff9800;
+            margin-bottom: 10px;
+        }
+
+        .warning-box p {
+            color: #555;
+            line-height: 1.6;
+            margin-bottom: 8px;
+        }
+
+        .warning-box ul {
+            margin-right: 20px;
+            color: #555;
+            line-height: 1.8;
+        }
+
+        .info-box {
+            background: #fee;
+            border-right: 4px solid #C92A2A;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+        }
+
+        .info-box h3 {
+            color: #C92A2A;
+            margin-bottom: 10px;
+        }
+
+        .info-box p {
+            color: #555;
+            line-height: 1.6;
+            margin-bottom: 8px;
+        }
+
+        .info-box ul {
+            margin-right: 20px;
+            color: #555;
+            line-height: 1.8;
+        }
+
+        .info-box strong {
+            color: #C92A2A;
+        }
+
+        .controls {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .control-group {
+            margin-bottom: 15px;
+        }
+
+        .control-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .control-group input[type="number"] {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 1em;
+        }
+
+        .control-group input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            margin-left: 10px;
+            vertical-align: middle;
+        }
+
+        .checkbox-label {
+            display: inline-flex;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            flex: 1;
+            min-width: 200px;
+            padding: 15px 30px;
+            font-size: 1.1em;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: bold;
+            color: white;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #FF6B6B 0%, #C92A2A 100%);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(201, 42, 42, 0.4);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
+        }
+
+        .btn-secondary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255, 152, 0, 0.4);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        #results {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            display: none;
+        }
+
+        #results.show {
+            display: block;
+        }
+
+        .result-item {
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 5px;
+            background: white;
+        }
+
+        .result-success {
+            border-right: 4px solid #28a745;
+        }
+
+        .result-error {
+            border-right: 4px solid #dc3545;
+        }
+
+        .result-warning {
+            border-right: 4px solid #ffc107;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            display: none;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #C92A2A;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            color: #C92A2A;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .stat-number {
+            font-size: 2em;
+            font-weight: bold;
+            color: #C92A2A;
+        }
+
+        .stat-label {
+            color: #666;
+            margin-top: 5px;
+            font-size: 0.9em;
+        }
+
+        .itemid-breakdown {
+            margin-top: 20px;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .itemid-breakdown h3 {
+            color: #C92A2A;
+            margin-bottom: 15px;
+        }
+
+        .itemid-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+        }
+
+        .itemid-stat {
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 5px;
+            text-align: center;
+        }
+
+        .itemid-stat-number {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #FF6B6B;
+        }
+
+        .itemid-stat-label {
+            color: #555;
+            font-size: 0.85em;
+            margin-top: 5px;
+        }
+
+        .progress-text {
+            margin-top: 10px;
+            color: #666;
+            font-size: 0.95em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="index.html" class="back-link">← חזרה לדף הראשי</a>
+
+        <h1>💰 מיגרציית תרומות</h1>
+
+        <div class="warning-box">
+            <h3>⚠️ דרישות מוקדמות קריטיות</h3>
+            <p><strong>לפני הרצת מיגרציית התרומות, חובה להשלים:</strong></p>
+            <ul>
+                <li>✅ מיגרציית תפילות (Prayer) - <strong>חובה!</strong> (38,149 orders תלויים בזה)</li>
+                <li>✅ מיגרציית משתמשים (CustomerUser) - <strong>חובה!</strong> (FK: UserId)</li>
+                <li>✅ מיגרציית פרויקטים (Project + ProjectItem) - <strong>חובה!</strong> (FK: ItemId)</li>
+            </ul>
+            <p style="color: #d9534f; font-weight: bold;">❌ אל תריץ מיגרציה זו אם המיגרציות הנ"ל לא הושלמו!</p>
+        </div>
+
+        <div class="info-box">
+            <h3>מה מתבצע כאן?</h3>
+            <p>מיגרציה של תרומות מטבלת <strong>Orders</strong> בבסיס הנתונים הישן לטבלת <strong>donation</strong> בבסיס הנתונים החדש.</p>
+            <p><strong>WHERE Clause:</strong> <code>ChargeStatus = 'OrderFinished' OR DateCreated > DATEADD(month, -1, GETDATE())</code></p>
+            <p><strong>סה"כ orders למיגרציה:</strong> ~1,065,393</p>
+            <ul>
+                <li><strong>קטגוריה A:</strong> Orders עם ProjectId תקין (~1,026,980 orders)</li>
+                <li><strong>קטגוריה B:</strong> Orders עם PrayerId תקין (~38,149 orders)</li>
+                <li><strong>קטגוריה C:</strong> Orders orphaned (ללא ProjectId וללא PrayerId) (~264 orders → ItemId=1 ברירת מחדל)</li>
+            </ul>
+            <p><strong>תכונות:</strong></p>
+            <ul>
+                <li>מיפוי חכם של ItemId (Priority by ItemType: 5→4→1→2→3 עבור products עם מספר items)</li>
+                <li>יצירת Address אוטומטית עבור billing ו-shipping</li>
+                <li>💱 יצירת donationcurrencyvalue - שורה אחת לכל מטבע (ILS/USD/EUR) ללא כפילויות</li>
+                <li>מיפוי ClearingMethodAreaId (22 מקרים לפי PaymentMethod + Language + Currency)</li>
+                <li>Smart Skip - בדיקת קיום תרומות לפי ReferenceNum לפני INSERT</li>
+                <li>Batching - עיבוד ב-batches של 1000 (ברירת מחדל)</li>
+                <li>Dry Run - אפשרות סימולציה ללא כתיבה לDB</li>
+            </ul>
+        </div>
+
+        <div class="controls">
+            <h3 style="margin-bottom: 15px; color: #C92A2A;">⚙️ הגדרות מיגרציה</h3>
+
+            <div class="control-group">
+                <label for="batchSize">גודל Batch (כמה orders לעבד בכל פעם):</label>
+                <input type="number" id="batchSize" value="1000" min="100" max="5000" step="100">
+            </div>
+
+            <div class="control-group">
+                <label for="limit">הגבלת כמות (אופציונלי - השאר ריק לכל התרומות):</label>
+                <input type="number" id="limit" placeholder="לדוגמה: 10000 לבדיקה" min="1">
+            </div>
+
+            <div class="control-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="dryRun">
+                    <span>Dry Run (סימולציה בלבד - ללא כתיבה ל-DB)</span>
+                </label>
+            </div>
+
+            <div class="control-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="sharlinOnly">
+                    <span>🎯 רק תרומות לקרן שרה שרלין (10,702 תרומות) - ProductId=1957</span>
+                </label>
+            </div>
+        </div>
+
+        <div class="button-group">
+            <button id="runBtn" class="btn-primary" onclick="runMigration()">
+                ▶️ הרץ מיגרציית תרומות
+            </button>
+            <button class="btn-secondary" onclick="location.reload()">
+                🔄 רענן דף
+            </button>
+        </div>
+
+        <div id="loading" class="loading">
+            <div class="spinner"></div>
+            <p id="loadingText">מריץ מיגרציה... אנא המתן</p>
+            <p class="progress-text" id="progressText"></p>
+        </div>
+
+        <div id="results">
+            <h2>תוצאות המיגרציה</h2>
+            <div id="stats" class="stats"></div>
+            <div id="itemIdBreakdown" class="itemid-breakdown" style="display:none;">
+                <h3>📊 פילוח ItemId לפי מקור</h3>
+                <div id="itemIdStats" class="itemid-stats"></div>
+            </div>
+            <div id="details" style="margin-top: 20px;"></div>
+        </div>
+    </div>
+
+    <script>
+        async function runMigration() {
+            const runBtn = document.getElementById('runBtn');
+            const loading = document.getElementById('loading');
+            const loadingText = document.getElementById('loadingText');
+            const progressText = document.getElementById('progressText');
+            const results = document.getElementById('results');
+            const stats = document.getElementById('stats');
+            const details = document.getElementById('details');
+            const itemIdBreakdown = document.getElementById('itemIdBreakdown');
+            const itemIdStats = document.getElementById('itemIdStats');
+
+            // Get control values
+            const batchSize = parseInt(document.getElementById('batchSize').value) || 1000;
+            const limit = parseInt(document.getElementById('limit').value) || null;
+            const dryRun = document.getElementById('dryRun').checked;
+            const sharlinOnly = document.getElementById('sharlinOnly').checked;
+
+            // Disable button
+            runBtn.disabled = true;
+            loading.classList.add('show');
+            results.classList.remove('show');
+
+            try {
+                // Execute migration
+                const response = await fetch('/api/run-all-donations', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        batchSize: batchSize,
+                        limit: limit,
+                        dryRun: dryRun,
+                        sharlinOnly: sharlinOnly
+                    })
+                });
+
+                const data = await response.json();
+
+                loading.classList.remove('show');
+                results.classList.add('show');
+
+                if (data.success) {
+                    // Show main statistics
+                    const inserted = data.donations?.inserted || 0;
+                    const skipped = data.donations?.skipped || 0;
+                    const addressesCreated = data.donations?.addressesCreated || 0;
+                    const currencyValuesInserted = data.donations?.currencyValuesInserted || 0;
+                    const errorCount = (data.donations?.errors || []).length;
+
+                    stats.innerHTML = `
+                        <div class="stat-card">
+                            <div class="stat-number">${inserted.toLocaleString()}</div>
+                            <div class="stat-label">תרומות נוספו</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number">${skipped.toLocaleString()}</div>
+                            <div class="stat-label">תרומות דולגו (כבר קיימות)</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number">${addressesCreated.toLocaleString()}</div>
+                            <div class="stat-label">כתובות נוצרו</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number">${currencyValuesInserted.toLocaleString()}</div>
+                            <div class="stat-label">ערכי מטבע נוצרו</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number">${errorCount}</div>
+                            <div class="stat-label">שגיאות</div>
+                        </div>
+                        <div class="stat-card" style="grid-column: 1 / -1; background: linear-gradient(135deg, #FF6B6B 0%, #C92A2A 100%); color: white;">
+                            <div class="stat-number" style="color: white;">${(inserted + skipped).toLocaleString()}</div>
+                            <div class="stat-label" style="color: white;">סה"כ Orders עובדו</div>
+                        </div>
+                    `;
+
+                    // Show ItemId breakdown if available
+                    if (data.donations?.itemIdStats) {
+                        const itemStats = data.donations.itemIdStats;
+                        itemIdBreakdown.style.display = 'block';
+                        itemIdStats.innerHTML = `
+                            <div class="itemid-stat">
+                                <div class="itemid-stat-number">${(itemStats.fromPrayer || 0).toLocaleString()}</div>
+                                <div class="itemid-stat-label">מתפילות (PrayerId)</div>
+                            </div>
+                            <div class="itemid-stat">
+                                <div class="itemid-stat-number">${(itemStats.fromProduct || 0).toLocaleString()}</div>
+                                <div class="itemid-stat-label">ממוצרים (ProjectId)</div>
+                            </div>
+                            <div class="itemid-stat">
+                                <div class="itemid-stat-number">${(itemStats.fromProductMultiChoice || 0).toLocaleString()}</div>
+                                <div class="itemid-stat-label">בחירה ממספר items (Priority)</div>
+                            </div>
+                            <div class="itemid-stat">
+                                <div class="itemid-stat-number">${(itemStats.orphaned || 0).toLocaleString()}</div>
+                                <div class="itemid-stat-label">Orphaned (ItemId=1)</div>
+                            </div>
+                        `;
+                    }
+
+                    // Show details
+                    let detailsHtml = '';
+
+                    if (dryRun) {
+                        detailsHtml += '<div class="result-item result-warning">ℹ️ זוהי סימולציה (Dry Run) - לא בוצעה כתיבה ל-DB</div>';
+                    } else {
+                        detailsHtml += '<div class="result-item result-success">✅ מיגרציה הושלמה בהצלחה!</div>';
+                    }
+
+                    detailsHtml += `<div class="result-item result-success">✅ נוספו ${inserted.toLocaleString()} תרומות חדשות</div>`;
+                    detailsHtml += `<div class="result-item result-success">✅ דולגו ${skipped.toLocaleString()} תרומות קיימות (Smart Skip)</div>`;
+                    detailsHtml += `<div class="result-item result-success">✅ נוצרו ${addressesCreated.toLocaleString()} כתובות</div>`;
+                    detailsHtml += `<div class="result-item result-success">💱 נוצרו ${currencyValuesInserted.toLocaleString()} ערכי מטבע (ILS/USD/EUR)</div>`;
+
+                    // Show errors if any
+                    const allErrors = data.donations?.errors || [];
+                    if (allErrors.length > 0) {
+                        detailsHtml += `<div class="result-item result-warning">⚠️ ${allErrors.length} שגיאות נמצאו:</div>`;
+                        allErrors.slice(0, 10).forEach(err => {
+                            const errMsg = typeof err === 'string' ? err :
+                                          err.error ? `OrderId ${err.orderId}: ${err.error}` :
+                                          JSON.stringify(err);
+                            detailsHtml += `<div class="result-item result-error">❌ ${errMsg}</div>`;
+                        });
+                        if (allErrors.length > 10) {
+                            detailsHtml += `<div class="result-item result-warning">... ועוד ${allErrors.length - 10} שגיאות</div>`;
+                        }
+                    }
+
+                    if (data.message) {
+                        detailsHtml += `<div class="result-item result-success">📝 ${data.message}</div>`;
+                    }
+
+                    details.innerHTML = detailsHtml;
+
+                } else {
+                    stats.innerHTML = '';
+                    itemIdBreakdown.style.display = 'none';
+                    details.innerHTML = `<div class="result-item result-error">❌ שגיאה: ${data.error || data.message}</div>`;
+                }
+
+            } catch (error) {
+                loading.classList.remove('show');
+                results.classList.add('show');
+                stats.innerHTML = '';
+                itemIdBreakdown.style.display = 'none';
+                details.innerHTML = `<div class="result-item result-error">❌ שגיאה בתקשורת: ${error.message}</div>`;
+            } finally {
+                runBtn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>
