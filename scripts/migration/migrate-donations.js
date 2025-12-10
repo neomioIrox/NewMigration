@@ -730,9 +730,9 @@ async function getClearingMethodAreaId(mysqlConn, paymentMethod, orderLanguage, 
   if (orderLanguage === 'he') {
     area = 1;  // Israel
   } else if (orderLanguage === 'en' && chargeCurrency === '£') {
-    area = 3;  // UK
+    area = 2;  // UK (FIXED: was 3)
   } else if (orderLanguage === 'en') {
-    area = 2;  // USA
+    area = 3;  // USA (FIXED: was 2)
   } else if (orderLanguage === 'fr') {
     area = 4;  // France
   } else {
