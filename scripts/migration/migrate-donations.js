@@ -686,7 +686,7 @@ async function getClearingMethodAreaId(mysqlConn, paymentMethod, orderLanguage, 
 
   let clearingMethodId;
 
-  // Map PaymentMethod to ClearingMethodId
+  // Map PaymentMethod to ClearingMethodId (FIXED: correct IDs from clearingmethod table)
   if (paymentMethod === 'CreditCard') {
     if (orderLanguage === 'en' && chargeCurrency === '£') {
       clearingMethodId = 1;  // Stripe
@@ -697,32 +697,32 @@ async function getClearingMethodAreaId(mysqlConn, paymentMethod, orderLanguage, 
     } else if (orderLanguage === 'fr') {
       clearingMethodId = 4;  // PayLine
     } else {
-      clearingMethodId = 22;  // Other
+      clearingMethodId = 24;  // Other (FIXED: was 22, actual DB has 24)
     }
   } else if (paymentMethod === 'PayPal' || paymentMethod === ' PayPal') {
-    clearingMethodId = 5;  // PayPal
+    clearingMethodId = 7;  // PayPal (FIXED: was 5, actual DB has 7)
   } else if (paymentMethod === 'NedarimPlus') {
-    clearingMethodId = 6;  // Nedarim
+    clearingMethodId = 8;  // Nedarim (FIXED: was 6, actual DB has 8)
   } else if (paymentMethod === 'AsserBishvil') {
-    clearingMethodId = 8;
+    clearingMethodId = 10;  // AsserBishvil (FIXED: was 8, actual DB has 10)
   } else if (paymentMethod === 'Broom') {
-    clearingMethodId = 9;
+    clearingMethodId = 11;  // Broom (FIXED: was 9, actual DB has 11)
   } else if (paymentMethod === 'ThreePillars') {
-    clearingMethodId = 10;
+    clearingMethodId = 12;  // ThreePillars (FIXED: was 10, actual DB has 12)
   } else if (paymentMethod === 'Cash') {
-    clearingMethodId = 11;
+    clearingMethodId = 13;  // Cache (FIXED: was 11, actual DB has 13)
   } else if (paymentMethod === 'Check') {
-    clearingMethodId = 12;
+    clearingMethodId = 14;  // Check (FIXED: was 12, actual DB has 14)
   } else if (paymentMethod === 'BusinessCredit' && orderLanguage === 'he') {
-    clearingMethodId = 16;  // Asakim Phone Credit
+    clearingMethodId = 18;  // Asakim Phone Credit (FIXED: was 16, actual DB has 18)
   } else if (paymentMethod === 'BankTransfer') {
-    clearingMethodId = 19;
+    clearingMethodId = 21;  // BankTransfer (FIXED: was 19, actual DB has 21)
   } else if (paymentMethod === 'BankStandingOrder') {
-    clearingMethodId = 20;
+    clearingMethodId = 22;  // BankStandingOrder (FIXED: was 20, actual DB has 22)
   } else if (paymentMethod === 'Bit') {
-    clearingMethodId = 21;
+    clearingMethodId = 23;  // Bit (FIXED: was 21, actual DB has 23)
   } else {
-    clearingMethodId = 22;  // Other
+    clearingMethodId = 24;  // Other (FIXED: was 22, actual DB has 24)
   }
 
   // Map OrderLanguage to Area
