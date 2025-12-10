@@ -310,17 +310,17 @@
       "PaymentSum": {
         "convertType": "expression",
         "oldColumn": "DefaultDonationSumFixed_en",
-        "expression": "row.DefaultDonationSumFixed_en > 0 ? (row.DefaultDonationSumFixed_en * (row.DefaultPaymentsNumFixed_en || 1)) : row.DefaultDonationsSum_en"
+        "expression": "(row.DefaultDonationSumFixed_en > 0 ? (row.DefaultDonationSumFixed_en * (row.DefaultPaymentsNumFixed_en || 1)) : row.DefaultDonationsSum_en) || (row.DefaultDonationSumFixed > 0 ? (row.DefaultDonationSumFixed * (row.DefaultPaymentsNumFixed || 1)) : row.DefaultDonationsSum)"
       },
       "DefaultPaymentType": {
         "convertType": "expression",
         "oldColumn": "DefaultDonationSumFixed_en",
-        "expression": "row.DefaultDonationSumFixed_en > 0 ? 1 : 2"
+        "expression": "(row.DefaultDonationSumFixed_en > 0 || row.DefaultDonationsSum_en > 0) ? (row.DefaultDonationSumFixed_en > 0 ? 1 : 2) : (row.DefaultDonationSumFixed > 0 ? 1 : 2)"
       },
       "DefaultPaymentsCount": {
         "convertType": "expression",
         "oldColumn": "DefaultDonationSumFixed_en",
-        "expression": "row.DefaultDonationSumFixed_en > 0 ? row.DefaultPaymentsNumFixed_en : row.DefaultPaymentsNumber_en"
+        "expression": "(row.DefaultDonationSumFixed_en > 0 ? row.DefaultPaymentsNumFixed_en : row.DefaultPaymentsNumber_en) || (row.DefaultDonationSumFixed > 0 ? row.DefaultPaymentsNumFixed : row.DefaultPaymentsNumber)"
       },
       "NameForReceipt": {
         "convertType": "expression",
@@ -352,17 +352,17 @@
       "PaymentSum": {
         "convertType": "expression",
         "oldColumn": "DefaultDonationSumFixed_fr",
-        "expression": "row.DefaultDonationSumFixed_fr > 0 ? (row.DefaultDonationSumFixed_fr * (row.DefaultPaymentsNumFixed_fr || 1)) : row.DefaultDonationsSum_fr"
+        "expression": "(row.DefaultDonationSumFixed_fr > 0 ? (row.DefaultDonationSumFixed_fr * (row.DefaultPaymentsNumFixed_fr || 1)) : row.DefaultDonationsSum_fr) || (row.DefaultDonationSumFixed > 0 ? (row.DefaultDonationSumFixed * (row.DefaultPaymentsNumFixed || 1)) : row.DefaultDonationsSum)"
       },
       "DefaultPaymentType": {
         "convertType": "expression",
         "oldColumn": "DefaultDonationSumFixed_fr",
-        "expression": "row.DefaultDonationSumFixed_fr > 0 ? 1 : 2"
+        "expression": "(row.DefaultDonationSumFixed_fr > 0 || row.DefaultDonationsSum_fr > 0) ? (row.DefaultDonationSumFixed_fr > 0 ? 1 : 2) : (row.DefaultDonationSumFixed > 0 ? 1 : 2)"
       },
       "DefaultPaymentsCount": {
         "convertType": "expression",
         "oldColumn": "DefaultDonationSumFixed_fr",
-        "expression": "row.DefaultDonationSumFixed_fr > 0 ? row.DefaultPaymentsNumFixed_fr : row.DefaultPaymentsNumber_fr"
+        "expression": "(row.DefaultDonationSumFixed_fr > 0 ? row.DefaultPaymentsNumFixed_fr : row.DefaultPaymentsNumber_fr) || (row.DefaultDonationSumFixed > 0 ? row.DefaultPaymentsNumFixed : row.DefaultPaymentsNumber)"
       },
       "NameForReceipt": {
         "convertType": "expression",

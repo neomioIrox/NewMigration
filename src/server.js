@@ -1512,6 +1512,31 @@ app.post('/api/migrate', async (req, res) => {
         }
       }
 
+      // Also include columns from projectItemLocalizationMappings
+      const projectItemLocalizationMappings = req.body.projectItemLocalizationMappings;
+      if (projectItemLocalizationMappings) {
+        // Process all languages (hebrew, english, french)
+        for (const [langName, langMappings] of Object.entries(projectItemLocalizationMappings)) {
+          for (const [fieldName, mapping] of Object.entries(langMappings)) {
+            // Add oldColumn if specified
+            if (mapping && mapping.oldColumn && mapping.oldTable === sourceTable) {
+              selectColumnsSet.add(mapping.oldColumn);
+            }
+
+            // Extract columns from expressions (e.g., row.DefaultDonationsSum)
+            if (mapping && mapping.expression) {
+              const rowFieldMatches = mapping.expression.match(/row\.(\w+)/g);
+              if (rowFieldMatches) {
+                rowFieldMatches.forEach(match => {
+                  const fieldName = match.replace('row.', '');
+                  selectColumnsSet.add(fieldName);
+                });
+              }
+            }
+          }
+        }
+      }
+
       const selectColumns = Array.from(selectColumnsSet).join(', ');
 
       // Get source ID column from request, default to 'productsid' for backward compatibility
