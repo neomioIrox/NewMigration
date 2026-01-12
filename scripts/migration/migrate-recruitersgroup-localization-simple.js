@@ -22,7 +22,7 @@ async function migrateLocalization() {
     });
 
     // Get all recruiter groups from new DB
-    const [groups] = await mysqlConn.query('SELECT Id, Name FROM recruitersgroup');
+    const [groups] = await mysqlConn.query('SELECT Id, Name FROM RecruitersGroup');
     console.log(`Found ${groups.length} recruiter groups in new DB\n`);
 
     let inserted = 0;
@@ -35,7 +35,7 @@ async function migrateLocalization() {
       // Hebrew (LanguageId = 1)
       try {
         await mysqlConn.execute(
-          'INSERT INTO recruitersgrouplanguage (RecruiterGroupId, LanguageId, Name, Description, DisplayInSite, CreatedAt, CreatedBy, UpdatedAt, UpdatedBy) VALUES (?, ?, ?, ?, ?, NOW(), -1, NOW(), -1)',
+          'INSERT INTO RecruitersGroupLanguage (RecruiterGroupId, LanguageId, Name, Description, DisplayInSite, CreatedAt, CreatedBy, UpdatedAt, UpdatedBy) VALUES (?, ?, ?, ?, ?, NOW(), -1, NOW(), -1)',
           [group.Id, 1, group.Name, null, 1]
         );
         inserted++;
@@ -50,7 +50,7 @@ async function migrateLocalization() {
       // English (LanguageId = 2) - same Name
       try {
         await mysqlConn.execute(
-          'INSERT INTO recruitersgrouplanguage (RecruiterGroupId, LanguageId, Name, Description, DisplayInSite, CreatedAt, CreatedBy, UpdatedAt, UpdatedBy) VALUES (?, ?, ?, ?, ?, NOW(), -1, NOW(), -1)',
+          'INSERT INTO RecruitersGroupLanguage (RecruiterGroupId, LanguageId, Name, Description, DisplayInSite, CreatedAt, CreatedBy, UpdatedAt, UpdatedBy) VALUES (?, ?, ?, ?, ?, NOW(), -1, NOW(), -1)',
           [group.Id, 2, group.Name, null, 1]
         );
         inserted++;
@@ -65,7 +65,7 @@ async function migrateLocalization() {
       // French (LanguageId = 3) - same Name
       try {
         await mysqlConn.execute(
-          'INSERT INTO recruitersgrouplanguage (RecruiterGroupId, LanguageId, Name, Description, DisplayInSite, CreatedAt, CreatedBy, UpdatedAt, UpdatedBy) VALUES (?, ?, ?, ?, ?, NOW(), -1, NOW(), -1)',
+          'INSERT INTO RecruitersGroupLanguage (RecruiterGroupId, LanguageId, Name, Description, DisplayInSite, CreatedAt, CreatedBy, UpdatedAt, UpdatedBy) VALUES (?, ?, ?, ?, ?, NOW(), -1, NOW(), -1)',
           [group.Id, 3, group.Name, null, 1]
         );
         inserted++;

@@ -171,9 +171,9 @@ async function runMigration() {
     // 1. Get all projectitems without localization
     const [missingItems] = await mysqlConn.execute(`
       SELECT pi.Id as ItemId, pi.ProjectId, pi.ItemName, p.KupatFundNo
-      FROM projectitem pi
-      JOIN project p ON pi.ProjectId = p.Id
-      LEFT JOIN projectitemlocalization pil ON pi.Id = pil.ItemId
+      FROM ProjectItem pi
+      JOIN Project p ON pi.ProjectId = p.Id
+      LEFT JOIN ProjectItemLocalization pil ON pi.Id = pil.ItemId
       WHERE pil.Id IS NULL
       ORDER BY pi.Id
     `);
@@ -287,7 +287,7 @@ async function runMigration() {
           const values = Object.values(locData).map(v => v === undefined ? null : v);
 
           await mysqlConn.execute(
-            `INSERT INTO projectitemlocalization (${columns}) VALUES (${placeholders})`,
+            `INSERT INTO ProjectItemLocalization (${columns}) VALUES (${placeholders})`,
             values
           );
 

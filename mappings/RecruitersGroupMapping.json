@@ -4,7 +4,7 @@
   "sourceTable": "RecruitersGroups",
   "targetTable": "recruitersgroup",
   "sourceIdColumn": "ID",
-  "whereClause": "ProjectId IS NOT NULL",
+  "whereClause": "",
   "columnMappings": {
     "Name": {
       "convertType": "expression",
@@ -17,7 +17,8 @@
       "oldTable": "RecruitersGroups",
       "oldColumn": "ProjectId",
       "useFkMapping": true,
-      "comment": "מחפש ProjectId חדש לפי ProductId ישן"
+      "nullable": true,
+      "comment": "מחפש ProjectId חדש לפי ProductId ישן - אם NULL, ישאר NULL"
     },
     "RecordStatus": {
       "convertType": "const",

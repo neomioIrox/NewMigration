@@ -378,18 +378,61 @@
             </div>
         </div>
 
+        <!-- Saved State Alert -->
+        <div id="savedStateAlert" style="display:none; margin: 20px 0; padding: 20px; background: #fff3cd; border: 2px solid #ffc107; border-radius: 8px;">
+            <h3 style="margin: 0 0 10px 0; color: #856404;">📂 נמצאה הרצה קודמת</h3>
+            <p style="margin: 0 0 15px 0; color: #856404;">
+                נמצא מצב שמור מהרצה קודמת שנעצרה.
+                <br>
+                <strong>המשך מ-offset:</strong> <span id="savedOffset">0</span>
+                <br>
+                <strong>סה"כ עובדו:</strong> <span id="savedProcessed">0</span> תרומות
+                <br>
+                <strong>נוצר בתאריך:</strong> <span id="savedTime"></span>
+            </p>
+            <div style="display: flex; gap: 10px;">
+                <button class="btn-primary" onclick="resumeFromSavedState()">
+                    ▶️ המשך מהמקום האחרון
+                </button>
+                <button class="btn-secondary" onclick="startFresh()">
+                    🔄 התחל מחדש (נקה שמירה)
+                </button>
+            </div>
+        </div>
+
         <div class="button-group">
             <button id="runBtn" class="btn-primary" onclick="runMigration()">
                 ▶️ הרץ מיגרציית תרומות
+            </button>
+            <button id="pauseBtn" class="btn-secondary" onclick="pauseMigration()" style="display:none;">
+                ⏸️ השהה מיגרציה
+            </button>
+            <button id="resumeBtn" class="btn-primary" onclick="resumeMigration()" style="display:none;">
+                ▶️ המשך מיגרציה
             </button>
             <button class="btn-secondary" onclick="location.reload()">
                 🔄 רענן דף
             </button>
         </div>
 
+        <!-- Real-time Progress Bar -->
+        <div id="progressSection" style="display:none; margin: 20px 0; padding: 20px; background: #f8f9fa; border-radius: 8px;">
+            <h3 style="margin-bottom: 15px; color: #C92A2A;">התקדמות בזמן אמת</h3>
+            <div style="background: #fff; border-radius: 5px; padding: 10px; margin-bottom: 15px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                    <span id="progressLabel">מעבד...</span>
+                    <span id="progressPercent">0%</span>
+                </div>
+                <div style="width: 100%; height: 30px; background: #e0e0e0; border-radius: 15px; overflow: hidden;">
+                    <div id="progressBar" style="height: 100%; width: 0%; background: linear-gradient(90deg, #FF6B6B, #C92A2A); transition: width 0.3s;"></div>
+                </div>
+            </div>
+            <div id="liveStats" class="stats"></div>
+        </div>
+
         <div id="loading" class="loading">
             <div class="spinner"></div>
-            <p id="loadingText">מריץ מיגרציה... אנא המתן</p>
+            <p id="loadingText">מתחבר לשרת...</p>
             <p class="progress-text" id="progressText"></p>
         </div>
 
@@ -405,16 +448,80 @@
     </div>
 
     <script>
-        async function runMigration() {
+        let eventSource = null;
+        let savedStateData = null;
+
+        // Check for saved state on page load
+        window.addEventListener('DOMContentLoaded', async () => {
+            await checkSavedState();
+        });
+
+        async function checkSavedState() {
+            try {
+                const response = await fetch('/api/donation-migration-saved-state');
+                const data = await response.json();
+
+                if (data.success && data.hasSavedState) {
+                    savedStateData = data.savedState;
+
+                    // Show alert
+                    document.getElementById('savedStateAlert').style.display = 'block';
+                    document.getElementById('savedOffset').textContent = savedStateData.currentOffset.toLocaleString();
+                    document.getElementById('savedProcessed').textContent = savedStateData.totalProcessed.toLocaleString();
+
+                    // Format date
+                    const savedDate = new Date(savedStateData.lastUpdateTime);
+                    document.getElementById('savedTime').textContent = savedDate.toLocaleString('he-IL');
+                }
+            } catch (error) {
+                console.error('Error checking saved state:', error);
+            }
+        }
+
+        async function resumeFromSavedState() {
+            if (!savedStateData) {
+                alert('אין מצב שמור זמין');
+                return;
+            }
+
+            // Hide alert
+            document.getElementById('savedStateAlert').style.display = 'none';
+
+            // Run migration with resumeFrom parameter
+            await runMigration(savedStateData.currentOffset);
+        }
+
+        async function startFresh() {
+            if (!confirm('האם אתה בטוח שברצונך למחוק את המצב השמור ולהתחיל מחדש?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/donation-migration-clear-state', {
+                    method: 'POST'
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    savedStateData = null;
+                    document.getElementById('savedStateAlert').style.display = 'none';
+                    alert('המצב השמור נמחק בהצלחה. כעת תוכל להתחיל מיגרציה חדשה.');
+                } else {
+                    alert('שגיאה במחיקת המצב: ' + data.error);
+                }
+            } catch (error) {
+                alert('שגיאה בתקשורת: ' + error.message);
+            }
+        }
+
+        async function runMigration(resumeFrom = null) {
             const runBtn = document.getElementById('runBtn');
+            const pauseBtn = document.getElementById('pauseBtn');
+            const resumeBtn = document.getElementById('resumeBtn');
             const loading = document.getElementById('loading');
-            const loadingText = document.getElementById('loadingText');
-            const progressText = document.getElementById('progressText');
+            const progressSection = document.getElementById('progressSection');
             const results = document.getElementById('results');
-            const stats = document.getElementById('stats');
-            const details = document.getElementById('details');
-            const itemIdBreakdown = document.getElementById('itemIdBreakdown');
-            const itemIdStats = document.getElementById('itemIdStats');
 
             // Get control values
             const batchSize = parseInt(document.getElementById('batchSize').value) || 1000;
@@ -422,13 +529,14 @@
             const dryRun = document.getElementById('dryRun').checked;
             const sharlinOnly = document.getElementById('sharlinOnly').checked;
 
-            // Disable button
+            // Disable run button, hide results
             runBtn.disabled = true;
             loading.classList.add('show');
             results.classList.remove('show');
+            progressSection.style.display = 'none';
 
             try {
-                // Execute migration
+                // Start migration
                 const response = await fetch('/api/run-all-donations', {
                     method: 'POST',
                     headers: {
@@ -438,123 +546,314 @@
                         batchSize: batchSize,
                         limit: limit,
                         dryRun: dryRun,
-                        sharlinOnly: sharlinOnly
+                        sharlinOnly: sharlinOnly,
+                        resumeFrom: resumeFrom
                     })
                 });
 
                 const data = await response.json();
 
-                loading.classList.remove('show');
-                results.classList.add('show');
-
-                if (data.success) {
-                    // Show main statistics
-                    const inserted = data.donations?.inserted || 0;
-                    const skipped = data.donations?.skipped || 0;
-                    const addressesCreated = data.donations?.addressesCreated || 0;
-                    const currencyValuesInserted = data.donations?.currencyValuesInserted || 0;
-                    const errorCount = (data.donations?.errors || []).length;
-
-                    stats.innerHTML = `
-                        <div class="stat-card">
-                            <div class="stat-number">${inserted.toLocaleString()}</div>
-                            <div class="stat-label">תרומות נוספו</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-number">${skipped.toLocaleString()}</div>
-                            <div class="stat-label">תרומות דולגו (כבר קיימות)</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-number">${addressesCreated.toLocaleString()}</div>
-                            <div class="stat-label">כתובות נוצרו</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-number">${currencyValuesInserted.toLocaleString()}</div>
-                            <div class="stat-label">ערכי מטבע נוצרו</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-number">${errorCount}</div>
-                            <div class="stat-label">שגיאות</div>
-                        </div>
-                        <div class="stat-card" style="grid-column: 1 / -1; background: linear-gradient(135deg, #FF6B6B 0%, #C92A2A 100%); color: white;">
-                            <div class="stat-number" style="color: white;">${(inserted + skipped).toLocaleString()}</div>
-                            <div class="stat-label" style="color: white;">סה"כ Orders עובדו</div>
-                        </div>
-                    `;
-
-                    // Show ItemId breakdown if available
-                    if (data.donations?.itemIdStats) {
-                        const itemStats = data.donations.itemIdStats;
-                        itemIdBreakdown.style.display = 'block';
-                        itemIdStats.innerHTML = `
-                            <div class="itemid-stat">
-                                <div class="itemid-stat-number">${(itemStats.fromPrayer || 0).toLocaleString()}</div>
-                                <div class="itemid-stat-label">מתפילות (PrayerId)</div>
-                            </div>
-                            <div class="itemid-stat">
-                                <div class="itemid-stat-number">${(itemStats.fromProduct || 0).toLocaleString()}</div>
-                                <div class="itemid-stat-label">ממוצרים (ProjectId)</div>
-                            </div>
-                            <div class="itemid-stat">
-                                <div class="itemid-stat-number">${(itemStats.fromProductMultiChoice || 0).toLocaleString()}</div>
-                                <div class="itemid-stat-label">בחירה ממספר items (Priority)</div>
-                            </div>
-                            <div class="itemid-stat">
-                                <div class="itemid-stat-number">${(itemStats.orphaned || 0).toLocaleString()}</div>
-                                <div class="itemid-stat-label">Orphaned (ItemId=1)</div>
-                            </div>
-                        `;
-                    }
-
-                    // Show details
-                    let detailsHtml = '';
-
-                    if (dryRun) {
-                        detailsHtml += '<div class="result-item result-warning">ℹ️ זוהי סימולציה (Dry Run) - לא בוצעה כתיבה ל-DB</div>';
-                    } else {
-                        detailsHtml += '<div class="result-item result-success">✅ מיגרציה הושלמה בהצלחה!</div>';
-                    }
-
-                    detailsHtml += `<div class="result-item result-success">✅ נוספו ${inserted.toLocaleString()} תרומות חדשות</div>`;
-                    detailsHtml += `<div class="result-item result-success">✅ דולגו ${skipped.toLocaleString()} תרומות קיימות (Smart Skip)</div>`;
-                    detailsHtml += `<div class="result-item result-success">✅ נוצרו ${addressesCreated.toLocaleString()} כתובות</div>`;
-                    detailsHtml += `<div class="result-item result-success">💱 נוצרו ${currencyValuesInserted.toLocaleString()} ערכי מטבע (ILS/USD/EUR)</div>`;
-
-                    // Show errors if any
-                    const allErrors = data.donations?.errors || [];
-                    if (allErrors.length > 0) {
-                        detailsHtml += `<div class="result-item result-warning">⚠️ ${allErrors.length} שגיאות נמצאו:</div>`;
-                        allErrors.slice(0, 10).forEach(err => {
-                            const errMsg = typeof err === 'string' ? err :
-                                          err.error ? `OrderId ${err.orderId}: ${err.error}` :
-                                          JSON.stringify(err);
-                            detailsHtml += `<div class="result-item result-error">❌ ${errMsg}</div>`;
-                        });
-                        if (allErrors.length > 10) {
-                            detailsHtml += `<div class="result-item result-warning">... ועוד ${allErrors.length - 10} שגיאות</div>`;
-                        }
-                    }
-
-                    if (data.message) {
-                        detailsHtml += `<div class="result-item result-success">📝 ${data.message}</div>`;
-                    }
-
-                    details.innerHTML = detailsHtml;
-
-                } else {
-                    stats.innerHTML = '';
-                    itemIdBreakdown.style.display = 'none';
-                    details.innerHTML = `<div class="result-item result-error">❌ שגיאה: ${data.error || data.message}</div>`;
+                if (!data.success) {
+                    loading.classList.remove('show');
+                    results.classList.add('show');
+                    document.getElementById('stats').innerHTML = '';
+                    document.getElementById('itemIdBreakdown').style.display = 'none';
+                    document.getElementById('details').innerHTML = `<div class="result-item result-error">❌ שגיאה: ${data.error || data.message}</div>`;
+                    runBtn.disabled = false;
+                    return;
                 }
+
+                // Migration started - show progress section and connect to SSE
+                loading.classList.remove('show');
+                progressSection.style.display = 'block';
+                pauseBtn.style.display = 'inline-block';
+                resumeBtn.style.display = 'none';
+
+                // Connect to SSE for real-time updates
+                connectToProgressStream(dryRun);
 
             } catch (error) {
                 loading.classList.remove('show');
                 results.classList.add('show');
-                stats.innerHTML = '';
-                itemIdBreakdown.style.display = 'none';
-                details.innerHTML = `<div class="result-item result-error">❌ שגיאה בתקשורת: ${error.message}</div>`;
-            } finally {
+                document.getElementById('stats').innerHTML = '';
+                document.getElementById('itemIdBreakdown').style.display = 'none';
+                document.getElementById('details').innerHTML = `<div class="result-item result-error">❌ שגיאה בתקשורת: ${error.message}</div>`;
                 runBtn.disabled = false;
+            }
+        }
+
+        function connectToProgressStream(dryRun) {
+            const runBtn = document.getElementById('runBtn');
+            const pauseBtn = document.getElementById('pauseBtn');
+            const resumeBtn = document.getElementById('resumeBtn');
+            const progressSection = document.getElementById('progressSection');
+            const progressBar = document.getElementById('progressBar');
+            const progressLabel = document.getElementById('progressLabel');
+            const progressPercent = document.getElementById('progressPercent');
+            const liveStats = document.getElementById('liveStats');
+            const results = document.getElementById('results');
+
+            // Close existing connection if any
+            if (eventSource) {
+                eventSource.close();
+            }
+
+            // Connect to SSE endpoint
+            eventSource = new EventSource('/api/donation-migration-progress');
+
+            eventSource.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                const state = data.state;
+
+                if (data.type === 'initial') {
+                    // Initial connection
+                    updateProgressUI(state, progressBar, progressLabel, progressPercent, liveStats);
+                }
+
+                else if (data.type === 'progress') {
+                    // Real-time progress update
+                    updateProgressUI(state, progressBar, progressLabel, progressPercent, liveStats);
+                }
+
+                else if (data.type === 'paused') {
+                    // Migration paused
+                    progressLabel.textContent = '⏸️ מיגרציה הושהתה';
+                    pauseBtn.style.display = 'none';
+                    resumeBtn.style.display = 'inline-block';
+                }
+
+                else if (data.type === 'resumed') {
+                    // Migration resumed
+                    progressLabel.textContent = 'מעבד תרומות...';
+                    pauseBtn.style.display = 'inline-block';
+                    resumeBtn.style.display = 'none';
+                }
+
+                else if (data.type === 'completed') {
+                    // Migration completed
+                    eventSource.close();
+                    eventSource = null;
+
+                    progressSection.style.display = 'none';
+                    pauseBtn.style.display = 'none';
+                    resumeBtn.style.display = 'none';
+                    results.classList.add('show');
+                    runBtn.disabled = false;
+
+                    // Show final results
+                    showFinalResults(data.results || state, dryRun);
+                }
+
+                else if (data.type === 'error') {
+                    // Migration error
+                    eventSource.close();
+                    eventSource = null;
+
+                    progressSection.style.display = 'none';
+                    pauseBtn.style.display = 'none';
+                    resumeBtn.style.display = 'none';
+                    results.classList.add('show');
+                    runBtn.disabled = false;
+
+                    document.getElementById('stats').innerHTML = '';
+                    document.getElementById('itemIdBreakdown').style.display = 'none';
+                    document.getElementById('details').innerHTML = `<div class="result-item result-error">❌ שגיאה: ${data.error}</div>`;
+                }
+            };
+
+            eventSource.onerror = (error) => {
+                console.error('SSE error:', error);
+                eventSource.close();
+                eventSource = null;
+
+                progressSection.style.display = 'none';
+                pauseBtn.style.display = 'none';
+                resumeBtn.style.display = 'none';
+                results.classList.add('show');
+                runBtn.disabled = false;
+
+                document.getElementById('stats').innerHTML = '';
+                document.getElementById('itemIdBreakdown').style.display = 'none';
+                document.getElementById('details').innerHTML = `<div class="result-item result-error">❌ שגיאה בחיבור לעדכוני התקדמות</div>`;
+            };
+        }
+
+        function updateProgressUI(state, progressBar, progressLabel, progressPercent, liveStats) {
+            const totalProcessed = state.totalProcessed || 0;
+            const inserted = state.inserted || 0;
+            const skipped = state.skipped || 0;
+            const addressesCreated = state.addressesCreated || 0;
+            const currencyValuesInserted = state.currencyValuesInserted || 0;
+            const errorCount = (state.errors || []).length;
+            const currentOffset = state.currentOffset || 0;
+
+            // Estimate progress (since we don't know total count upfront)
+            // We'll just show the current offset as progress
+            progressLabel.textContent = `מעבד תרומות... (${totalProcessed.toLocaleString()} Orders עובדו)`;
+
+            // Show percentage if we have a limit or can estimate
+            // For now, just show current count without percentage
+            progressPercent.textContent = `${totalProcessed.toLocaleString()} עובדו`;
+
+            // Update progress bar (visual feedback even without exact percentage)
+            // Use a logarithmic scale for visual feedback
+            const visualProgress = Math.min(100, Math.log10(totalProcessed + 1) * 20);
+            progressBar.style.width = `${visualProgress}%`;
+
+            // Show live statistics
+            liveStats.innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-number">${inserted.toLocaleString()}</div>
+                    <div class="stat-label">תרומות נוספו</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${skipped.toLocaleString()}</div>
+                    <div class="stat-label">תרומות דולגו</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${addressesCreated.toLocaleString()}</div>
+                    <div class="stat-label">כתובות נוצרו</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${currencyValuesInserted.toLocaleString()}</div>
+                    <div class="stat-label">ערכי מטבע נוצרו</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${errorCount}</div>
+                    <div class="stat-label">שגיאות</div>
+                </div>
+                <div class="stat-card" style="grid-column: 1 / -1; background: linear-gradient(135deg, #FF6B6B 0%, #C92A2A 100%); color: white;">
+                    <div class="stat-number" style="color: white;">${totalProcessed.toLocaleString()}</div>
+                    <div class="stat-label" style="color: white;">סה"כ Orders עובדו</div>
+                </div>
+            `;
+        }
+
+        function showFinalResults(data, dryRun) {
+            const stats = document.getElementById('stats');
+            const details = document.getElementById('details');
+            const itemIdBreakdown = document.getElementById('itemIdBreakdown');
+            const itemIdStats = document.getElementById('itemIdStats');
+
+            // Show main statistics
+            const inserted = data.inserted || 0;
+            const skipped = data.skipped || 0;
+            const addressesCreated = data.addressesCreated || 0;
+            const currencyValuesInserted = data.currencyValuesInserted || 0;
+            const errorCount = (data.errors || []).length;
+
+            stats.innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-number">${inserted.toLocaleString()}</div>
+                    <div class="stat-label">תרומות נוספו</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${skipped.toLocaleString()}</div>
+                    <div class="stat-label">תרומות דולגו (כבר קיימות)</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${addressesCreated.toLocaleString()}</div>
+                    <div class="stat-label">כתובות נוצרו</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${currencyValuesInserted.toLocaleString()}</div>
+                    <div class="stat-label">ערכי מטבע נוצרו</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${errorCount}</div>
+                    <div class="stat-label">שגיאות</div>
+                </div>
+                <div class="stat-card" style="grid-column: 1 / -1; background: linear-gradient(135deg, #FF6B6B 0%, #C92A2A 100%); color: white;">
+                    <div class="stat-number" style="color: white;">${(inserted + skipped).toLocaleString()}</div>
+                    <div class="stat-label" style="color: white;">סה"כ Orders עובדו</div>
+                </div>
+            `;
+
+            // Show ItemId breakdown if available
+            if (data.itemIdStats) {
+                const itemStats = data.itemIdStats;
+                itemIdBreakdown.style.display = 'block';
+                itemIdStats.innerHTML = `
+                    <div class="itemid-stat">
+                        <div class="itemid-stat-number">${(itemStats.fromPrayer || 0).toLocaleString()}</div>
+                        <div class="itemid-stat-label">מתפילות (PrayerId)</div>
+                    </div>
+                    <div class="itemid-stat">
+                        <div class="itemid-stat-number">${(itemStats.fromProduct || 0).toLocaleString()}</div>
+                        <div class="itemid-stat-label">ממוצרים (ProjectId)</div>
+                    </div>
+                    <div class="itemid-stat">
+                        <div class="itemid-stat-number">${(itemStats.fromProductMultiChoice || 0).toLocaleString()}</div>
+                        <div class="itemid-stat-label">בחירה ממספר items (Priority)</div>
+                    </div>
+                    <div class="itemid-stat">
+                        <div class="itemid-stat-number">${(itemStats.orphaned || 0).toLocaleString()}</div>
+                        <div class="itemid-stat-label">Orphaned (ItemId=1)</div>
+                    </div>
+                `;
+            }
+
+            // Show details
+            let detailsHtml = '';
+
+            if (dryRun) {
+                detailsHtml += '<div class="result-item result-warning">ℹ️ זוהי סימולציה (Dry Run) - לא בוצעה כתיבה ל-DB</div>';
+            } else {
+                detailsHtml += '<div class="result-item result-success">✅ מיגרציה הושלמה בהצלחה!</div>';
+            }
+
+            detailsHtml += `<div class="result-item result-success">✅ נוספו ${inserted.toLocaleString()} תרומות חדשות</div>`;
+            detailsHtml += `<div class="result-item result-success">✅ דולגו ${skipped.toLocaleString()} תרומות קיימות (Smart Skip)</div>`;
+            detailsHtml += `<div class="result-item result-success">✅ נוצרו ${addressesCreated.toLocaleString()} כתובות</div>`;
+            detailsHtml += `<div class="result-item result-success">💱 נוצרו ${currencyValuesInserted.toLocaleString()} ערכי מטבע (ILS/USD/EUR)</div>`;
+
+            // Show errors if any
+            const allErrors = data.errors || [];
+            if (allErrors.length > 0) {
+                detailsHtml += `<div class="result-item result-warning">⚠️ ${allErrors.length} שגיאות נמצאו:</div>`;
+                allErrors.slice(0, 10).forEach(err => {
+                    const errMsg = typeof err === 'string' ? err :
+                                  err.error ? `OrderId ${err.orderId}: ${err.error}` :
+                                  JSON.stringify(err);
+                    detailsHtml += `<div class="result-item result-error">❌ ${errMsg}</div>`;
+                });
+                if (allErrors.length > 10) {
+                    detailsHtml += `<div class="result-item result-warning">... ועוד ${allErrors.length - 10} שגיאות</div>`;
+                }
+            }
+
+            details.innerHTML = detailsHtml;
+        }
+
+        async function pauseMigration() {
+            try {
+                const response = await fetch('/api/donation-migration-pause', {
+                    method: 'POST'
+                });
+
+                const data = await response.json();
+
+                if (!data.success) {
+                    alert('שגיאה בהשהיית המיגרציה: ' + data.error);
+                }
+            } catch (error) {
+                alert('שגיאה בתקשורת: ' + error.message);
+            }
+        }
+
+        async function resumeMigration() {
+            try {
+                const response = await fetch('/api/donation-migration-resume', {
+                    method: 'POST'
+                });
+
+                const data = await response.json();
+
+                if (!data.success) {
+                    alert('שגיאה בהמשך המיגרציה: ' + data.error);
+                }
+            } catch (error) {
+                alert('שגיאה בתקשורת: ' + error.message);
             }
         }
     </script>

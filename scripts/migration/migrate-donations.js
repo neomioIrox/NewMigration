@@ -4,6 +4,122 @@ const fs = require('fs');
 const path = require('path');
 const { mssqlConfig, mysqlConfig } = require('../../config/database');
 
+// ============================================
+// Table Name Mapping (lowercase → PascalCase for MySQL)
+// ============================================
+const TABLE_NAME_MAPPING = {
+  'donation': 'Donation',
+  'donationcurrencyvalue': 'DonationCurrencyValue',
+  'address': 'Address',
+  'project': 'Project',
+  'projectitem': 'ProjectItem'
+};
+
+function getCorrectTableName(tableName) {
+  const lowerName = tableName.toLowerCase();
+  return TABLE_NAME_MAPPING[lowerName] || tableName;
+}
+
+// State persistence file paths
+const STATE_FILE = path.join(__dirname, '../../data/migration-state/donation-migration-state.json');
+const ERRORS_FILE = path.join(__dirname, '../../data/migration-state/donation-errors.json');
+
+/**
+ * Save migration errors to file for analysis
+ */
+function saveErrors(errors) {
+  try {
+    const errorsDir = path.dirname(ERRORS_FILE);
+    if (!fs.existsSync(errorsDir)) {
+      fs.mkdirSync(errorsDir, { recursive: true });
+    }
+
+    const errorsData = {
+      totalErrors: errors.length,
+      lastUpdateTime: new Date().toISOString(),
+      errors: errors
+    };
+
+    fs.writeFileSync(ERRORS_FILE, JSON.stringify(errorsData, null, 2), 'utf8');
+    console.log(`📋 Errors saved to file: ${errors.length} שגיאות`);
+  } catch (error) {
+    console.error('⚠️  Failed to save errors:', error.message);
+  }
+}
+
+/**
+ * Save migration state to file for crash recovery
+ */
+function saveState(state) {
+  try {
+    const stateDir = path.dirname(STATE_FILE);
+    if (!fs.existsSync(stateDir)) {
+      fs.mkdirSync(stateDir, { recursive: true });
+    }
+
+    const stateData = {
+      currentOffset: state.currentOffset,
+      totalProcessed: state.totalProcessed || (state.inserted + state.skipped),
+      inserted: state.inserted,
+      skipped: state.skipped,
+      addressesCreated: state.addressesCreated,
+      currencyValuesInserted: state.currencyValuesInserted,
+      errorCount: state.errors ? state.errors.length : 0,
+      itemIdStats: state.itemIdStats,
+      lastUpdateTime: new Date().toISOString(),
+      isCompleted: state.isCompleted || false
+    };
+
+    fs.writeFileSync(STATE_FILE, JSON.stringify(stateData, null, 2), 'utf8');
+    console.log(`💾 State saved to file: offset=${state.currentOffset}, processed=${stateData.totalProcessed}`);
+
+    // Save errors to separate file
+    if (state.errors && state.errors.length > 0) {
+      saveErrors(state.errors);
+    }
+  } catch (error) {
+    console.error('⚠️  Failed to save state:', error.message);
+  }
+}
+
+/**
+ * Load saved migration state from file
+ */
+function loadState() {
+  try {
+    if (fs.existsSync(STATE_FILE)) {
+      const stateData = JSON.parse(fs.readFileSync(STATE_FILE, 'utf8'));
+
+      // Don't load if migration was completed
+      if (stateData.isCompleted) {
+        console.log('ℹ️  Previous migration was completed, ignoring saved state');
+        return null;
+      }
+
+      console.log(`📂 Loaded saved state: offset=${stateData.currentOffset}, processed=${stateData.totalProcessed}`);
+      return stateData;
+    }
+    return null;
+  } catch (error) {
+    console.error('⚠️  Failed to load state:', error.message);
+    return null;
+  }
+}
+
+/**
+ * Clear saved state (called when migration completes or user starts fresh)
+ */
+function clearState() {
+  try {
+    if (fs.existsSync(STATE_FILE)) {
+      fs.unlinkSync(STATE_FILE);
+      console.log('🗑️  Saved state cleared');
+    }
+  } catch (error) {
+    console.error('⚠️  Failed to clear state:', error.message);
+  }
+}
+
 /**
  * Migrate Donations from Orders table (SQL Server) to donation table (MySQL)
  *
@@ -33,7 +149,9 @@ async function migrateDonations(options = {}) {
     limit = null,
     offset = 0,
     dryRun = false,
-    sharlinOnly = false
+    sharlinOnly = false,
+    progressCallback = null,  // Callback for real-time progress updates
+    shouldPause = null        // Function that returns true if should pause
   } = options;
 
   const results = {
@@ -212,7 +330,7 @@ async function migrateDonations(options = {}) {
 
             if (referenceNum) {
               const [existing] = await mysqlConn.query(
-                'SELECT Id FROM donation WHERE ReferenceNum = ?',
+                'SELECT Id FROM Donation WHERE ReferenceNum = ?',
                 [referenceNum]
               );
 
@@ -311,7 +429,7 @@ async function migrateDonations(options = {}) {
           // Insert donation
           let newDonationId = null;
           if (!dryRun) {
-            const [insertResult] = await mysqlConn.query('INSERT INTO donation SET ?', [donationData]);
+            const [insertResult] = await mysqlConn.query(`INSERT INTO ${getCorrectTableName('donation')} SET ?`, [donationData]);
             newDonationId = insertResult.insertId;  // Get AUTO_INCREMENT Id
 
             // ========================================
@@ -364,7 +482,7 @@ async function migrateDonations(options = {}) {
 
             // Insert currency values (one INSERT per currency)
             for (const currencyValue of currencyValues) {
-              await mysqlConn.query('INSERT INTO donationcurrencyvalue SET ?', [currencyValue]);
+              await mysqlConn.query(`INSERT INTO ${getCorrectTableName('donationcurrencyvalue')} SET ?`, [currencyValue]);
             }
 
             if (currencyValues.length > 0) {
@@ -382,12 +500,57 @@ async function migrateDonations(options = {}) {
           console.error(`  ❌ OrdersId=${order.OrdersId}: ${err.message}`);
           results.errors.push({
             OrdersId: order.OrdersId,
-            error: err.message
+            ProjectId: order.ProjectId,
+            PrayerId: order.PrayerId,
+            UserId: order.UserId,
+            Total: order.Total,
+            Currency: order.OrderCurrency,
+            ReferenceCode: order.ReferenceCode,
+            DateCreated: order.DateCreated,
+            errorMessage: err.message,
+            errorStack: err.stack,
+            timestamp: new Date().toISOString()
           });
         }
       }
 
       currentOffset += batchSize;
+
+      // Send progress update if callback provided
+      if (progressCallback) {
+        progressCallback({
+          currentOffset: currentOffset,
+          totalProcessed: results.inserted + results.skipped,
+          inserted: results.inserted,
+          skipped: results.skipped,
+          addressesCreated: results.addressesCreated,
+          currencyValuesInserted: results.currencyValuesInserted,
+          errors: results.errors,
+          itemIdStats: results.itemIdStats
+        });
+      }
+
+      // Save state to file for crash recovery
+      saveState({
+        currentOffset: currentOffset,
+        totalProcessed: results.inserted + results.skipped,
+        inserted: results.inserted,
+        skipped: results.skipped,
+        addressesCreated: results.addressesCreated,
+        currencyValuesInserted: results.currencyValuesInserted,
+        errors: results.errors,
+        itemIdStats: results.itemIdStats,
+        isCompleted: false
+      });
+
+      // Check if should pause
+      if (shouldPause && shouldPause()) {
+        console.log(`\n⏸️  מיגרציה הושהתה על ידי המשתמש`);
+        console.log(`   Offset נוכחי: ${currentOffset}`);
+        console.log(`   נוכל להמשיך מ-offset=${currentOffset}\n`);
+        hasMore = false;
+        break;
+      }
 
       // Check limit
       if (limit && currentOffset >= offset + limit) {
@@ -414,8 +577,9 @@ async function migrateDonations(options = {}) {
 
     if (results.errors.length > 0) {
       console.log(`\n⚠️  ${results.errors.length} שגיאות:`);
+      console.log(`📋 קובץ שגיאות מלא: data/migration-state/donation-errors.json\n`);
       results.errors.slice(0, 10).forEach(err => {
-        console.log(`   - OrdersId=${err.OrdersId}: ${err.error}`);
+        console.log(`   - OrdersId=${err.OrdersId}: ${err.errorMessage}`);
       });
       if (results.errors.length > 10) {
         console.log(`   ... ועוד ${results.errors.length - 10} שגיאות`);
@@ -424,11 +588,21 @@ async function migrateDonations(options = {}) {
 
     console.log(`\n🎉 מיגרציית Donation הושלמה!${dryRun ? ' (Dry Run)' : ''}\n`);
 
+    // Clear saved state on successful completion
+    clearState();
+
     return results;
 
   } catch (err) {
     console.error('❌ שגיאה כללית:', err.message);
     console.error(err);
+
+    // Save errors before throwing
+    if (results && results.errors && results.errors.length > 0) {
+      console.log(`\n💾 שומר ${results.errors.length} שגיאות לקובץ...`);
+      saveErrors(results.errors);
+    }
+
     throw err;
   } finally {
     if (mssqlConn) await sql.close();
@@ -575,7 +749,7 @@ async function createAddressIfNeeded(mysqlConn, order, type, results, dryRun) {
   // Country is int NOT NULL (FK to lutcountry) - default to 1 (Israel)
   // City is varchar NOT NULL - MUST use empty string (truncate returns null for empty!)
   const [result] = await mysqlConn.query(`
-    INSERT INTO address (
+    INSERT INTO ${getCorrectTableName('address')} (
       Street,
       City,
       Country,
@@ -886,4 +1060,4 @@ if (require.main === module) {
 }
 
 // Export for use in server
-module.exports = { migrateDonations };
+module.exports = { migrateDonations, loadState, clearState, saveState };

@@ -20,9 +20,23 @@ async function createProductsMapping() {
 
   try {
     // ========================================
-    // STEP 1: Connect to databases
+    // STEP 1: Load ProjectId.json mapping
     // ========================================
-    console.log('\n📡 STEP 1: חיבור לבסיסי נתונים...');
+    console.log('\n📂 STEP 1: טעינת ProjectId.json (ProductsId → ProjectId)...');
+    const projectIdMappingPath = path.join(__dirname, '../../data/fk-mappings/ProjectId.json');
+
+    if (!require('fs').existsSync(projectIdMappingPath)) {
+      throw new Error('❌ ProjectId.json not found! Please run rebuild-projectid-mapping.js first.');
+    }
+
+    const projectIdMapping = JSON.parse(require('fs').readFileSync(projectIdMappingPath, 'utf-8'));
+    const productIdToProjectId = projectIdMapping.mappings || {};
+    console.log(`✅ נטען מיפוי עם ${Object.keys(productIdToProjectId).length} רשומות\n`);
+
+    // ========================================
+    // STEP 2: Connect to databases
+    // ========================================
+    console.log('📡 STEP 2: חיבור לבסיסי נתונים...');
     await sql.connect(mssqlConfig);
     const mysqlConn = await mysql.createConnection({
       ...mysqlConfig,
@@ -31,10 +45,10 @@ async function createProductsMapping() {
     console.log('✅ חיבור הצליח\n');
 
     // ========================================
-    // STEP 2: Get all Products from old DB
+    // STEP 3: Get all Products from old DB
     // ========================================
     console.log('━'.repeat(70));
-    console.log('📊 STEP 2: קריאת כל Products מבסיס הנתונים הישן...');
+    console.log('📊 STEP 3: קריאת כל Products מבסיס הנתונים הישן...');
     console.log('━'.repeat(70));
 
     const productsResult = await sql.query`
@@ -47,10 +61,10 @@ async function createProductsMapping() {
     console.log(`✅ נמצאו ${allProducts.length} Products ב-DB הישן\n`);
 
     // ========================================
-    // STEP 3: Create mapping for each Product
+    // STEP 4: Create mapping for each Product
     // ========================================
     console.log('━'.repeat(70));
-    console.log('🗺️  STEP 3: יצירת מיפוי עבור כל Product...');
+    console.log('🗺️  STEP 4: יצירת מיפוי עבור כל Product...');
     console.log('━'.repeat(70));
 
     const mapping = {};
@@ -69,14 +83,11 @@ async function createProductsMapping() {
       try {
         const productsId = product.ProductsId;
 
-        // Check if this Product was migrated to project table
-        const [projectRows] = await mysqlConn.query(
-          'SELECT Id, ProjectType FROM project WHERE Id = ?',
-          [productsId]
-        );
+        // CRITICAL: Use ProjectId.json to map ProductsId → ProjectId
+        const projectId = productIdToProjectId[String(productsId)];
 
-        if (projectRows.length === 0) {
-          // Product not migrated yet
+        if (!projectId) {
+          // Product not migrated yet (no mapping in ProjectId.json)
           stats.notMigrated++;
           mapping[productsId] = {
             ProductsId: productsId,
@@ -90,8 +101,32 @@ async function createProductsMapping() {
           continue;
         }
 
+        // Now query the project table using the correct ProjectId
+        const [projectRows] = await mysqlConn.query(
+          'SELECT Id, ProjectType FROM project WHERE Id = ?',
+          [projectId]
+        );
+
+        if (projectRows.length === 0) {
+          // ProjectId.json has mapping, but project doesn't exist in DB - data inconsistency
+          stats.errors.push({
+            productsId,
+            error: `ProjectId ${projectId} not found in project table (data inconsistency)`
+          });
+          stats.notMigrated++;
+          mapping[productsId] = {
+            ProductsId: productsId,
+            Name: product.Name,
+            ProjectId: null,
+            ProjectType: null,
+            ProjectItemIds: [],
+            Status: 'ERROR',
+            Note: `ProjectId ${projectId} not found`
+          };
+          continue;
+        }
+
         const project = projectRows[0];
-        const projectId = project.Id;
         const projectType = project.ProjectType;
 
         // Get all ProjectItems for this Project

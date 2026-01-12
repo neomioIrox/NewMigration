@@ -31,7 +31,7 @@ async function migrateLocalization() {
     });
 
     // Get all recruiters from new DB
-    const [newRecruiters] = await mysqlConn.query('SELECT Id, Name FROM recruiter');
+    const [newRecruiters] = await mysqlConn.query('SELECT Id, Name FROM Recruiter');
     console.log(`Found ${newRecruiters.length} recruiters in new DB\n`);
 
     // Get all ProductStock data
@@ -70,7 +70,7 @@ async function migrateLocalization() {
       try {
         const displayInSite = (oldData.Hide === 0 || oldData.Hide === null) ? 1 : 0;
         await mysqlConn.execute(
-          'INSERT INTO recruiterlocalization (RecruiterId, LanguageId, Name, Description, DisplayInSite, CreatedAt, CreatedBy, UpdatedAt, UpdatedBy) VALUES (?, ?, ?, ?, ?, NOW(), -1, NOW(), -1)',
+          'INSERT INTO RecruiterLocalization (RecruiterId, LanguageId, Name, Description, DisplayInSite, CreatedAt, CreatedBy, UpdatedAt, UpdatedBy) VALUES (?, ?, ?, ?, ?, NOW(), -1, NOW(), -1)',
           [recruiter.Id, 1, recruiter.Name, null, displayInSite]
         );
         inserted++;
@@ -87,7 +87,7 @@ async function migrateLocalization() {
         try {
           const displayInSite = (oldData.Hide_en === 0 || oldData.Hide_en === null) ? 1 : 0;
           await mysqlConn.execute(
-            'INSERT INTO recruiterlocalization (RecruiterId, LanguageId, Name, Description, DisplayInSite, CreatedAt, CreatedBy, UpdatedAt, UpdatedBy) VALUES (?, ?, ?, ?, ?, NOW(), -1, NOW(), -1)',
+            'INSERT INTO RecruiterLocalization (RecruiterId, LanguageId, Name, Description, DisplayInSite, CreatedAt, CreatedBy, UpdatedAt, UpdatedBy) VALUES (?, ?, ?, ?, ?, NOW(), -1, NOW(), -1)',
             [recruiter.Id, 2, oldData.Name_en, null, displayInSite]
           );
           inserted++;
@@ -105,7 +105,7 @@ async function migrateLocalization() {
         try {
           const displayInSite = (oldData.Hide_fr === 0 || oldData.Hide_fr === null) ? 1 : 0;
           await mysqlConn.execute(
-            'INSERT INTO recruiterlocalization (RecruiterId, LanguageId, Name, Description, DisplayInSite, CreatedAt, CreatedBy, UpdatedAt, UpdatedBy) VALUES (?, ?, ?, ?, ?, NOW(), -1, NOW(), -1)',
+            'INSERT INTO RecruiterLocalization (RecruiterId, LanguageId, Name, Description, DisplayInSite, CreatedAt, CreatedBy, UpdatedAt, UpdatedBy) VALUES (?, ?, ?, ?, ?, NOW(), -1, NOW(), -1)',
             [recruiter.Id, 3, oldData.Name_fr, null, displayInSite]
           );
           inserted++;

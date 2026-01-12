@@ -35,10 +35,11 @@
         "value": "-1"
       },
       "CreatedAt": {
-        "convertType": "direct",
+        "convertType": "expression",
         "oldTable": "products",
         "oldColumn": "DateCreated",
-        "defaultValue": "GETDATE()"
+        "expression": "value ? value : new Date(946684800000 + ((row.productsid || row.sourceId) * 1000))",
+        "comment": "Use DateCreated if exists, otherwise generate unique date based on ProductsId (Jan 1, 2000 + ProductsId seconds)"
       },
       "CreatedBy": {
         "convertType": "const",
@@ -94,10 +95,11 @@
         "value": "-1"
       },
       "CreatedAt": {
-        "convertType": "direct",
+        "convertType": "expression",
         "oldTable": "products",
         "oldColumn": "DateCreated",
-        "defaultValue": "GETDATE()"
+        "expression": "value ? value : new Date(946684800000 + ((row.productsid || row.sourceId) * 1000))",
+        "comment": "Use DateCreated if exists, otherwise generate unique date based on ProductsId (Jan 1, 2000 + ProductsId seconds)"
       },
       "CreatedBy": {
         "convertType": "const",
@@ -179,7 +181,7 @@
         "convertType": "expression",
         "oldTable": "products",
         "oldColumn": "Hide",
-        "expression": "row.Hide ? 0 : 1"
+        "expression": "(!row.Hide && row.ShowMainPage) ? 1 : 0"
       },
       "english": {
         "convertType": "expression",

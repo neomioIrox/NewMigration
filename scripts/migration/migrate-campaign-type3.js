@@ -74,7 +74,7 @@ async function migrateCampaignType3() {
         // If they exist as Type 1 (Funds) or Type 2 (Collections),
         // this indicates a migration order issue!
         const [existing] = await mysqlConn.query(
-          'SELECT Id, ProjectType FROM project WHERE Id = ?',
+          'SELECT Id, ProjectType FROM Project WHERE Id = ?',
           [parentProductId]
         );
 
@@ -105,7 +105,7 @@ async function migrateCampaignType3() {
 
         // Insert Project
         const [insertResult] = await mysqlConn.query(`
-          INSERT INTO project (
+          INSERT INTO Project (
             Id,
             Name,
             ProjectType,
@@ -171,7 +171,7 @@ async function migrateCampaignType3() {
         for (const lang of languages) {
           // Check if localization exists
           const [existing] = await mysqlConn.query(
-            'SELECT Id FROM projectlocalization WHERE ProjectId = ? AND Language = ?',
+            'SELECT Id FROM ProjectLocalization WHERE ProjectId = ? AND Language = ?',
             [parentProductId, lang.id]
           );
 
@@ -186,7 +186,7 @@ async function migrateCampaignType3() {
           const displayInSite = product[hideCol] !== null ? (product[hideCol] ? 0 : 1) : 1;
 
           await mysqlConn.query(`
-            INSERT INTO projectlocalization (
+            INSERT INTO ProjectLocalization (
               ProjectId,
               Language,
               DisplayInSite,
@@ -251,7 +251,7 @@ async function migrateCampaignType3() {
 
         // Check if item already exists (by ProjectId + ItemName + ItemType)
         const [existing] = await mysqlConn.query(
-          'SELECT Id FROM projectitem WHERE ProjectId = ? AND ItemName = ? AND ItemType = ?',
+          'SELECT Id FROM ProjectItem WHERE ProjectId = ? AND ItemName = ? AND ItemType = ?',
           [pg.ParentProductId, subProduct.Name ? subProduct.Name.substring(0, 150) : 'Unnamed', itemType]
         );
 
@@ -262,7 +262,7 @@ async function migrateCampaignType3() {
 
         // Insert ProjectItem
         await mysqlConn.query(`
-          INSERT INTO projectitem (
+          INSERT INTO ProjectItem (
             ProjectId,
             ItemName,
             ItemType,
@@ -324,7 +324,7 @@ async function migrateCampaignType3() {
 
         // Check if Donation item already exists
         const [existing] = await mysqlConn.query(
-          'SELECT Id FROM projectitem WHERE ProjectId = ? AND ItemType = 4',
+          'SELECT Id FROM ProjectItem WHERE ProjectId = ? AND ItemType = 4',
           [parentProductId]
         );
 
@@ -335,7 +335,7 @@ async function migrateCampaignType3() {
 
         // Insert Donation ProjectItem
         await mysqlConn.query(`
-          INSERT INTO projectitem (
+          INSERT INTO ProjectItem (
             ProjectId,
             ItemName,
             ItemType,
@@ -388,8 +388,8 @@ async function migrateCampaignType3() {
     const parentIdsStr = parentProductIds.join(',');
     const [allProjectItems] = await mysqlConn.query(`
       SELECT pi.Id, pi.ProjectId, pi.ItemName, pi.ItemType
-      FROM projectitem pi
-      JOIN project p ON pi.ProjectId = p.Id
+      FROM ProjectItem pi
+      JOIN Project p ON pi.ProjectId = p.Id
       WHERE p.ProjectType = 2
       AND p.Id IN (${parentIdsStr})
     `);
@@ -409,7 +409,7 @@ async function migrateCampaignType3() {
         for (const lang of languages) {
           // Check if localization exists
           const [existing] = await mysqlConn.query(
-            'SELECT Id FROM projectitemlocalization WHERE ItemId = ? AND Language = ?',
+            'SELECT Id FROM ProjectItemLocalization WHERE ItemId = ? AND Language = ?',
             [item.Id, lang.id]
           );
 
@@ -424,7 +424,7 @@ async function migrateCampaignType3() {
           const displayInSite = product[hideCol] !== null && product.ShowMainPage ? (!product[hideCol] ? 1 : 0) : 1;
 
           await mysqlConn.query(`
-            INSERT INTO projectitemlocalization (
+            INSERT INTO ProjectItemLocalization (
               ItemId,
               Language,
               DisplayInSite,

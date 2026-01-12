@@ -10,7 +10,7 @@
 // MSSQL (SQL Server) Configuration
 const mssqlConfig = {
   server: 'DESKTOP-7QELS7G',
-  database: 'kupat1_28262025',
+  database: 'kupatOld',
   options: {
     encrypt: false,
     trustServerCertificate: true
@@ -21,7 +21,9 @@ const mssqlConfig = {
       userName: 'on',
       password: '1234567890'
     }
-  }
+  },
+  connectionTimeout: 30000,  // 30 seconds timeout for connection
+  requestTimeout: 300000     // 5 minutes timeout for queries (complex migrations need time)
 };
 
 // MySQL Configuration
@@ -29,7 +31,8 @@ const mysqlConfig = {
   host: 'localhost',
   user: 'root',
   password: '1234',
-  database: 'kupathairnew'
+  database: 'kupathairnew',
+  connectTimeout: 10000      // 10 seconds timeout
 };
 
 module.exports = {

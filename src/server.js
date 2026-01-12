@@ -9,8 +9,79 @@ const { mssqlConfig: defaultMssqlConfig, mysqlConfig: defaultMysqlConfig } = req
 const { createProductsMapping } = require('../scripts/checks/create-products-mapping');
 const { createPrayerMapping } = require('../scripts/utils/create-prayer-mapping');
 
+// ============================================
+// Table Name Mapping (lowercase → PascalCase for MySQL)
+// ============================================
+const TABLE_NAME_MAPPING = {
+  'project': 'Project',
+  'projectlocalization': 'ProjectLocalization',
+  'projectitem': 'ProjectItem',
+  'projectitemlocalization': 'ProjectItemLocalization',
+  'media': 'Media',
+  'gallery': 'Gallery',
+  'linksetting': 'LinkSetting',
+  'entitycontent': 'EntityContent',
+  'entitycontentitem': 'EntityContentItem',
+  'recruiter': 'Recruiter',
+  'recruitersgroup': 'RecruitersGroup',
+  'recruitersgrouplanguage': 'RecruitersGroupLanguage',
+  'recruiterlocalization': 'RecruiterLocalization',
+  'donation': 'Donation',
+  'prayer': 'Prayer',
+  'address': 'Address',
+  'donationcurrencyvalue': 'DonationCurrencyValue'
+};
+
+function getCorrectTableName(tableName) {
+  const lowerName = tableName.toLowerCase();
+  return TABLE_NAME_MAPPING[lowerName] || tableName;
+}
+
 const app = express();
 const PORT = 3030;
+
+// ============================================
+// Migration State Manager (for pause/resume and real-time updates)
+// ============================================
+const migrationState = {
+  donationMigration: {
+    isRunning: false,
+    isPaused: false,
+    currentOffset: 0,
+    totalProcessed: 0,
+    inserted: 0,
+    skipped: 0,
+    addressesCreated: 0,
+    currencyValuesInserted: 0,
+    errors: [],
+    itemIdStats: {
+      fromPrayer: 0,
+      fromProduct: 0,
+      fromProductMultiChoice: 0,
+      orphaned: 0
+    },
+    startTime: null,
+    lastUpdateTime: null
+  }
+};
+
+// SSE clients for real-time updates
+const sseClients = {
+  donationMigration: []
+};
+
+// Helper: Send SSE update to all connected clients
+function sendSSEUpdate(channel, data) {
+  const clients = sseClients[channel] || [];
+  const message = `data: ${JSON.stringify(data)}\n\n`;
+  clients.forEach(client => {
+    try {
+      client.write(message);
+    } catch (err) {
+      // Client disconnected, will be cleaned up
+    }
+  });
+}
 
 // Configure logger
 const logger = winston.createLogger({
@@ -269,7 +340,9 @@ app.post('/api/test-mssql', async (req, res) => {
     mssqlConfig = {
       server,
       database,
-      options: options || { encrypt: true, trustServerCertificate: true }
+      options: options || { encrypt: true, trustServerCertificate: true },
+      connectionTimeout: 30000,  // 30 seconds timeout for connection
+      requestTimeout: 300000     // 5 minutes timeout for queries (complex migrations need time)
     };
 
     // Add authentication if provided
@@ -295,7 +368,14 @@ app.post('/api/test-mssql', async (req, res) => {
 app.post('/api/test-mysql', async (req, res) => {
   try {
     const { host, database, user, password } = req.body;
-    mysqlConfig = { host, database, user, password, charset: 'utf8mb4' };
+    mysqlConfig = {
+      host,
+      database,
+      user,
+      password,
+      charset: 'utf8mb4',
+      connectTimeout: 10000  // 10 seconds timeout
+    };
 
     const connection = await mysql.createConnection(mysqlConfig);
     await connection.end();
@@ -412,7 +492,7 @@ app.post('/api/generate-recruitersgroup-mapping', async (req, res) => {
     // Get new recruitersgroup
     const [newGroups] = await mysqlConn.query(`
       SELECT Id, Name, ProjectId
-      FROM recruitersgroup
+      FROM RecruitersGroup
     `);
     logger.info(`Found ${newGroups.length} groups in new DB`);
 
@@ -582,9 +662,14 @@ app.post('/api/run-all-recruiters', async (req, res) => {
           const fkMappings = {};
           for (const [colName, mapping] of Object.entries(requestBody.mappings)) {
             if (mapping.useFkMapping) {
-              const fkPath = path.join(__dirname, `../data/fk-mappings/${colName}.json`);
+              // Support custom mapping file name (e.g., "ProductCreatedDate.json")
+              const mappingFileName = mapping.mappingFile || `${colName}.json`;
+              const fkPath = path.join(__dirname, `../data/fk-mappings/${mappingFileName}`);
               if (fs.existsSync(fkPath)) {
                 fkMappings[colName] = JSON.parse(fs.readFileSync(fkPath, 'utf-8'));
+                logger.info(`Loaded FK mapping for ${colName} from ${mappingFileName}`);
+              } else {
+                logger.warn(`FK mapping file not found: ${mappingFileName}`);
               }
             }
           }
@@ -619,16 +704,33 @@ app.post('/api/run-all-recruiters', async (req, res) => {
                   // Apply FK mapping if needed
                   if (mapping.useFkMapping && fkMappings[targetCol]) {
                     const fk = fkMappings[targetCol];
-                    const mappedValue = fk.mappings[String(value)];
-                    if (mappedValue !== undefined) {
-                      value = mappedValue;
-                    } else if (mapping.nullable) {
-                      value = null;
-                    } else {
-                      // FK mapping required but not found - SKIP this row!
-                      shouldSkip = true;
-                      skipReason = `Missing FK mapping: ${targetCol}=${value}`;
-                      break; // Stop processing this row
+                    // Support both simple mappings and complex mappings (e.g., ProductCreatedDate)
+                    const mappingData = fk.mappings || fk.mapping;
+
+                    if (mappingData) {
+                      const mappedEntry = mappingData[String(value)];
+
+                      if (mappedEntry !== undefined) {
+                        // Check if it's a complex object (e.g., { CreatedAt: "..." })
+                        if (typeof mappedEntry === 'object' && mappedEntry !== null) {
+                          // For CreatedAt, extract the date value
+                          value = mappedEntry.CreatedAt || mappedEntry[targetCol] || mappedEntry;
+                          // Convert ISO string to Date object if needed
+                          if (typeof value === 'string' && targetCol.includes('At')) {
+                            value = new Date(value);
+                          }
+                        } else {
+                          // Simple mapping: use value directly
+                          value = mappedEntry;
+                        }
+                      } else if (mapping.nullable) {
+                        value = null;
+                      } else {
+                        // FK mapping required but not found - SKIP this row!
+                        shouldSkip = true;
+                        skipReason = `Missing FK mapping: ${targetCol}=${value}`;
+                        break; // Stop processing this row
+                      }
                     }
                   }
 
@@ -649,7 +751,8 @@ app.post('/api/run-all-recruiters', async (req, res) => {
               // Insert into MySQL
               const columns = Object.keys(values);
               const placeholders = columns.map(() => '?').join(', ');
-              const insertQuery = `INSERT INTO ${requestBody.tableName} (${columns.join(', ')}) VALUES (${placeholders})`;
+              const correctTableName = getCorrectTableName(requestBody.tableName);
+              const insertQuery = `INSERT INTO ${correctTableName} (${columns.join(', ')}) VALUES (${placeholders})`;
 
               await mysqlConn.execute(insertQuery, Object.values(values));
               inserted++;
@@ -728,7 +831,7 @@ app.post('/api/run-all-recruiters', async (req, res) => {
     // STEP 1.5: Run RecruitersGroupLanguage migration (simple approach - same Name for all languages)
     logger.info('STEP 1.5: Migrating RecruitersGroupLanguage...');
     const mysqlConnGroupLang = await mysql.createConnection({ ...mysqlConfig, charset: 'utf8mb4' });
-    const [allGroups] = await mysqlConnGroupLang.query('SELECT Id, Name FROM recruitersgroup');
+    const [allGroups] = await mysqlConnGroupLang.query('SELECT Id, Name FROM RecruitersGroup');
 
     let groupLangInserted = 0;
     let groupLangErrors = 0;
@@ -737,7 +840,7 @@ app.post('/api/run-all-recruiters', async (req, res) => {
       // Hebrew (LanguageId = 1)
       try {
         await mysqlConnGroupLang.execute(
-          'INSERT INTO recruitersgrouplanguage (RecruiterGroupId, LanguageId, Name, Description, DisplayInSite, CreatedAt, CreatedBy, UpdatedAt, UpdatedBy) VALUES (?, ?, ?, ?, ?, NOW(), -1, NOW(), -1)',
+          `INSERT INTO ${getCorrectTableName('recruitersgrouplanguage')} (RecruiterGroupId, LanguageId, Name, Description, DisplayInSite, CreatedAt, CreatedBy, UpdatedAt, UpdatedBy) VALUES (?, ?, ?, ?, ?, NOW(), -1, NOW(), -1)`,
           [group.Id, 1, group.Name, null, 1]
         );
         groupLangInserted++;
@@ -749,7 +852,7 @@ app.post('/api/run-all-recruiters', async (req, res) => {
       // English (LanguageId = 2) - same Name
       try {
         await mysqlConnGroupLang.execute(
-          'INSERT INTO recruitersgrouplanguage (RecruiterGroupId, LanguageId, Name, Description, DisplayInSite, CreatedAt, CreatedBy, UpdatedAt, UpdatedBy) VALUES (?, ?, ?, ?, ?, NOW(), -1, NOW(), -1)',
+          `INSERT INTO ${getCorrectTableName('recruitersgrouplanguage')} (RecruiterGroupId, LanguageId, Name, Description, DisplayInSite, CreatedAt, CreatedBy, UpdatedAt, UpdatedBy) VALUES (?, ?, ?, ?, ?, NOW(), -1, NOW(), -1)`,
           [group.Id, 2, group.Name, null, 1]
         );
         groupLangInserted++;
@@ -761,7 +864,7 @@ app.post('/api/run-all-recruiters', async (req, res) => {
       // French (LanguageId = 3) - same Name
       try {
         await mysqlConnGroupLang.execute(
-          'INSERT INTO recruitersgrouplanguage (RecruiterGroupId, LanguageId, Name, Description, DisplayInSite, CreatedAt, CreatedBy, UpdatedAt, UpdatedBy) VALUES (?, ?, ?, ?, ?, NOW(), -1, NOW(), -1)',
+          `INSERT INTO ${getCorrectTableName('recruitersgrouplanguage')} (RecruiterGroupId, LanguageId, Name, Description, DisplayInSite, CreatedAt, CreatedBy, UpdatedAt, UpdatedBy) VALUES (?, ?, ?, ?, ?, NOW(), -1, NOW(), -1)`,
           [group.Id, 3, group.Name, null, 1]
         );
         groupLangInserted++;
@@ -785,7 +888,7 @@ app.post('/api/run-all-recruiters', async (req, res) => {
 
     // Get ALL groups, including those with ProjectId=NULL
     const oldGroupsResult = await mssqlPool.request().query('SELECT ID, Name, ProjectId FROM RecruitersGroups');
-    const [newGroups] = await mysqlConn.query('SELECT Id, Name, ProjectId FROM recruitersgroup');
+    const [newGroups] = await mysqlConn.query('SELECT Id, Name, ProjectId FROM RecruitersGroup');
 
     // Build lookup with support for NULL ProjectId
     const newGroupLookup = {};
@@ -936,7 +1039,7 @@ app.post('/api/run-all-recruiters', async (req, res) => {
     const recruiterGroupIdMapping = JSON.parse(fs.readFileSync(recruiterGroupIdMappingPath, 'utf-8'));
 
     const oldRecruitersResult = await mssqlPool2.request().query('SELECT ProductStockId, Name, GroupId FROM ProductStock WHERE GroupId IS NOT NULL');
-    const [newRecruiters] = await mysqlConn2.query('SELECT Id, Name, RecruiterGroupId FROM recruiter');
+    const [newRecruiters] = await mysqlConn2.query('SELECT Id, Name, RecruiterGroupId FROM Recruiter');
 
     const newRecruiterLookup = {};
     for (const r of newRecruiters) {
@@ -972,7 +1075,7 @@ app.post('/api/run-all-recruiters', async (req, res) => {
     logger.info('STEP 5: Migrating RecruiterLocalization (only languages with data)...');
 
     // Get all recruiters from new DB
-    const [allNewRecruiters] = await mysqlConn2.query('SELECT Id, Name FROM recruiter');
+    const [allNewRecruiters] = await mysqlConn2.query('SELECT Id, Name FROM Recruiter');
     logger.info(`Found ${allNewRecruiters.length} recruiters in new DB`);
 
     // Get all ProductStock data
@@ -1012,7 +1115,7 @@ app.post('/api/run-all-recruiters', async (req, res) => {
       try {
         const displayInSite = (oldData.Hide === 0 || oldData.Hide === null) ? 1 : 0;
         await mysqlConn2.execute(
-          'INSERT INTO recruiterlocalization (RecruiterId, LanguageId, Name, Description, DisplayInSite, CreatedAt, CreatedBy, UpdatedAt, UpdatedBy) VALUES (?, ?, ?, ?, ?, NOW(), -1, NOW(), -1)',
+          'INSERT INTO RecruiterLocalization (RecruiterId, LanguageId, Name, Description, DisplayInSite, CreatedAt, CreatedBy, UpdatedAt, UpdatedBy) VALUES (?, ?, ?, ?, ?, NOW(), -1, NOW(), -1)',
           [recruiter.Id, 1, recruiter.Name, null, displayInSite]
         );
         locInserted++;
@@ -1027,7 +1130,7 @@ app.post('/api/run-all-recruiters', async (req, res) => {
         try {
           const displayInSite = (oldData.Hide_en === 0 || oldData.Hide_en === null) ? 1 : 0;
           await mysqlConn2.execute(
-            'INSERT INTO recruiterlocalization (RecruiterId, LanguageId, Name, Description, DisplayInSite, CreatedAt, CreatedBy, UpdatedAt, UpdatedBy) VALUES (?, ?, ?, ?, ?, NOW(), -1, NOW(), -1)',
+            `INSERT INTO ${getCorrectTableName('recruiterlocalization')} (RecruiterId, LanguageId, Name, Description, DisplayInSite, CreatedAt, CreatedBy, UpdatedAt, UpdatedBy) VALUES (?, ?, ?, ?, ?, NOW(), -1, NOW(), -1)`,
             [recruiter.Id, 2, oldData.Name_en, null, displayInSite]
           );
           locInserted++;
@@ -1043,7 +1146,7 @@ app.post('/api/run-all-recruiters', async (req, res) => {
         try {
           const displayInSite = (oldData.Hide_fr === 0 || oldData.Hide_fr === null) ? 1 : 0;
           await mysqlConn2.execute(
-            'INSERT INTO recruiterlocalization (RecruiterId, LanguageId, Name, Description, DisplayInSite, CreatedAt, CreatedBy, UpdatedAt, UpdatedBy) VALUES (?, ?, ?, ?, ?, NOW(), -1, NOW(), -1)',
+            `INSERT INTO ${getCorrectTableName('recruiterlocalization')} (RecruiterId, LanguageId, Name, Description, DisplayInSite, CreatedAt, CreatedBy, UpdatedAt, UpdatedBy) VALUES (?, ?, ?, ?, ?, NOW(), -1, NOW(), -1)`,
             [recruiter.Id, 3, oldData.Name_fr, null, displayInSite]
           );
           locInserted++;
@@ -1161,7 +1264,7 @@ app.post('/api/run-all-recruiters', async (req, res) => {
       // Find all groups with NULL ProjectId
       const [groupsWithNull] = await mysqlConnFix.query(`
         SELECT Id, Name
-        FROM recruitersgroup
+        FROM RecruitersGroup
         WHERE ProjectId IS NULL
       `);
 
@@ -1174,7 +1277,7 @@ app.post('/api/run-all-recruiters', async (req, res) => {
       for (const group of groupsWithNull) {
         const [recruiters] = await mysqlConnFix.query(`
           SELECT ProjectId
-          FROM recruiter
+          FROM Recruiter
           WHERE RecruiterGroupId = ?
           LIMIT 1
         `, [group.Id]);
@@ -1183,7 +1286,7 @@ app.post('/api/run-all-recruiters', async (req, res) => {
           const projectId = recruiters[0].ProjectId;
 
           await mysqlConnFix.query(`
-            UPDATE recruitersgroup
+            UPDATE RecruitersGroup
             SET ProjectId = ?
             WHERE Id = ?
           `, [projectId, group.Id]);
@@ -1382,11 +1485,15 @@ app.post('/api/migrate', async (req, res) => {
 
         // Check if FK mapping is enabled for this column
         if (mapping.useFkMapping) {
-          const fkMappingPath = path.join(__dirname, '../data/fk-mappings', `${targetCol}.json`);
+          // Support custom mapping file name (e.g., "ProductCreatedDate.json")
+          const mappingFileName = mapping.mappingFile || `${targetCol}.json`;
+          const fkMappingPath = path.join(__dirname, '../data/fk-mappings', mappingFileName);
           if (fs.existsSync(fkMappingPath)) {
             const fkData = JSON.parse(fs.readFileSync(fkMappingPath, 'utf-8'));
             fkMappingColumns[targetCol] = fkData;
-            logger.info(`Loaded FK mapping for column: ${targetCol}`);
+            logger.info(`Loaded FK mapping for column: ${targetCol} from ${mappingFileName}`);
+          } else {
+            logger.warn(`FK mapping file not found: ${mappingFileName} for column ${targetCol}`);
           }
         }
       }
@@ -1404,7 +1511,8 @@ app.post('/api/migrate', async (req, res) => {
     // Pre-load FK mapping tables for efficiency
     const fkTableCache = {};
     for (const [colName, fkData] of Object.entries(fkMappingColumns)) {
-      if (!fkTableCache[fkData.sourceTable]) {
+      // Skip if no sourceTable (e.g., ProductCreatedDate.json uses pre-generated mapping)
+      if (fkData.sourceTable && !fkTableCache[fkData.sourceTable]) {
         logger.info(`Loading FK table: ${fkData.sourceTable}`);
         const fkTableResult = await mssqlPool.request().query(`SELECT * FROM ${fkData.sourceTable}`);
         fkTableCache[fkData.sourceTable] = fkTableResult.recordset;
@@ -1551,6 +1659,13 @@ app.post('/api/migrate', async (req, res) => {
         logger.info('Applied WHERE clause: ' + req.body.whereClause);
       }
 
+      // Add ORDER BY to maintain insertion order based on creation date
+      // This ensures projects are migrated in the same chronological order as the old DB
+      if (selectColumnsSet.has('DateCreated')) {
+        selectQuery += ` ORDER BY DateCreated ASC`;
+        logger.info('Added ORDER BY DateCreated ASC to maintain chronological order');
+      }
+
       logger.info('Executing query: ' + selectQuery);
 
       // Fetch data from MSSQL
@@ -1581,12 +1696,28 @@ app.post('/api/migrate', async (req, res) => {
           // Check if FK mapping exists and should be used
           if (fkMappingColumns[col.target]) {
             const fkMapping = fkMappingColumns[col.target];
+            // Support both simple mappings and complex mappings (e.g., ProductCreatedDate)
+            const mappingData = fkMapping.mappings || fkMapping.mapping;
 
-            // Use the key column value to look up the mapping
-            if (fkMapping.mappings[sourceValue]) {
-              const newValue = fkMapping.mappings[sourceValue];
-              logger.debug(`Applied FK mapping for ${col.target}: ${sourceValue} -> ${newValue}`);
-              sourceValue = newValue;
+            if (mappingData) {
+              const mappedEntry = mappingData[String(sourceValue)];
+
+              if (mappedEntry !== undefined) {
+                // Check if it's a complex object (e.g., { CreatedAt: "..." })
+                if (typeof mappedEntry === 'object' && mappedEntry !== null) {
+                  // For CreatedAt, extract the date value
+                  sourceValue = mappedEntry.CreatedAt || mappedEntry[col.target] || mappedEntry;
+                  // Convert ISO string to Date object if needed
+                  if (typeof sourceValue === 'string' && col.target.includes('At')) {
+                    sourceValue = new Date(sourceValue);
+                  }
+                  logger.debug(`Applied complex FK mapping for ${col.target}: ${mappedEntry.CreatedAt || 'complex object'}`);
+                } else {
+                  // Simple mapping: use value directly
+                  logger.debug(`Applied FK mapping for ${col.target}: ${sourceValue} -> ${mappedEntry}`);
+                  sourceValue = mappedEntry;
+                }
+              }
             }
           }
 
@@ -1630,7 +1761,8 @@ app.post('/api/migrate', async (req, res) => {
         const placeholders = Object.keys(insertData).map(() => '?').join(', ');
         const values = Object.values(insertData);
 
-        const insertQuery = `INSERT INTO ${tableName} (${columns}) VALUES (${placeholders})`;
+        const correctTableName = getCorrectTableName(tableName);
+        const insertQuery = `INSERT INTO ${correctTableName} (${columns}) VALUES (${placeholders})`;
         const [result] = await mysqlConnection.execute(insertQuery, values);
 
         // Capture the generated ID
@@ -1745,7 +1877,7 @@ app.post('/api/migrate', async (req, res) => {
             const locPlaceholders = Object.keys(locData).map(() => '?').join(', ');
             const locValues = Object.values(locData);
 
-            const locInsertQuery = `INSERT INTO projectlocalization (${locColumns}) VALUES (${locPlaceholders})`;
+            const locInsertQuery = `INSERT INTO ${getCorrectTableName('projectlocalization')} (${locColumns}) VALUES (${locPlaceholders})`;
             await mysqlConnection.execute(locInsertQuery, locValues);
             localizationInsertedCount++;
 
@@ -1916,7 +2048,7 @@ app.post('/api/migrate', async (req, res) => {
             const columns = Object.keys(itemData).join(', ');
             const placeholders = Object.keys(itemData).map(() => '?').join(', ');
             const values = Object.values(itemData).map(v => v === undefined ? null : v);
-            const insertQuery = `INSERT INTO projectitem (${columns}) VALUES (${placeholders})`;
+            const insertQuery = `INSERT INTO ${getCorrectTableName('projectitem')} (${columns}) VALUES (${placeholders})`;
 
             // Debug logging before INSERT
             if (itemData.AllowFreeAddPrayerNames === null || itemData.AllowFreeAddPrayerNames === undefined) {
@@ -2022,7 +2154,7 @@ app.post('/api/migrate', async (req, res) => {
                 if (typeof v === 'string' && /^\d+$/.test(v)) return parseInt(v, 10);
                 return v;
               });
-              const insertQuery = `INSERT INTO projectitem (${columns}) VALUES (${placeholders})`;
+              const insertQuery = `INSERT INTO ${getCorrectTableName('projectitem')} (${columns}) VALUES (${placeholders})`;
 
               const [result] = await mysqlConnection.execute(insertQuery, values);
               projectItemIdMappings[oldProductId].push(result.insertId);
@@ -2120,7 +2252,7 @@ app.post('/api/migrate', async (req, res) => {
                 if (typeof v === 'string' && /^\d+$/.test(v)) return parseInt(v, 10);
                 return v;
               });
-              const insertQuery = `INSERT INTO projectitem (${columns}) VALUES (${placeholders})`;
+              const insertQuery = `INSERT INTO ${getCorrectTableName('projectitem')} (${columns}) VALUES (${placeholders})`;
 
               const [result] = await mysqlConnection.execute(insertQuery, values);
               projectItemIdMappings[oldProductId].push(result.insertId);
@@ -2244,7 +2376,7 @@ app.post('/api/migrate', async (req, res) => {
               const columns = Object.keys(locData).join(', ');
               const placeholders = Object.keys(locData).map(() => '?').join(', ');
               const values = Object.values(locData).map(v => v === undefined ? null : v);
-              const insertQuery = `INSERT INTO projectitemlocalization (${columns}) VALUES (${placeholders})`;
+              const insertQuery = `INSERT INTO ${getCorrectTableName('projectitemlocalization')} (${columns}) VALUES (${placeholders})`;
 
               await mysqlConnection.query(insertQuery, values);
               projectItemLocInsertedCount++;
@@ -2341,6 +2473,14 @@ app.post('/api/migrate', async (req, res) => {
                   value = parseInt(value, 10);
                 }
 
+                // Add "2020/01/" prefix to RelativePath
+                if (fieldName === 'RelativePath' && value && typeof value === 'string') {
+                  // Only add prefix if it doesn't already start with 2020/01/
+                  if (!value.startsWith('2020/01/')) {
+                    value = '2020/01/' + value;
+                  }
+                }
+
                 mediaData[fieldName] = value;
               }
 
@@ -2348,7 +2488,7 @@ app.post('/api/migrate', async (req, res) => {
               const columns = Object.keys(mediaData).join(', ');
               const placeholders = Object.keys(mediaData).map(() => '?').join(', ');
               const values = Object.values(mediaData).map(v => v === undefined ? null : v);
-              const insertQuery = `INSERT INTO media (${columns}) VALUES (${placeholders})`;
+              const insertQuery = `INSERT INTO ${getCorrectTableName('media')} (${columns}) VALUES (${placeholders})`;
 
               const [result] = await mysqlConnection.execute(insertQuery, values);
               mediaIdMappings[oldProductId][languageName][mediaTypeName] = result.insertId;
@@ -2392,8 +2532,8 @@ app.post('/api/migrate', async (req, res) => {
           const mainMediaId = hebrewProjectImageId || hebrewProjectVideoId || hebrewDonationBannerId;
 
           if (mainMediaId) {
-            const updateQuery = `UPDATE project SET MainMedia = ? WHERE Id = ?`;
-            await mysqlConnection.execute(updateQuery, [mainMediaId, newProjectId]);
+            const updateQuery = `UPDATE Project SET MainMedia = ?, ImageForListsView = ? WHERE Id = ?`;
+            await mysqlConnection.execute(updateQuery, [mainMediaId, mainMediaId, newProjectId]);
             mainMediaUpdatedCount++;
 
             const mediaType = hebrewProjectImageId ? 'projectImage' :
@@ -2435,8 +2575,8 @@ app.post('/api/migrate', async (req, res) => {
           const hebrewMainMediaId = hebrewProjectImageId || hebrewProjectVideoId || hebrewDonationBannerId;
 
           if (hebrewMainMediaId) {
-            const updateQuery = `UPDATE projectlocalization SET MainMedia = ? WHERE ProjectId = ? AND Language = 1`;
-            await mysqlConnection.execute(updateQuery, [hebrewMainMediaId, newProjectId]);
+            const updateQuery = `UPDATE ProjectLocalization SET MainMedia = ?, ImageForListsView = ? WHERE ProjectId = ? AND Language = 1`;
+            await mysqlConnection.execute(updateQuery, [hebrewMainMediaId, hebrewMainMediaId, newProjectId]);
             localizationMainMediaUpdatedCount++;
 
             const mediaType = hebrewProjectImageId ? 'projectImage' :
@@ -2464,8 +2604,8 @@ app.post('/api/migrate', async (req, res) => {
           const englishMainMediaId = englishProjectImageId || englishProjectVideoId || englishDonationBannerId;
 
           if (englishMainMediaId) {
-            const updateQuery = `UPDATE projectlocalization SET MainMedia = ? WHERE ProjectId = ? AND Language = 2`;
-            await mysqlConnection.execute(updateQuery, [englishMainMediaId, newProjectId]);
+            const updateQuery = `UPDATE ProjectLocalization SET MainMedia = ?, ImageForListsView = ? WHERE ProjectId = ? AND Language = 2`;
+            await mysqlConnection.execute(updateQuery, [englishMainMediaId, englishMainMediaId, newProjectId]);
             localizationMainMediaUpdatedCount++;
 
             const mediaType = englishProjectImageId ? 'projectImage' :
@@ -2493,8 +2633,8 @@ app.post('/api/migrate', async (req, res) => {
           const frenchMainMediaId = frenchProjectImageId || frenchProjectVideoId || frenchDonationBannerId;
 
           if (frenchMainMediaId) {
-            const updateQuery = `UPDATE projectlocalization SET MainMedia = ? WHERE ProjectId = ? AND Language = 3`;
-            await mysqlConnection.execute(updateQuery, [frenchMainMediaId, newProjectId]);
+            const updateQuery = `UPDATE ProjectLocalization SET MainMedia = ?, ImageForListsView = ? WHERE ProjectId = ? AND Language = 3`;
+            await mysqlConnection.execute(updateQuery, [frenchMainMediaId, frenchMainMediaId, newProjectId]);
             localizationMainMediaUpdatedCount++;
 
             const mediaType = frenchProjectImageId ? 'projectImage' :
@@ -2516,6 +2656,261 @@ app.post('/api/migrate', async (req, res) => {
       logger.info(`ProjectLocalization MainMedia FK update completed: ${localizationMainMediaUpdatedCount} rows updated`);
       if (localizationMainMediaUpdateErrors.length > 0) {
         logger.warn(`ProjectLocalization MainMedia update errors: ${localizationMainMediaUpdateErrors.length}`);
+      }
+      logger.info('='.repeat(60));
+
+      // ===== Update MainMedia FK in ProjectItem table =====
+      logger.info('='.repeat(60));
+      logger.info('Updating MainMedia+ImageForListsView FK in ProjectItem table...');
+
+      let itemMainMediaUpdatedCount = 0;
+      let itemMainMediaUpdateErrors = [];
+
+      for (const [oldProductId, itemIds] of Object.entries(projectItemIdMappings)) {
+        if (!itemIds || itemIds.length === 0) {
+          logger.debug(`No ProjectItem found for oldProductId ${oldProductId}, skipping MainMedia update`);
+          continue;
+        }
+
+        try {
+          // Get hebrew media IDs with fallback priority: projectImage → projectVideo → donationBanner
+          const hebrewProjectImageId = mediaIdMappings[oldProductId]?.hebrew?.projectImage;
+          const hebrewProjectVideoId = mediaIdMappings[oldProductId]?.hebrew?.projectVideo;
+          const hebrewDonationBannerId = mediaIdMappings[oldProductId]?.hebrew?.donationBanner;
+
+          const mainMediaId = hebrewProjectImageId || hebrewProjectVideoId || hebrewDonationBannerId;
+
+          if (mainMediaId) {
+            for (const itemId of itemIds) {
+              const updateQuery = `UPDATE ProjectItem SET MainMedia = ?, ImageForListsView = ? WHERE Id = ?`;
+              await mysqlConnection.execute(updateQuery, [mainMediaId, mainMediaId, itemId]);
+              itemMainMediaUpdatedCount++;
+
+              const mediaType = hebrewProjectImageId ? 'projectImage' :
+                               hebrewProjectVideoId ? 'projectVideo' : 'donationBanner';
+              logger.debug(`Updated ProjectItem ${itemId} MainMedia+ImageForListsView to ${mainMediaId} (hebrew.${mediaType})`);
+            }
+          } else {
+            logger.debug(`No hebrew media found for oldProductId ${oldProductId}, skipping MainMedia update`);
+          }
+        } catch (err) {
+          logger.error(`Error updating MainMedia for ProjectItem (oldProductId ${oldProductId}): ${err.message}`);
+          itemMainMediaUpdateErrors.push({
+            oldProductId,
+            itemIds,
+            error: err.message
+          });
+        }
+      }
+
+      logger.info(`ProjectItem MainMedia FK update completed: ${itemMainMediaUpdatedCount} rows updated`);
+      if (itemMainMediaUpdateErrors.length > 0) {
+        logger.warn(`ProjectItem MainMedia update errors: ${itemMainMediaUpdateErrors.length}`);
+      }
+      logger.info('='.repeat(60));
+
+      // ===== Update MainMedia FK in ProjectItemLocalization table by language =====
+      logger.info('='.repeat(60));
+      logger.info('Updating MainMedia+ImageForListsView FK in ProjectItemLocalization table by language...');
+
+      let itemLocMainMediaUpdatedCount = 0;
+      let itemLocMainMediaUpdateErrors = [];
+
+      for (const [oldProductId, itemIds] of Object.entries(projectItemIdMappings)) {
+        if (!itemIds || itemIds.length === 0) {
+          logger.debug(`No ProjectItem found for oldProductId ${oldProductId}, skipping MainMedia update`);
+          continue;
+        }
+
+        // Update Hebrew projectItemLocalization (Language=1)
+        try {
+          const hebrewProjectImageId = mediaIdMappings[oldProductId]?.hebrew?.projectImage;
+          const hebrewProjectVideoId = mediaIdMappings[oldProductId]?.hebrew?.projectVideo;
+          const hebrewDonationBannerId = mediaIdMappings[oldProductId]?.hebrew?.donationBanner;
+
+          const hebrewMainMediaId = hebrewProjectImageId || hebrewProjectVideoId || hebrewDonationBannerId;
+
+          if (hebrewMainMediaId) {
+            for (const itemId of itemIds) {
+              const updateQuery = `UPDATE ProjectItemLocalization SET MainMedia = ?, ImageForListsView = ? WHERE ItemId = ? AND Language = 1`;
+              await mysqlConnection.execute(updateQuery, [hebrewMainMediaId, hebrewMainMediaId, itemId]);
+              itemLocMainMediaUpdatedCount++;
+
+              const mediaType = hebrewProjectImageId ? 'projectImage' :
+                               hebrewProjectVideoId ? 'projectVideo' : 'donationBanner';
+              logger.debug(`Updated ProjectItemLocalization (Hebrew) ${itemId} MainMedia+ImageForListsView to ${hebrewMainMediaId} (${mediaType})`);
+            }
+          } else {
+            logger.debug(`No hebrew media found for oldProductId ${oldProductId}, skipping Hebrew MainMedia update`);
+          }
+        } catch (err) {
+          logger.error(`Error updating Hebrew MainMedia for ProjectItemLocalization (oldProductId ${oldProductId}): ${err.message}`);
+          itemLocMainMediaUpdateErrors.push({
+            oldProductId,
+            itemIds,
+            language: 'Hebrew',
+            error: err.message
+          });
+        }
+
+        // Update English projectItemLocalization (Language=2)
+        try {
+          const englishProjectImageId = mediaIdMappings[oldProductId]?.english?.projectImage;
+          const englishProjectVideoId = mediaIdMappings[oldProductId]?.english?.projectVideo;
+          const englishDonationBannerId = mediaIdMappings[oldProductId]?.english?.donationBanner;
+
+          const englishMainMediaId = englishProjectImageId || englishProjectVideoId || englishDonationBannerId;
+
+          if (englishMainMediaId) {
+            for (const itemId of itemIds) {
+              const updateQuery = `UPDATE ProjectItemLocalization SET MainMedia = ?, ImageForListsView = ? WHERE ItemId = ? AND Language = 2`;
+              await mysqlConnection.execute(updateQuery, [englishMainMediaId, englishMainMediaId, itemId]);
+              itemLocMainMediaUpdatedCount++;
+
+              const mediaType = englishProjectImageId ? 'projectImage' :
+                               englishProjectVideoId ? 'projectVideo' : 'donationBanner';
+              logger.debug(`Updated ProjectItemLocalization (English) ${itemId} MainMedia+ImageForListsView to ${englishMainMediaId} (${mediaType})`);
+            }
+          } else {
+            logger.debug(`No english media found for oldProductId ${oldProductId}, skipping English MainMedia update`);
+          }
+        } catch (err) {
+          logger.error(`Error updating English MainMedia for ProjectItemLocalization (oldProductId ${oldProductId}): ${err.message}`);
+          itemLocMainMediaUpdateErrors.push({
+            oldProductId,
+            itemIds,
+            language: 'English',
+            error: err.message
+          });
+        }
+
+        // Update French projectItemLocalization (Language=3)
+        try {
+          const frenchProjectImageId = mediaIdMappings[oldProductId]?.french?.projectImage;
+          const frenchProjectVideoId = mediaIdMappings[oldProductId]?.french?.projectVideo;
+          const frenchDonationBannerId = mediaIdMappings[oldProductId]?.french?.donationBanner;
+
+          const frenchMainMediaId = frenchProjectImageId || frenchProjectVideoId || frenchDonationBannerId;
+
+          if (frenchMainMediaId) {
+            for (const itemId of itemIds) {
+              const updateQuery = `UPDATE ProjectItemLocalization SET MainMedia = ?, ImageForListsView = ? WHERE ItemId = ? AND Language = 3`;
+              await mysqlConnection.execute(updateQuery, [frenchMainMediaId, frenchMainMediaId, itemId]);
+              itemLocMainMediaUpdatedCount++;
+
+              const mediaType = frenchProjectImageId ? 'projectImage' :
+                               frenchProjectVideoId ? 'projectVideo' : 'donationBanner';
+              logger.debug(`Updated ProjectItemLocalization (French) ${itemId} MainMedia+ImageForListsView to ${frenchMainMediaId} (${mediaType})`);
+            }
+          } else {
+            logger.debug(`No french media found for oldProductId ${oldProductId}, skipping French MainMedia update`);
+          }
+        } catch (err) {
+          logger.error(`Error updating French MainMedia for ProjectItemLocalization (oldProductId ${oldProductId}): ${err.message}`);
+          itemLocMainMediaUpdateErrors.push({
+            oldProductId,
+            itemIds,
+            language: 'French',
+            error: err.message
+          });
+        }
+      }
+
+      logger.info(`ProjectItemLocalization MainMedia FK update completed: ${itemLocMainMediaUpdatedCount} rows updated`);
+      if (itemLocMainMediaUpdateErrors.length > 0) {
+        logger.warn(`ProjectItemLocalization MainMedia update errors: ${itemLocMainMediaUpdateErrors.length}`);
+      }
+      logger.info('='.repeat(60));
+
+      // ===== Update ImageForListsView FK in ProjectItemLocalization table by language =====
+      logger.info('='.repeat(60));
+      logger.info('Updating ImageForListsView FK in ProjectItemLocalization table by language...');
+
+      let itemLocImageUpdatedCount = 0;
+      let itemLocImageUpdateErrors = [];
+
+      for (const [oldProductId, itemIds] of Object.entries(projectItemIdMappings)) {
+        if (!itemIds || itemIds.length === 0) {
+          logger.debug(`No ProjectItem found for oldProductId ${oldProductId}, skipping ImageForListsView update`);
+          continue;
+        }
+
+        // Update Hebrew projectItemLocalization (Language=1)
+        try {
+          const hebrewProjectImageId = mediaIdMappings[oldProductId]?.hebrew?.projectImage;
+
+          if (hebrewProjectImageId) {
+            for (const itemId of itemIds) {
+              const updateQuery = `UPDATE ProjectItemLocalization SET ImageForListsView = ? WHERE ItemId = ? AND Language = 1`;
+              await mysqlConnection.execute(updateQuery, [hebrewProjectImageId, itemId]);
+              itemLocImageUpdatedCount++;
+              logger.debug(`Updated ProjectItemLocalization (Hebrew) for ItemId ${itemId} ImageForListsView to ${hebrewProjectImageId}`);
+            }
+          } else {
+            logger.debug(`No hebrew projectImage found for oldProductId ${oldProductId}, skipping Hebrew ImageForListsView update`);
+          }
+        } catch (err) {
+          logger.error(`Error updating Hebrew ImageForListsView for oldProductId ${oldProductId}: ${err.message}`);
+          itemLocImageUpdateErrors.push({
+            oldProductId,
+            itemIds,
+            language: 'Hebrew',
+            error: err.message
+          });
+        }
+
+        // Update English projectItemLocalization (Language=2)
+        try {
+          const englishProjectImageId = mediaIdMappings[oldProductId]?.english?.projectImage;
+
+          if (englishProjectImageId) {
+            for (const itemId of itemIds) {
+              const updateQuery = `UPDATE ProjectItemLocalization SET ImageForListsView = ? WHERE ItemId = ? AND Language = 2`;
+              await mysqlConnection.execute(updateQuery, [englishProjectImageId, itemId]);
+              itemLocImageUpdatedCount++;
+              logger.debug(`Updated ProjectItemLocalization (English) for ItemId ${itemId} ImageForListsView to ${englishProjectImageId}`);
+            }
+          } else {
+            logger.debug(`No english projectImage found for oldProductId ${oldProductId}, skipping English ImageForListsView update`);
+          }
+        } catch (err) {
+          logger.error(`Error updating English ImageForListsView for oldProductId ${oldProductId}: ${err.message}`);
+          itemLocImageUpdateErrors.push({
+            oldProductId,
+            itemIds,
+            language: 'English',
+            error: err.message
+          });
+        }
+
+        // Update French projectItemLocalization (Language=3)
+        try {
+          const frenchProjectImageId = mediaIdMappings[oldProductId]?.french?.projectImage;
+
+          if (frenchProjectImageId) {
+            for (const itemId of itemIds) {
+              const updateQuery = `UPDATE ProjectItemLocalization SET ImageForListsView = ? WHERE ItemId = ? AND Language = 3`;
+              await mysqlConnection.execute(updateQuery, [frenchProjectImageId, itemId]);
+              itemLocImageUpdatedCount++;
+              logger.debug(`Updated ProjectItemLocalization (French) for ItemId ${itemId} ImageForListsView to ${frenchProjectImageId}`);
+            }
+          } else {
+            logger.debug(`No french projectImage found for oldProductId ${oldProductId}, skipping French ImageForListsView update`);
+          }
+        } catch (err) {
+          logger.error(`Error updating French ImageForListsView for oldProductId ${oldProductId}: ${err.message}`);
+          itemLocImageUpdateErrors.push({
+            oldProductId,
+            itemIds,
+            language: 'French',
+            error: err.message
+          });
+        }
+      }
+
+      logger.info(`ProjectItemLocalization ImageForListsView FK update completed: ${itemLocImageUpdatedCount} rows updated`);
+      if (itemLocImageUpdateErrors.length > 0) {
+        logger.warn(`ProjectItemLocalization ImageForListsView update errors: ${itemLocImageUpdateErrors.length}`);
       }
       logger.info('='.repeat(60));
     }
@@ -2569,7 +2964,7 @@ app.post('/api/migrate', async (req, res) => {
             const placeholders = Object.keys(linkSettingData).map(() => '?').join(', ');
             const values = Object.values(linkSettingData);
 
-            const insertQuery = `INSERT INTO linksetting (${columns}) VALUES (${placeholders})`;
+            const insertQuery = `INSERT INTO ${getCorrectTableName('linksetting')} (${columns}) VALUES (${placeholders})`;
             const [result] = await mysqlConnection.execute(insertQuery, values);
 
             linkSettingIdMappings[oldProductId][langConfig.language] = result.insertId;
@@ -2607,7 +3002,7 @@ app.post('/api/migrate', async (req, res) => {
         // Update each language's ProjectLocalization record
         for (const [language, linkSettingId] of Object.entries(linkSettingIds)) {
           try {
-            const updateQuery = `UPDATE projectlocalization SET MainLinkButtonSettingId = ? WHERE ProjectId = ? AND Language = ?`;
+            const updateQuery = `UPDATE ProjectLocalization SET MainLinkButtonSettingId = ? WHERE ProjectId = ? AND Language = ?`;
             await mysqlConnection.execute(updateQuery, [linkSettingId, newProjectId, parseInt(language)]);
 
             localizationLinkUpdatedCount++;
@@ -2668,7 +3063,7 @@ app.post('/api/migrate', async (req, res) => {
             const placeholders = Object.keys(linkSettingData).map(() => '?').join(', ');
             const values = Object.values(linkSettingData);
 
-            const insertQuery = `INSERT INTO linksetting (${columns}) VALUES (${placeholders})`;
+            const insertQuery = `INSERT INTO ${getCorrectTableName('linksetting')} (${columns}) VALUES (${placeholders})`;
             const [result] = await mysqlConnection.execute(insertQuery, values);
 
             linkSettingListViewIdMappings[oldProductId][langConfig.language] = result.insertId;
@@ -2706,7 +3101,7 @@ app.post('/api/migrate', async (req, res) => {
         // Update each language's ProjectLocalization record
         for (const [language, linkSettingId] of Object.entries(linkSettingIds)) {
           try {
-            const updateQuery = `UPDATE projectlocalization SET LinkSettingIdInListView = ? WHERE ProjectId = ? AND Language = ?`;
+            const updateQuery = `UPDATE ProjectLocalization SET LinkSettingIdInListView = ? WHERE ProjectId = ? AND Language = ?`;
             await mysqlConnection.execute(updateQuery, [linkSettingId, newProjectId, parseInt(language)]);
 
             localizationListViewLinkUpdatedCount++;
@@ -2784,7 +3179,7 @@ app.post('/api/migrate', async (req, res) => {
             const contentPlaceholders = Object.keys(contentData).map(() => '?').join(', ');
             const contentValues = Object.values(contentData);
 
-            const contentQuery = `INSERT INTO entitycontent (${contentColumns}) VALUES (${contentPlaceholders})`;
+            const contentQuery = `INSERT INTO ${getCorrectTableName('entitycontent')} (${contentColumns}) VALUES (${contentPlaceholders})`;
             const [contentResult] = await mysqlConnection.execute(contentQuery, contentValues);
 
             const contentId = contentResult.insertId;
@@ -2808,7 +3203,7 @@ app.post('/api/migrate', async (req, res) => {
             const itemPlaceholders = Object.keys(contentItemData).map(() => '?').join(', ');
             const itemValues = Object.values(contentItemData);
 
-            const itemQuery = `INSERT INTO entitycontentitem (${itemColumns}) VALUES (${itemPlaceholders})`;
+            const itemQuery = `INSERT INTO ${getCorrectTableName('entitycontentitem')} (${itemColumns}) VALUES (${itemPlaceholders})`;
             const [itemResult] = await mysqlConnection.execute(itemQuery, itemValues);
 
             contentItemInsertedCount++;
@@ -2856,7 +3251,7 @@ app.post('/api/migrate', async (req, res) => {
           }
 
           try {
-            const updateQuery = `UPDATE projectlocalization SET ContentId = ? WHERE ProjectId = ? AND Language = ?`;
+            const updateQuery = `UPDATE ProjectLocalization SET ContentId = ? WHERE ProjectId = ? AND Language = ?`;
             await mysqlConnection.execute(updateQuery, [contentId, newProjectId, parseInt(language)]);
 
             localizationContentUpdatedCount++;
@@ -3076,6 +3471,30 @@ app.post('/api/migrate', async (req, res) => {
       response.message += ` + ${mediaInsertedCount} media records.`;
     }
 
+    // Add FK updates stats (MainMedia and ImageForListsView updates)
+    const fkUpdates = {};
+    let totalFkUpdates = 0;
+
+    if (typeof mainMediaUpdatedCount !== 'undefined' && mainMediaUpdatedCount > 0) {
+      fkUpdates.projectMainMedia = mainMediaUpdatedCount;
+      totalFkUpdates += mainMediaUpdatedCount;
+    }
+
+    if (typeof localizationMainMediaUpdatedCount !== 'undefined' && localizationMainMediaUpdatedCount > 0) {
+      fkUpdates.projectLocalizationMainMedia = localizationMainMediaUpdatedCount;
+      totalFkUpdates += localizationMainMediaUpdatedCount;
+    }
+
+    if (typeof itemLocImageUpdatedCount !== 'undefined' && itemLocImageUpdatedCount > 0) {
+      fkUpdates.projectItemLocalizationImageForListsView = itemLocImageUpdatedCount;
+      totalFkUpdates += itemLocImageUpdatedCount;
+    }
+
+    if (totalFkUpdates > 0) {
+      response.fkUpdates = fkUpdates;
+      response.message += ` + ${totalFkUpdates} FK updates.`;
+    }
+
     // Add linkSetting stats if applicable
     if (linkSettingInsertedCount > 0 || linkSettingErrors.length > 0) {
       response.linkSetting = {
@@ -3219,7 +3638,7 @@ app.get('/api/check-projectitem', async (req, res) => {
           COUNT(*) as total_rows,
           SUM(CASE WHEN AllowFreeAddPrayerNames IS NULL THEN 1 ELSE 0 END) as null_count,
           SUM(CASE WHEN AllowFreeAddPrayerNames IS NOT NULL THEN 1 ELSE 0 END) as non_null_count
-        FROM projectItem
+        FROM ProjectItem
       `);
 
       // Get value distribution
@@ -3227,7 +3646,7 @@ app.get('/api/check-projectitem', async (req, res) => {
         SELECT
           AllowFreeAddPrayerNames,
           COUNT(*) as count
-        FROM projectItem
+        FROM ProjectItem
         GROUP BY AllowFreeAddPrayerNames
         ORDER BY AllowFreeAddPrayerNames
       `);
@@ -3237,7 +3656,7 @@ app.get('/api/check-projectitem', async (req, res) => {
       if (countRows[0].null_count > 0) {
         const [samples] = await connection.execute(`
           SELECT ProjectId, ItemName, AllowFreeAddPrayerNames
-          FROM projectItem
+          FROM ProjectItem
           WHERE AllowFreeAddPrayerNames IS NULL
           LIMIT 10
         `);
@@ -3573,42 +3992,241 @@ app.post('/api/run-all-campaign-type3', async (req, res) => {
   }
 });
 
-// Run full donations migration
+// Run full donations migration (with real-time progress support)
 app.post('/api/run-all-donations', async (req, res) => {
   try {
+    // Check if migration is already running
+    if (migrationState.donationMigration.isRunning) {
+      return res.status(400).json({
+        success: false,
+        error: 'Migration is already running. Please wait for it to complete or pause it first.'
+      });
+    }
+
     logger.info('='.repeat(60));
     logger.info('STARTING DONATIONS MIGRATION');
     logger.info('='.repeat(60));
 
-    const { batchSize, limit, dryRun, sharlinOnly } = req.body;
+    const { batchSize, limit, dryRun, sharlinOnly, resumeFrom } = req.body;
 
-    logger.info(`Options: batchSize=${batchSize || 1000}, limit=${limit || 'all'}, dryRun=${dryRun ? 'YES' : 'NO'}, sharlinOnly=${sharlinOnly ? 'YES (ProductId=1957)' : 'NO'}`);
+    logger.info(`Options: batchSize=${batchSize || 1000}, limit=${limit || 'all'}, dryRun=${dryRun ? 'YES' : 'NO'}, sharlinOnly=${sharlinOnly ? 'YES (ProductId=1957)' : 'NO'}, resumeFrom=${resumeFrom || 0}`);
 
-    // Import and run migration script
-    const { migrateDonations } = require('../scripts/migration/migrate-donations');
-    const results = await migrateDonations({ batchSize, limit, dryRun, sharlinOnly });
+    // Initialize state
+    migrationState.donationMigration = {
+      isRunning: true,
+      isPaused: false,
+      currentOffset: resumeFrom || 0,
+      totalProcessed: 0,
+      inserted: 0,
+      skipped: 0,
+      addressesCreated: 0,
+      currencyValuesInserted: 0,
+      errors: [],
+      itemIdStats: {
+        fromPrayer: 0,
+        fromProduct: 0,
+        fromProductMultiChoice: 0,
+        orphaned: 0
+      },
+      startTime: new Date(),
+      lastUpdateTime: new Date()
+    };
 
-    logger.info('Donations migration completed successfully');
-    logger.info(`Inserted: ${results.inserted}, Skipped: ${results.skipped}, Addresses: ${results.addressesCreated}, Currency Values: ${results.currencyValuesInserted || 0}`);
-    logger.info(`ItemId Stats - Prayer: ${results.itemIdStats.fromPrayer}, Product: ${results.itemIdStats.fromProduct}, Orphaned: ${results.itemIdStats.orphaned}`);
-
+    // Send immediate response - migration will run in background
     res.json({
       success: true,
-      donations: {
-        inserted: results.inserted,
-        skipped: results.skipped,
-        addressesCreated: results.addressesCreated,
-        currencyValuesInserted: results.currencyValuesInserted || 0,
-        errors: results.errors,
-        itemIdStats: results.itemIdStats
-      },
-      message: dryRun ? 'Dry run completed - no data written to database' : 'Donations migration completed successfully'
+      message: 'Migration started. Connect to /api/donation-migration-progress for real-time updates.',
+      state: migrationState.donationMigration
+    });
+
+    // Progress callback for real-time updates
+    const progressCallback = (update) => {
+      migrationState.donationMigration = {
+        ...migrationState.donationMigration,
+        ...update,
+        lastUpdateTime: new Date()
+      };
+
+      // Send SSE update
+      sendSSEUpdate('donationMigration', {
+        type: 'progress',
+        state: migrationState.donationMigration
+      });
+    };
+
+    // Pause check function
+    const shouldPause = () => migrationState.donationMigration.isPaused;
+
+    // Import and run migration script asynchronously
+    const { migrateDonations, loadState, clearState } = require('../scripts/migration/migrate-donations');
+
+    // Run migration in background (don't await here)
+    migrateDonations({
+      batchSize,
+      limit,
+      dryRun,
+      sharlinOnly,
+      offset: resumeFrom || 0,
+      progressCallback,
+      shouldPause
+    }).then(results => {
+      migrationState.donationMigration.isRunning = false;
+      migrationState.donationMigration.isPaused = false;
+
+      logger.info('Donations migration completed successfully');
+      logger.info(`Inserted: ${results.inserted}, Skipped: ${results.skipped}, Addresses: ${results.addressesCreated}, Currency Values: ${results.currencyValuesInserted || 0}`);
+      logger.info(`ItemId Stats - Prayer: ${results.itemIdStats.fromPrayer}, Product: ${results.itemIdStats.fromProduct}, Orphaned: ${results.itemIdStats.orphaned}`);
+
+      // Send final SSE update
+      sendSSEUpdate('donationMigration', {
+        type: 'completed',
+        state: migrationState.donationMigration,
+        results: results
+      });
+
+    }).catch(error => {
+      migrationState.donationMigration.isRunning = false;
+      migrationState.donationMigration.isPaused = false;
+
+      logger.error('Donations migration failed: ' + error.message);
+      logger.error(error);
+
+      // Send error SSE update
+      sendSSEUpdate('donationMigration', {
+        type: 'error',
+        state: migrationState.donationMigration,
+        error: error.message
+      });
     });
 
   } catch (error) {
-    logger.error('Donations migration failed: ' + error.message);
+    logger.error('Failed to start donations migration: ' + error.message);
     logger.error(error);
     res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ============================================
+// Real-time Progress and Pause/Resume Endpoints
+// ============================================
+
+// SSE endpoint for real-time donation migration progress
+app.get('/api/donation-migration-progress', (req, res) => {
+  // Set headers for SSE
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no'); // Disable buffering in nginx
+
+  // Add client to list
+  sseClients.donationMigration.push(res);
+  logger.info('SSE client connected to donation migration progress');
+
+  // Send initial state
+  res.write(`data: ${JSON.stringify({
+    type: 'initial',
+    state: migrationState.donationMigration
+  })}\n\n`);
+
+  // Remove client on disconnect
+  req.on('close', () => {
+    sseClients.donationMigration = sseClients.donationMigration.filter(client => client !== res);
+    logger.info('SSE client disconnected from donation migration progress');
+  });
+});
+
+// Pause donation migration
+app.post('/api/donation-migration-pause', (req, res) => {
+  if (!migrationState.donationMigration.isRunning) {
+    return res.status(400).json({ success: false, error: 'No migration is currently running' });
+  }
+
+  migrationState.donationMigration.isPaused = true;
+  logger.info('Donation migration PAUSED by user');
+
+  // Notify all SSE clients
+  sendSSEUpdate('donationMigration', {
+    type: 'paused',
+    state: migrationState.donationMigration
+  });
+
+  res.json({ success: true, message: 'Migration paused' });
+});
+
+// Resume donation migration
+app.post('/api/donation-migration-resume', (req, res) => {
+  if (!migrationState.donationMigration.isRunning) {
+    return res.status(400).json({ success: false, error: 'No migration is currently paused' });
+  }
+
+  if (!migrationState.donationMigration.isPaused) {
+    return res.status(400).json({ success: false, error: 'Migration is not paused' });
+  }
+
+  migrationState.donationMigration.isPaused = false;
+  logger.info('Donation migration RESUMED by user');
+
+  // Notify all SSE clients
+  sendSSEUpdate('donationMigration', {
+    type: 'resumed',
+    state: migrationState.donationMigration
+  });
+
+  res.json({ success: true, message: 'Migration resumed' });
+});
+
+// Get current migration status
+app.get('/api/donation-migration-status', (req, res) => {
+  res.json({
+    success: true,
+    state: migrationState.donationMigration
+  });
+});
+
+// Get saved migration state from file (for crash recovery)
+app.get('/api/donation-migration-saved-state', (req, res) => {
+  try {
+    const { loadState } = require('../scripts/migration/migrate-donations');
+    const savedState = loadState();
+
+    if (savedState) {
+      res.json({
+        success: true,
+        hasSavedState: true,
+        savedState: savedState
+      });
+    } else {
+      res.json({
+        success: true,
+        hasSavedState: false,
+        savedState: null
+      });
+    }
+  } catch (error) {
+    logger.error('Failed to load saved state: ' + error.message);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Clear saved migration state
+app.post('/api/donation-migration-clear-state', (req, res) => {
+  try {
+    const { clearState } = require('../scripts/migration/migrate-donations');
+    clearState();
+
+    res.json({
+      success: true,
+      message: 'Saved state cleared successfully'
+    });
+  } catch (error) {
+    logger.error('Failed to clear saved state: ' + error.message);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
   }
 });
 
