@@ -18,8 +18,8 @@ const mssqlConfig = {
   authentication: {
     type: 'default',
     options: {
-      userName: 'on',
-      password: '1234567890'
+      userName: 'no',
+      password: '0987654321'
     }
   },
   connectionTimeout: 30000,  // 30 seconds timeout for connection
