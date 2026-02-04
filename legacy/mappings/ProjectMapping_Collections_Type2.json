@@ -432,5 +432,41 @@
       "UpdatedBy": { "convertType": "const", "value": "-1" }
     }
   },
+  "linkSettingMappings": {
+    "mainButton": {
+      "hebrew": {
+        "LinkType": 1,
+        "LinkTargetType": 3,
+        "LinkText": "לתרומה"
+      },
+      "english": {
+        "LinkType": 1,
+        "LinkTargetType": 3,
+        "LinkText": "Donate"
+      },
+      "french": {
+        "LinkType": 1,
+        "LinkTargetType": 3,
+        "LinkText": "Pour faire un don"
+      }
+    },
+    "footerButton": {
+      "hebrew": {
+        "LinkType": 1,
+        "LinkTargetType": 3,
+        "LinkText": "לתרומה"
+      },
+      "english": {
+        "LinkType": 1,
+        "LinkTargetType": 3,
+        "LinkText": "Donate"
+      },
+      "french": {
+        "LinkType": 1,
+        "LinkTargetType": 3,
+        "LinkText": "Pour faire un don"
+      }
+    }
+  },
   "savedAt": "2025-11-29T00:00:00.000Z"
 }

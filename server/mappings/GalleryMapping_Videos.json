@@ -1,0 +1,178 @@
+{
+  "tableName": "Gallery",
+  "sourceTable": "Kupat1.Videos",
+  "description": "Migration mapping for Video galleries from Kupat1.Videos to Gallery table",
+  "mediaType": 2,
+  "columnMappings": {
+    "Name": {
+      "convertType": "direct",
+      "oldTable": "Kupat1.Videos",
+      "oldColumn": "Name",
+      "comment": "Gallery name from source"
+    },
+    "MediaType": {
+      "convertType": "const",
+      "constValue": 2,
+      "comment": "2 = Video"
+    },
+    "Category": {
+      "convertType": "const",
+      "constValue": 1,
+      "comment": "1 = General"
+    },
+    "CreatedAt": {
+      "convertType": "expression",
+      "expression": "new Date()",
+      "comment": "Current timestamp"
+    },
+    "CreatedBy": {
+      "convertType": "const",
+      "constValue": -1,
+      "comment": "System user"
+    },
+    "UpdatedAt": {
+      "convertType": "expression",
+      "expression": "new Date()",
+      "comment": "Current timestamp"
+    },
+    "UpdatedBy": {
+      "convertType": "const",
+      "constValue": -1,
+      "comment": "System user"
+    }
+  },
+  "localizationMappings": {
+    "hebrew": {
+      "languageId": 1,
+      "mappings": {
+        "Description": {
+          "convertType": "direct",
+          "oldTable": "Kupat1.Videos",
+          "oldColumn": "Name",
+          "comment": "Hebrew description from Name field"
+        },
+        "DisplayInMain": {
+          "convertType": "direct",
+          "oldTable": "Kupat1.Videos",
+          "oldColumn": "ShowHomePage",
+          "comment": "Show in main page flag"
+        },
+        "Display": {
+          "convertType": "expression",
+          "expression": "!row.Hide ? 1 : 0",
+          "oldTable": "Kupat1.Videos",
+          "oldColumn": "Hide",
+          "comment": "Negation of Hide field"
+        },
+        "CreatedAt": {
+          "convertType": "expression",
+          "expression": "new Date()",
+          "comment": "Current timestamp"
+        },
+        "CreatedBy": {
+          "convertType": "const",
+          "constValue": -1,
+          "comment": "System user"
+        },
+        "UpdatedAt": {
+          "convertType": "expression",
+          "expression": "new Date()",
+          "comment": "Current timestamp"
+        },
+        "UpdatedBy": {
+          "convertType": "const",
+          "constValue": -1,
+          "comment": "System user"
+        }
+      }
+    },
+    "english": {
+      "languageId": 2,
+      "mappings": {
+        "Description": {
+          "convertType": "direct",
+          "oldTable": "Kupat1.Videos",
+          "oldColumn": "Name_en",
+          "comment": "English description from Name_en field"
+        },
+        "DisplayInMain": {
+          "convertType": "direct",
+          "oldTable": "Kupat1.Videos",
+          "oldColumn": "ShowHomePage",
+          "comment": "Show in main page flag"
+        },
+        "Display": {
+          "convertType": "expression",
+          "expression": "!row.Hide_en ? 1 : 0",
+          "oldTable": "Kupat1.Videos",
+          "oldColumn": "Hide_en",
+          "comment": "Negation of Hide_en field"
+        },
+        "CreatedAt": {
+          "convertType": "expression",
+          "expression": "new Date()",
+          "comment": "Current timestamp"
+        },
+        "CreatedBy": {
+          "convertType": "const",
+          "constValue": -1,
+          "comment": "System user"
+        },
+        "UpdatedAt": {
+          "convertType": "expression",
+          "expression": "new Date()",
+          "comment": "Current timestamp"
+        },
+        "UpdatedBy": {
+          "convertType": "const",
+          "constValue": -1,
+          "comment": "System user"
+        }
+      }
+    },
+    "french": {
+      "languageId": 3,
+      "mappings": {
+        "Description": {
+          "convertType": "direct",
+          "oldTable": "Kupat1.Videos",
+          "oldColumn": "Name_fr",
+          "comment": "French description from Name_fr field"
+        },
+        "DisplayInMain": {
+          "convertType": "direct",
+          "oldTable": "Kupat1.Videos",
+          "oldColumn": "ShowHomePage",
+          "comment": "Show in main page flag"
+        },
+        "Display": {
+          "convertType": "expression",
+          "expression": "!row.Hide_fr ? 1 : 0",
+          "oldTable": "Kupat1.Videos",
+          "oldColumn": "Hide_fr",
+          "comment": "Negation of Hide_fr field"
+        },
+        "CreatedAt": {
+          "convertType": "expression",
+          "expression": "new Date()",
+          "comment": "Current timestamp"
+        },
+        "CreatedBy": {
+          "convertType": "const",
+          "constValue": -1,
+          "comment": "System user"
+        },
+        "UpdatedAt": {
+          "convertType": "expression",
+          "expression": "new Date()",
+          "comment": "Current timestamp"
+        },
+        "UpdatedBy": {
+          "convertType": "const",
+          "constValue": -1,
+          "comment": "System user"
+        }
+      }
+    }
+  }
+}

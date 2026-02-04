@@ -1,0 +1,80 @@
+{
+  "migrationOrder": [
+    {
+      "mapping": "LutFundCategoryMapping",
+      "entityType": "LutFundCategory",
+      "order": 0,
+      "dependsOn": []
+    },
+    {
+      "mapping": "ProjectMapping_Funds_Fixed",
+      "entityType": "Project",
+      "order": 1,
+      "dependsOn": []
+    },
+    {
+      "mapping": "ProjectMapping_Collections_Fixed",
+      "entityType": "Project",
+      "order": 2,
+      "dependsOn": []
+    },
+    {
+      "mapping": "ProjectMapping_Collections_Type2",
+      "entityType": "Project",
+      "order": 3,
+      "dependsOn": []
+    },
+    {
+      "mapping": "PrayerMapping",
+      "entityType": "Project",
+      "order": 4,
+      "dependsOn": []
+    },
+    {
+      "mapping": "RecruitersGroupMapping",
+      "entityType": "RecruitersGroup",
+      "order": 5,
+      "dependsOn": [
+        "Project"
+      ]
+    },
+    {
+      "mapping": "RecruiterMapping",
+      "entityType": "Recruiter",
+      "order": 6,
+      "dependsOn": [
+        "Project",
+        "RecruitersGroup"
+      ]
+    },
+    {
+      "mapping": "RecruiterLocalizationMapping",
+      "entityType": "RecruiterLocalization",
+      "order": 7,
+      "dependsOn": [
+        "Recruiter"
+      ]
+    },
+    {
+      "mapping": "GalleryMapping_Images",
+      "entityType": "Gallery",
+      "order": 8,
+      "dependsOn": []
+    },
+    {
+      "mapping": "GalleryMapping_Videos",
+      "entityType": "Gallery",
+      "order": 9,
+      "dependsOn": []
+    },
+    {
+      "mapping": "FundCategoryMapping",
+      "entityType": "FundCategory",
+      "order": 10,
+      "dependsOn": [
+        "Project",
+        "LutFundCategory"
+      ]
+    }
+  ]
+}

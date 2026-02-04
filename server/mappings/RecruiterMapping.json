@@ -1,0 +1,132 @@
+{
+  "filename": "RecruiterMapping",
+  "description": "מיפוי מגייסים - ProductStock to recruiter",
+  "sourceTable": "ProductStock",
+  "targetTable": "recruiter",
+  "sourceIdColumn": "ProductStockId",
+  "whereClause": "ProductId IS NOT NULL",
+  "columnMappings": {
+    "Name": {
+      "convertType": "expression",
+      "oldTable": "ProductStock",
+      "oldColumn": "Name",
+      "expression": "value ? value.substring(0, 200) : 'ללא שם'"
+    },
+    "ProjectId": {
+      "convertType": "direct",
+      "oldTable": "ProductStock",
+      "oldColumn": "ProductId",
+      "useFkMapping": true,
+      "comment": "חיפוש Project לפי ProductStock.ProductId"
+    },
+    "RecruiterGroupId": {
+      "convertType": "direct",
+      "oldTable": "ProductStock",
+      "oldColumn": "GroupId",
+      "useFkMapping": true,
+      "nullable": true,
+      "comment": "חיפוש RecruitersGroup לפי ProductStock.GroupId"
+    },
+    "Phone": {
+      "convertType": "const",
+      "value": null
+    },
+    "Email": {
+      "convertType": "const",
+      "value": null
+    },
+    "RecruitmentTarget": {
+      "convertType": "expression",
+      "oldTable": "ProductStock",
+      "oldColumn": "Price",
+      "expression": "(value === 0 || value === null) ? null : Math.round(value)"
+    },
+    "RecordStatus": {
+      "convertType": "const",
+      "value": "2"
+    },
+    "StatusChangedAt": {
+      "convertType": "const",
+      "value": "GETDATE()"
+    },
+    "StatusChangedBy": {
+      "convertType": "const",
+      "value": "-1"
+    },
+    "CreatedAt": {
+      "convertType": "const",
+      "value": "GETDATE()"
+    },
+    "CreatedBy": {
+      "convertType": "const",
+      "value": "-1"
+    },
+    "UpdatedAt": {
+      "convertType": "const",
+      "value": "GETDATE()"
+    },
+    "UpdatedBy": {
+      "convertType": "const",
+      "value": "-1"
+    }
+  },
+  "fkMappings": {
+    "ProjectId": "product-to-project",
+    "RecruiterGroupId": "recruitersgroup-id-mapping"
+  },
+  "localizationMappings": {
+    "targetTable": "recruiterlocalization",
+    "parentFkColumn": "RecruiterId",
+    "Name": {
+      "hebrew": {
+        "convertType": "expression",
+        "oldTable": "ProductStock",
+        "oldColumn": "Name",
+        "expression": "value ? value.substring(0, 200) : null"
+      },
+      "english": {
+        "convertType": "expression",
+        "oldTable": "ProductStock",
+        "oldColumn": "Name_en",
+        "expression": "value ? value.substring(0, 200) : (row.Name ? row.Name.substring(0, 200) : null)"
+      },
+      "french": {
+        "convertType": "expression",
+        "oldTable": "ProductStock",
+        "oldColumn": "Name_fr",
+        "expression": "value ? value.substring(0, 200) : (row.Name ? row.Name.substring(0, 200) : null)"
+      }
+    },
+    "Description": {
+      "hebrew": { "convertType": "const", "value": null },
+      "english": { "convertType": "const", "value": null },
+      "french": { "convertType": "const", "value": null }
+    },
+    "DisplayInSite": {
+      "hebrew": {
+        "convertType": "expression",
+        "oldTable": "ProductStock",
+        "oldColumn": "Hide",
+        "expression": "(row.Hide === 0 || row.Hide === null) ? 1 : 0"
+      },
+      "english": {
+        "convertType": "expression",
+        "oldTable": "ProductStock",
+        "oldColumn": "Hide_en",
+        "expression": "(row.Hide_en === 0 || row.Hide_en === null) ? 1 : 0"
+      },
+      "french": {
+        "convertType": "expression",
+        "oldTable": "ProductStock",
+        "oldColumn": "Hide_fr",
+        "expression": "(row.Hide_fr === 0 || row.Hide_fr === null) ? 1 : 0"
+      }
+    }
+  },
+  "dependencies": ["project", "recruitersgroup"],
+  "notes": [
+    "סדר מיגרציה: חייב להיות אחרי Project ו-RecruitersGroup",
+    "FK: ProjectId -> product-to-project.json",
+    "FK: RecruiterGroupId -> recruitersgroup-id-mapping.json (יווצר אחרי מיגרציית RecruitersGroup)"
+  ]
+}

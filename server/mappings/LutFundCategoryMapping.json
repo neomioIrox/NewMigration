@@ -1,0 +1,50 @@
+{
+  "filename": "LutFundCategoryMapping",
+  "sourceTable": "Cats",
+  "targetTable": "lutfundcategory",
+  "sourceIdColumn": "CatsId",
+  "_meta": {
+    "entityType": "LutFundCategory",
+    "sourceTable": "Cats",
+    "targetTable": "lutfundcategory",
+    "sourcePrimaryKey": "CatsId",
+    "order": 0
+  },
+  "whereClause": "",
+  "columnMappings": {
+    "Description": {
+      "convertType": "expression",
+      "oldTable": "Cats",
+      "oldColumn": "Name",
+      "expression": "value ? value.substring(0, 100) : 'Unknown'"
+    },
+    "Order": {
+      "convertType": "expression",
+      "oldTable": "Cats",
+      "oldColumn": "Sort",
+      "expression": "value !== null && value !== undefined ? value : 0"
+    },
+    "IsSystemValue": {
+      "convertType": "const",
+      "value": 0
+    }
+  },
+  "fkMappings": {},
+  "translationMappings": [
+    {
+      "condition": "row.Name_fr != null && String(row.Name_fr).trim() !== ''",
+      "tableName": "LutFundCategory",
+      "fieldName": "Description",
+      "sourceColumn": "Name_fr",
+      "language": 3
+    },
+    {
+      "condition": "row.Name_en != null && String(row.Name_en).trim() !== ''",
+      "tableName": "LutFundCategory",
+      "fieldName": "Description",
+      "sourceColumn": "Name_en",
+      "language": 2
+    }
+  ],
+  "savedAt": "2026-02-02T00:00:00.000Z"
+}

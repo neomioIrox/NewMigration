@@ -1,0 +1,72 @@
+{
+  "targetTable": "recruiterlocalization",
+  "sourceTable": "ProductStock",
+  "sourceIdColumn": "ID",
+  "comment": "Multi-language localization for recruiters - creates rows only for languages with at least one non-empty field",
+
+  "languages": {
+    "he": {
+      "LanguageId": 1,
+      "fields": {
+        "Name": {
+          "sourceColumn": "Name",
+          "targetColumn": "Name"
+        },
+        "Description": {
+          "sourceColumn": "Hide",
+          "targetColumn": "Description"
+        },
+        "Price": {
+          "sourceColumn": "Price",
+          "targetColumn": "Price"
+        }
+      }
+    },
+    "en": {
+      "LanguageId": 2,
+      "fields": {
+        "Name": {
+          "sourceColumn": "Name_en",
+          "targetColumn": "Name"
+        },
+        "Description": {
+          "sourceColumn": "Hide_en",
+          "targetColumn": "Description"
+        },
+        "Price": {
+          "sourceColumn": "Price_en",
+          "targetColumn": "Price"
+        }
+      }
+    },
+    "fr": {
+      "LanguageId": 3,
+      "fields": {
+        "Name": {
+          "sourceColumn": "Name_fr",
+          "targetColumn": "Name"
+        },
+        "Description": {
+          "sourceColumn": "Hide_fr",
+          "targetColumn": "Description"
+        },
+        "Price": {
+          "sourceColumn": "Price_fr",
+          "targetColumn": "Price"
+        }
+      }
+    }
+  },
+
+  "fkMappings": {
+    "RecruiterId": {
+      "useFkMapping": true,
+      "mappingFile": "RecruiterId.json",
+      "comment": "Maps old ProductStock.ID to new recruiter.Id"
+    }
+  },
+
+  "requiredFields": ["RecruiterId", "LanguageId"],
+
+  "logic": "For each recruiter, check each language separately. Create a row for a language ONLY if at least one of its 3 fields (Name/Description/Price) is non-empty. Empty means NULL, empty string '', or whitespace-only string."
+}

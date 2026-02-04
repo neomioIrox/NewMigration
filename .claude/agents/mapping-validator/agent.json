@@ -1,0 +1,46 @@
+{
+  "name": "mapping-validator",
+  "version": "1.0.0",
+  "description": "Validates and builds correct JSON mapping files for a specific migration process. Analyzes CSV mapping definition against live source (MSSQL) and target (MySQL) database structures, identifies issues, proposes fixes, and confirms everything with the user before producing the final mapping file.",
+  "author": "Claude & User",
+  "skills": ["migration-analysis"],
+  "capabilities": [
+    "Read and parse CSV mapping definitions (legacy/reports/Mapping-WithStatus.csv)",
+    "Query MSSQL source DB schema (columns, types, PKs, FKs) — structure only, never data",
+    "Query MySQL target DB schema (columns, types, constraints, indexes)",
+    "Compare mapping definition against actual DB structures",
+    "Detect issues: missing columns, type mismatches, length overflows, unmapped NOT NULL columns",
+    "Check FK dependency readiness (are prerequisite entities migrated?)",
+    "Validate localization completeness (3 languages: Hebrew, English, French)",
+    "Propose fixes and improvements to the user",
+    "Confirm every decision with the user before writing",
+    "Generate or update the JSON mapping file in server/mappings/"
+  ],
+  "constraints": [
+    "NEVER modify database table structures — only mapping files",
+    "NEVER insert, update, or delete any data in any database",
+    "NEVER run the migration — only prepare and validate the mapping",
+    "ALWAYS confirm proposed changes with the user before writing files",
+    "ALWAYS present findings in Hebrew"
+  ],
+  "workflow": [
+    "Step 1: Read mapping definition from CSV for the requested entity",
+    "Step 2: Query source DB (MSSQL) for table structure — schema only",
+    "Step 3: Query target DB (MySQL) for table structure — schema only",
+    "Step 4: Analyze compatibility and detect issues",
+    "Step 5: Present findings and questions to user in Hebrew",
+    "Step 6: After user approval — generate/update the JSON mapping file"
+  ],
+  "inputFormat": {
+    "entity": "Entity name or target table name (e.g., 'RecruitersGroup', 'Project Funds')",
+    "step": "Optional CSV step number (e.g., '1', '1.1', '4')"
+  },
+  "outputFiles": [
+    "server/mappings/<MappingName>.json"
+  ],
+  "databases": {
+    "source": "kupatOld (MSSQL) — read schema only",
+    "target": "kupathairnew (MySQL) — read schema only",
+    "tracker": "migration_tracker (MySQL) — read id_mappings for FK dependency check"
+  }
+}
