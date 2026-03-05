@@ -1,0 +1,61 @@
+{
+  "filename": "AffiliateMapping",
+  "description": "מיפוי מקורות אב - ParentSources to affiliate",
+  "sourceTable": "ParentSources",
+  "targetTable": "affiliate",
+  "sourceIdColumn": "Id",
+  "sourceQuery": "SELECT * FROM ParentSources WITH (NOLOCK)",
+  "whereClause": null,
+  "columnMappings": {
+    "Name": {
+      "convertType": "expression",
+      "oldColumn": "Name",
+      "expression": "value ? value.substring(0, 100) : 'ללא שם'"
+    },
+    "DefaultSourceId": {
+      "convertType": "const",
+      "value": null,
+      "comment": "יעודכן לאחר מיגרציית Source - ימצא Source.Id לפי SourceCode = ParentSources.Code"
+    },
+    "UserId": {
+      "convertType": "const",
+      "value": null,
+      "comment": "ParentSources יש UserName ו-Password - אפשר ליצור User בעתיד"
+    },
+    "RecordStatus": {
+      "convertType": "const",
+      "value": "2"
+    },
+    "StatusChangedAt": {
+      "convertType": "const",
+      "value": "GETDATE()"
+    },
+    "StatusChangedBy": {
+      "convertType": "const",
+      "value": "-1"
+    },
+    "CreatedAt": {
+      "convertType": "const",
+      "value": "GETDATE()"
+    },
+    "CreatedBy": {
+      "convertType": "const",
+      "value": "-1"
+    },
+    "UpdatedAt": {
+      "convertType": "const",
+      "value": "GETDATE()"
+    },
+    "UpdatedBy": {
+      "convertType": "const",
+      "value": "-1"
+    }
+  },
+  "fkMappings": {},
+  "postMigrationScript": "UPDATE affiliate a SET a.DefaultSourceId = (SELECT s.Id FROM source s WHERE s.SourceCode = (SELECT ps.Code FROM Kupat1.ParentSources ps WHERE ps.Id = a.originalSourceId))",
+  "notes": [
+    "ParentSources יש גם UserName ו-Password - לא ממופים ל-affiliate (אפשר ליצור User)",
+    "DefaultSourceId יעודכן אחרי מיגרציית Source",
+    "סדר מיגרציה: Affiliate חייב להיות לפני Source"
+  ]
+}

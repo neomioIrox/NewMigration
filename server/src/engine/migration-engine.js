@@ -64,7 +64,13 @@ class MigrationEngine extends EventEmitter{
 
       // Count source rows
       var whereClause=m.whereClause?" WHERE ("+m.whereClause+")":"";
-      var countResult=await mssqlDb.query("SELECT COUNT(*) as cnt FROM "+sourceTable+" WITH (NOLOCK)"+whereClause);
+      var countSql;
+      if(m.sourceQuery){
+        countSql="WITH src AS ("+m.sourceQuery+") SELECT COUNT(*) as cnt FROM src"+whereClause;
+      }else{
+        countSql="SELECT COUNT(*) as cnt FROM "+sourceTable+" WITH (NOLOCK)"+whereClause;
+      }
+      var countResult=await mssqlDb.query(countSql);
       var totalRows=countResult.recordset[0].cnt;
 
       // Create or resume run
@@ -95,7 +101,12 @@ class MigrationEngine extends EventEmitter{
         // Fetch batch from source
         var whereExtra=lastId?" AND "+sourceIdCol+">"+lastId:"";
         var orderBy=" ORDER BY "+sourceIdCol+" ASC";
-        var batchSql="SELECT TOP "+this.batchSize+" * FROM "+sourceTable+" WITH (NOLOCK)"+whereClause+(whereClause?whereExtra:(whereExtra?" WHERE 1=1"+whereExtra:""))+orderBy;
+        var batchSql;
+        if(m.sourceQuery){
+          batchSql="WITH src AS ("+m.sourceQuery+") SELECT TOP "+this.batchSize+" * FROM src"+whereClause+(whereClause?whereExtra:(whereExtra?" WHERE 1=1"+whereExtra:""))+orderBy;
+        }else{
+          batchSql="SELECT TOP "+this.batchSize+" * FROM "+sourceTable+" WITH (NOLOCK)"+whereClause+(whereClause?whereExtra:(whereExtra?" WHERE 1=1"+whereExtra:""))+orderBy;
+        }
         var batchResult=await mssqlDb.query(batchSql);
         var rows=batchResult.recordset;
 

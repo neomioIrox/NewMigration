@@ -44,9 +44,11 @@ async function processRow(columnMappings,row,fkMappings){
 }
 
 async function processLocalizationRow(langKey,locFields,row,fkMappings){
-  var result={Language:LANG_IDS[langKey]||1};
+  var langColName=locFields.languageColumn||"Language";
+  var result={};
+  result[langColName]=LANG_IDS[langKey]||1;
   for(var fieldName of Object.keys(locFields)){
-    if(fieldName==="targetTable"||fieldName==="parentFkColumn") continue;
+    if(fieldName==="targetTable"||fieldName==="parentFkColumn"||fieldName==="languageColumn") continue;
     var langDef=locFields[fieldName];
     if(!langDef) continue;
     var def=langDef[langKey]||langDef;

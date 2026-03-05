@@ -4,21 +4,19 @@
   "sourceTable": "RecruitersGroups",
   "targetTable": "recruitersgroup",
   "sourceIdColumn": "ID",
-  "whereClause": "",
+  "sourceQuery": "SELECT rg.*, COALESCE(rg.ProjectId, pstop.ProductId) AS ResolvedProjectId FROM RecruitersGroups rg WITH (NOLOCK) OUTER APPLY (SELECT TOP 1 ps.ProductId FROM ProductStock ps WITH (NOLOCK) WHERE ps.GroupId = rg.ID AND ps.ProductId IS NOT NULL) pstop",
+  "whereClause": "ResolvedProjectId IS NOT NULL",
   "columnMappings": {
     "Name": {
       "convertType": "expression",
-      "oldTable": "RecruitersGroups",
       "oldColumn": "Name",
       "expression": "value ? value.substring(0, 200) : 'ללא שם'"
     },
     "ProjectId": {
       "convertType": "direct",
-      "oldTable": "RecruitersGroups",
-      "oldColumn": "ProjectId",
+      "oldColumn": "ResolvedProjectId",
       "useFkMapping": true,
-      "nullable": true,
-      "comment": "מחפש ProjectId חדש לפי ProductId ישן - אם NULL, ישאר NULL"
+      "comment": "COALESCE(RecruitersGroups.ProjectId, ProductStock.ProductId) -> id_mappings Project"
     },
     "RecordStatus": {
       "convertType": "const",
@@ -50,27 +48,25 @@
     }
   },
   "fkMappings": {
-    "ProjectId": "product-to-project"
+    "ProjectId": "Project"
   },
   "localizationMappings": {
     "targetTable": "recruitersgrouplanguage",
     "parentFkColumn": "RecruiterGroupId",
+    "languageColumn": "LanguageId",
     "Name": {
       "hebrew": {
         "convertType": "expression",
-        "oldTable": "RecruitersGroups",
         "oldColumn": "Name",
         "expression": "value ? value.substring(0, 200) : null"
       },
       "english": {
         "convertType": "expression",
-        "oldTable": "RecruitersGroups",
         "oldColumn": "Name",
         "expression": "value ? value.substring(0, 200) : null"
       },
       "french": {
         "convertType": "expression",
-        "oldTable": "RecruitersGroups",
         "oldColumn": "Name",
         "expression": "value ? value.substring(0, 200) : null"
       }
@@ -81,13 +77,19 @@
       "french": { "convertType": "const", "value": null }
     },
     "DisplayInSite": {
-      "hebrew": { "convertType": "const", "value": "1" },
-      "english": { "convertType": "const", "value": "1" },
-      "french": { "convertType": "const", "value": "1" }
-    }
+      "hebrew": { "convertType": "const", "value": 1 },
+      "english": { "convertType": "const", "value": 1 },
+      "french": { "convertType": "const", "value": 1 }
+    },
+    "CreatedAt": { "convertType": "const", "value": "GETDATE()" },
+    "CreatedBy": { "convertType": "const", "value": "-1" },
+    "UpdatedAt": { "convertType": "const", "value": "GETDATE()" },
+    "UpdatedBy": { "convertType": "const", "value": "-1" }
   },
   "notes": [
-    "סדר מיגרציה: RecruitersGroup חייב להיות לפני Recruiter",
-    "FK: ProjectId -> מיפוי מ-product-to-project.json"
+    "sourceQuery: OUTER APPLY מביא ProductId מ-ProductStock כדי לקבל ProjectId גם לקבוצות ללא ProjectId ישיר",
+    "whereClause: מסנן קבוצות שלא ניתן לשייך לאף פרויקט (לא ProjectId ולא ProductStock)",
+    "FK: ProjectId -> entity_type 'Project' ב-id_mappings",
+    "סדר מיגרציה: RecruitersGroup חייב להיות לפני Recruiter"
   ]
 }

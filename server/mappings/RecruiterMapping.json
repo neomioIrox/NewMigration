@@ -8,20 +8,17 @@
   "columnMappings": {
     "Name": {
       "convertType": "expression",
-      "oldTable": "ProductStock",
       "oldColumn": "Name",
       "expression": "value ? value.substring(0, 200) : 'ללא שם'"
     },
     "ProjectId": {
       "convertType": "direct",
-      "oldTable": "ProductStock",
       "oldColumn": "ProductId",
       "useFkMapping": true,
       "comment": "חיפוש Project לפי ProductStock.ProductId"
     },
     "RecruiterGroupId": {
       "convertType": "direct",
-      "oldTable": "ProductStock",
       "oldColumn": "GroupId",
       "useFkMapping": true,
       "nullable": true,
@@ -37,7 +34,6 @@
     },
     "RecruitmentTarget": {
       "convertType": "expression",
-      "oldTable": "ProductStock",
       "oldColumn": "Price",
       "expression": "(value === 0 || value === null) ? null : Math.round(value)"
     },
@@ -71,28 +67,26 @@
     }
   },
   "fkMappings": {
-    "ProjectId": "product-to-project",
-    "RecruiterGroupId": "recruitersgroup-id-mapping"
+    "ProjectId": "Project",
+    "RecruiterGroupId": "RecruitersGroupMapping"
   },
   "localizationMappings": {
     "targetTable": "recruiterlocalization",
     "parentFkColumn": "RecruiterId",
+    "languageColumn": "LanguageId",
     "Name": {
       "hebrew": {
         "convertType": "expression",
-        "oldTable": "ProductStock",
         "oldColumn": "Name",
         "expression": "value ? value.substring(0, 200) : null"
       },
       "english": {
         "convertType": "expression",
-        "oldTable": "ProductStock",
         "oldColumn": "Name_en",
         "expression": "value ? value.substring(0, 200) : (row.Name ? row.Name.substring(0, 200) : null)"
       },
       "french": {
         "convertType": "expression",
-        "oldTable": "ProductStock",
         "oldColumn": "Name_fr",
         "expression": "value ? value.substring(0, 200) : (row.Name ? row.Name.substring(0, 200) : null)"
       }
@@ -105,28 +99,29 @@
     "DisplayInSite": {
       "hebrew": {
         "convertType": "expression",
-        "oldTable": "ProductStock",
         "oldColumn": "Hide",
         "expression": "(row.Hide === 0 || row.Hide === null) ? 1 : 0"
       },
       "english": {
         "convertType": "expression",
-        "oldTable": "ProductStock",
         "oldColumn": "Hide_en",
         "expression": "(row.Hide_en === 0 || row.Hide_en === null) ? 1 : 0"
       },
       "french": {
         "convertType": "expression",
-        "oldTable": "ProductStock",
         "oldColumn": "Hide_fr",
         "expression": "(row.Hide_fr === 0 || row.Hide_fr === null) ? 1 : 0"
       }
-    }
+    },
+    "CreatedAt": { "convertType": "const", "value": "GETDATE()" },
+    "CreatedBy": { "convertType": "const", "value": "-1" },
+    "UpdatedAt": { "convertType": "const", "value": "GETDATE()" },
+    "UpdatedBy": { "convertType": "const", "value": "-1" }
   },
   "dependencies": ["project", "recruitersgroup"],
   "notes": [
     "סדר מיגרציה: חייב להיות אחרי Project ו-RecruitersGroup",
-    "FK: ProjectId -> product-to-project.json",
-    "FK: RecruiterGroupId -> recruitersgroup-id-mapping.json (יווצר אחרי מיגרציית RecruitersGroup)"
+    "FK: ProjectId -> entity_type 'Project' ב-id_mappings",
+    "FK: RecruiterGroupId -> entity_type 'RecruitersGroupMapping' ב-id_mappings"
   ]
 }

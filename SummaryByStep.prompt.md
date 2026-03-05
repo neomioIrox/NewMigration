@@ -120,6 +120,30 @@ AND productsid NOT IN (SELECT ProductsId FROM news)
 | ProjectItemId | FK לפריט |
 | LanguageId | 1/2/3 |
 
+### 4. linksetting (כפתורי קישור)
+
+לכל project נוצרים **3 סוגי LinkSetting** לכל שפה (עד 9 רשומות):
+
+| סוג כפתור | LinkType | LinkTargetType | ItemId | שימוש |
+|-----------|----------|----------------|--------|-------|
+| mainButton | 1 (Button) | 3 (ToExecutionPage) | מוגדר (FK לפריט) | כפתור תרומה ראשי |
+| footerButton | 1 (Button) | 3 (ToExecutionPage) | מוגדר (FK לפריט) | כפתור תרומה בתחתית |
+| listViewButton | 3 (ListItem) | 1 (ToProjectPage) | NULL | כפתור בתצוגת רשימה |
+
+**חיבורים חזרה (POST-INSERT UPDATEs):**
+
+| טבלת יעד | עמודה | מקור |
+|----------|-------|------|
+| projectlocalization | MainLinkButtonSettingId | mainButton LinkSetting ID |
+| projectlocalization | LinkSettingIdInListView | listViewButton LinkSetting ID |
+| projectitemlocalization | MainButtonLinkSettingId | mainButton LinkSetting ID |
+| projectitemlocalization | ProjectFooterLinkSettingId | footerButton LinkSetting ID |
+
+**LinkText דינמי:**
+- mainButton/footerButton: טקסט קבוע מתוך ה-JSON (למשל "לתרומה", "Donate")
+- listViewButton: **שם הפרויקט המתורגם** מתוך עמודת המקור (`Name`, `Name_en`, `Name_fr`)
+  - נתמך ע"י `LinkTextColumn` במיפוי (במקום `LinkText` סטטי)
+
 ---
 
 ## בעיות ופתרונות
@@ -247,19 +271,119 @@ sourceId: 1104
 
 ---
 
+### בעיה 6: listViewButton LinkSetting - LinkType שגוי וטקסט גנרי
+
+**תסמין:** השוואה מול פרויקט ייחוס (ID 4) חשפה שני באגים ב-LinkSetting
+
+**אבחון:** סקריפט `scripts/checks/dump-linksetting-reference.js` השווה בין:
+- **פרויקט 4** (ייחוס, נוצר ידנית) - 11 LinkSettings
+- **פרויקט 26** (מיגרציה) - 6 LinkSettings
+
+**באג 1: LinkType שגוי**
+```
+ייחוס: LinkSettingIdInListView → LinkType=3 (ListItem), TargetType=1
+מיגרציה: LinkSettingIdInListView → LinkType=1 (Button), TargetType=1  ← שגוי!
+```
+
+**באג 2: LinkText גנרי במקום שם הפרויקט**
+```
+ייחוס: LinkText = "קרן משפחת כהן" (שם הפרויקט)
+מיגרציה: LinkText = "לתרומה" (טקסט קבוע גנרי)  ← שגוי!
+```
+
+**פתרון:**
+
+1. שינוי LinkType ב-3 קבצי מיפוי (Funds, Collections, Type2):
+```json
+// לפני (שגוי)
+"listViewButton": { "LinkType": 1, "LinkText": "לתרומה" }
+
+// אחרי (תקין)
+"listViewButton": { "LinkType": 3, "LinkTextColumn": "Name" }
+```
+
+2. תמיכה ב-`LinkTextColumn` במנוע המיגרציה:
+
+**קובץ:** `server/src/engine/migration-engine.js` (שורה 337)
+```javascript
+// לפני: טקסט סטטי בלבד
+LinkText: langDef.LinkText
+
+// אחרי: תמיכה בטקסט דינמי מעמודת המקור
+var linkText = langDef.LinkTextColumn ? row[langDef.LinkTextColumn] : langDef.LinkText;
+if(linkText && linkText.length > 200) linkText = linkText.substring(0, 200);
+```
+
+**ממצאים נוספים מהאבחון (לא תוקנו, לא קריטי):**
+- `LinkSettingIdInButtonListView` - NULL גם בייחוס וגם במיגרציה (תקין)
+- ProjectItemLocalization: בייחוס כל ה-FK-ים NULL, במיגרציה מוגדרים (הבדל מקובל)
+- עמודות אופציונליות (`Description`, `MediaId`, `DonationPagePaymentType`) - מוגדרות בייחוס, NULL במיגרציה
+
+---
+
+### בעיה 7: Recruiter - Duplicate entry for unique key
+
+**שגיאה:**
+```
+Error: Duplicate entry 'XXX-שם מגייס' for key 'recruiter.UK_Recruiter_Name_ProjectId'
+```
+
+**סיבה:** אילוץ ייחודי על שילוב (Name + ProjectId) בטבלת היעד, אבל בנתוני המקור יש כפילויות
+
+**27 שגיאות - דוגמאות:**
+| sourceId | שם המגייס | ProjectId |
+|----------|-----------|-----------|
+| 2, 7, 8, 9 | ללא שם | 2015, 2006 |
+| 389 | יהודית כהנא | 530 |
+| 1006, 1349 | שמות שונים | 640 |
+
+**סטטוס:** 6,110 מתוך 6,137 הועברו (99.6%) - השגיאות הן כפילויות לגיטימיות בנתוני המקור
+
+**פתרונות אפשריים:**
+1. הסרת האילוץ (אם כפילויות לגיטימיות)
+2. מיזוג רשומות במקור
+3. הוספת מזהה ייחודי לאילוץ
+4. דילוג על כפילויות (המצב הנוכחי)
+
+---
+
 ## תוצאות ההרצה
 
+### הרצה ראשונה (2026-02-04)
 ```
-Migration: ProjectMapping_Funds_Fixed
+Step 1: LutFundCategoryMapping
 Status: completed
+Results: 5/5 inserted, 0 errors
 
-Results:
-- Total source rows: 1,271
-- Processed: 1,271
-- Inserted: 1,271
-- Skipped: 0
-- Errors: 1 (sourceId 1104 - ItemDefinition too long)
+Step 2: ProjectMapping_Funds_Fixed
+Status: completed
+Results: 1,271/1,271 inserted, 1 error (sourceId 1104 - ItemDefinition too long)
+
+Step 3: ProjectMapping_Collections_Fixed
+Status: completed
+Results: 683/683 inserted, 0 errors
+
+Step 4: ProjectMapping_Collections_Type2
+Status: completed
+Results: 26/26 inserted, 0 errors
+
+Step 5: PrayerMapping
+Status: completed
+Results: 294/294 inserted, 0 errors
 ```
+**סה"כ:** 2,280 שורות הועברו בהצלחה, שגיאה אחת בלבד
+
+### הרצה שנייה (2026-02-08)
+```
+Step 6: RecruitersGroupMapping
+Status: completed
+Results: 235/235 inserted, 0 errors
+
+Step 7: RecruiterMapping
+Status: completed with errors
+Results: 6,110/6,137 inserted, 27 errors (duplicate key violations)
+```
+**סה"כ:** 6,345 שורות, 27 שגיאות כפילות
 
 ---
 
@@ -267,26 +391,37 @@ Results:
 
 | קובץ | תיאור |
 |------|-------|
-| `server/mappings/ProjectMapping_Funds_Fixed.json` | קובץ המיפוי |
-| `server/src/engine/migration-engine.js` | מנוע המיגרציה |
+| `server/mappings/AffiliateMapping.json` | מיפוי מקורות אב (ParentSources → affiliate) |
+| `server/mappings/SourceMapping.json` | מיפוי מקורות (UserSources → source) |
+| `server/mappings/ProjectMapping_Funds_Fixed.json` | מיפוי קרנות |
+| `server/mappings/ProjectMapping_Collections_Fixed.json` | מיפוי אוספים |
+| `server/mappings/ProjectMapping_Collections_Type2.json` | מיפוי אוספים Type2 |
+| `server/mappings/RecruitersGroupMapping.json` | מיפוי קבוצות מגייסים |
+| `server/mappings/RecruiterMapping.json` | מיפוי מגייסים |
+| `server/src/engine/migration-engine.js` | מנוע המיגרציה (כולל LinkSetting) |
 | `server/src/engine/row-processor.js` | עיבוד שורות |
 | `server/src/engine/batch-runner.js` | הכנסה ל-DB |
 | `server/src/services/tracker.js` | מעקב התקדמות |
 | `server/data/fk-mappings/ProductCreatedDate.json` | מיפוי תאריכים |
 | `server/data/fk-mappings/TerminalId.json` | מיפוי טרמינלים |
+| `scripts/checks/dump-linksetting-reference.js` | אבחון LinkSetting - השוואה מול פרויקט ייחוס |
+| `scripts/checks/check-linksetting-for-projects.js` | בדיקת LinkSetting כוללת |
 
 ---
 
-## סדר הרצה כולל (לידיעה)
+## סדר הרצה כולל
 
 ```
-Step 1: LutFundCategoryMapping          ← Lookup tables
-Step 2: ProjectMapping_Funds_Fixed      ← קרנות (זה המסמך הנוכחי)
-Step 3: ProjectMapping_Collections_Fixed ← אוספים
-Step 4: ProjectMapping_Collections_Type2 ← אוספים Type2
-Step 5: PrayerMapping                    ← תפילות
-Step 6: RecruitersGroupMapping           ← קבוצות מגייסים
-Step 7: RecruiterMapping                 ← מגייסים
-Step 8: RecruiterLocalizationMapping     ← תרגומי מגייסים
-Step 9: GalleryMapping_Images/Videos     ← מדיה
+Step 0:  AffiliateMapping                ← מקורות אב              [ ] טרם הורץ (חדש)
+Step 0.1: SourceMapping                  ← מקורות                 [ ] טרם הורץ (חדש)
+Step 1:  LutFundCategoryMapping          ← Lookup tables           [v] 5/5
+Step 2:  ProjectMapping_Funds_Fixed      ← קרנות                   [v] 1,271/1,271
+Step 3:  ProjectMapping_Collections_Fixed ← אוספים                 [v] 683/683
+Step 4:  ProjectMapping_Collections_Type2 ← אוספים Type2           [v] 26/26
+Step 5:  PrayerMapping                    ← תפילות                 [v] 294/294
+Step 6:  RecruitersGroupMapping           ← קבוצות מגייסים         [v] 235/235
+Step 7:  RecruiterMapping                 ← מגייסים                [v] 6,110/6,137 (27 כפילויות)
+Step 8:  RecruiterLocalizationMapping     ← תרגומי מגייסים         [ ] טרם הורץ
+Step 9:  GalleryMapping_Images/Videos     ← מדיה                   [ ] טרם הורץ
+Step 10: FundCategoryMapping              ← קטגוריות קרנות         [ ] טרם הורץ
 ```
