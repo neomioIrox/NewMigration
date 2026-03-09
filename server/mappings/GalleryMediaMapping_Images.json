@@ -1,0 +1,106 @@
+{
+  "filename": "GalleryMediaMapping_Images",
+  "sourceTable": "GaleryPics",
+  "targetTable": "media",
+  "sourceIdColumn": "GaleryPicsId",
+  "whereClause": "Pic IS NOT NULL AND Pic != ''",
+  "_meta": {
+    "entityType": "Media_GalleryImage",
+    "sourceTable": "GaleryPics",
+    "targetTable": "media",
+    "sourcePrimaryKey": "GaleryPicsId",
+    "order": 9.2,
+    "description": "Gallery image media: GaleryPics -> media + gallerymedia junction. Must run AFTER GalleryMapping_Images.",
+    "dependencies": ["GalleryMapping_Images"]
+  },
+  "columnMappings": {
+    "YearDirectory": {
+      "convertType": "const",
+      "value": "legacy"
+    },
+    "MonthDirectory": {
+      "convertType": "const",
+      "value": "gallery"
+    },
+    "RelativePath": {
+      "convertType": "expression",
+      "oldTable": "GaleryPics",
+      "oldColumn": "Pic",
+      "expression": "value ? value.substring(0, 500) : null"
+    },
+    "SourceType": {
+      "convertType": "const",
+      "value": "2"
+    },
+    "MediaType": {
+      "convertType": "const",
+      "value": "1"
+    },
+    "FriendlyName": {
+      "convertType": "expression",
+      "oldTable": "GaleryPics",
+      "oldColumn": "Name",
+      "expression": "value ? value.substring(0, 100) : null"
+    },
+    "MatchToPlatform": {
+      "convertType": "const",
+      "value": "3"
+    },
+    "RecordStatus": {
+      "convertType": "const",
+      "value": "2"
+    },
+    "StatusChangedAt": {
+      "convertType": "const",
+      "value": "GETDATE()"
+    },
+    "StatusChangedBy": {
+      "convertType": "const",
+      "value": "-1"
+    },
+    "CreatedAt": {
+      "convertType": "const",
+      "value": "GETDATE()"
+    },
+    "CreatedBy": {
+      "convertType": "const",
+      "value": "-1"
+    },
+    "UpdatedAt": {
+      "convertType": "const",
+      "value": "GETDATE()"
+    },
+    "UpdatedBy": {
+      "convertType": "const",
+      "value": "-1"
+    }
+  },
+  "afterInsertMappings": [
+    {
+      "targetTable": "gallerymedia",
+      "entityType": "GalleryMedia_Image",
+      "columns": {
+        "GalleryId": {
+          "source": "fk_lookup",
+          "entityType": "Gallery_Images",
+          "oldColumn": "GaleryId"
+        },
+        "MediaId": {
+          "source": "newId"
+        },
+        "isMainMedia": {
+          "convertType": "const",
+          "value": null
+        },
+        "CreatedAt": {
+          "convertType": "const",
+          "value": "GETDATE()"
+        },
+        "CreatedBy": {
+          "convertType": "const",
+          "value": "-1"
+        }
+      }
+    }
+  ]
+}

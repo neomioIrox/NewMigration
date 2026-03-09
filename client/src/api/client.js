@@ -23,4 +23,6 @@ export const api={
   getErrors:(params)=>fetchJson("/errors?"+new URLSearchParams(params)),
   getHealth:()=>fetchJson("/health"),
   clearHistory:()=>fetchJson("/migrations/history",{method:"DELETE"}),
+  updateTerminals:(dryRun)=>fetchJson("/migrations/update-terminals",{method:"POST",body:JSON.stringify({dryRun})}),
+  startDonationMigration:(batchSize,dryRun)=>fetchJson("/migrations/start-donations",{method:"POST",body:JSON.stringify({batchSize,dryRun})}),
 };

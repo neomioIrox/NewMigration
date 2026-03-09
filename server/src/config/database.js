@@ -1,6 +1,6 @@
 const config = {
   mssql: {
-    connectionString: 'Driver={ODBC Driver 17 for SQL Server};Server=DESKTOP-7QELS7G;Database=kupatOld;Trusted_Connection=Yes;',
+    connectionString: 'Driver={ODBC Driver 17 for SQL Server};Server=DESKTOP-7QELS7G;Database=kupat3_5;Trusted_Connection=Yes;',
     database: 'kupatOld',
     requestTimeout: 300000
   },
@@ -9,6 +9,7 @@ const config = {
     user: 'root',
     password: '1234',
     database: 'kupathairnew',
+    charset: 'utf8mb4',
     connectTimeout: 10000,
     waitForConnections: true,
     connectionLimit: 10,

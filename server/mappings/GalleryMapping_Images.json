@@ -1,178 +1,116 @@
 {
-  "tableName": "Gallery",
-  "sourceTable": "Kupat1.Galeries",
-  "description": "Migration mapping for Image galleries from Kupat1.Galeries to Gallery table",
-  "mediaType": 1,
+  "filename": "GalleryMapping_Images",
+  "sourceTable": "Galeries",
+  "targetTable": "gallery",
+  "sourceIdColumn": "GaleriesId",
+  "_meta": {
+    "entityType": "Gallery_Images",
+    "sourceTable": "Galeries",
+    "targetTable": "gallery",
+    "sourcePrimaryKey": "GaleriesId",
+    "order": 9.1,
+    "description": "Image galleries: Galeries -> gallery + gallerylocalization (3 langs)"
+  },
   "columnMappings": {
     "Name": {
-      "convertType": "direct",
-      "oldTable": "Kupat1.Galeries",
+      "convertType": "expression",
+      "oldTable": "Galeries",
       "oldColumn": "Name",
-      "comment": "Gallery name from source"
+      "expression": "value ? value.substring(0, 200) : ('Gallery ' + row.GaleriesId)"
     },
-    "MediaType": {
-      "convertType": "const",
-      "constValue": 1,
-      "comment": "1 = Image"
+    "Order": {
+      "convertType": "direct",
+      "oldTable": "Galeries",
+      "oldColumn": "Sort"
     },
-    "Category": {
+    "RecordStatus": {
       "convertType": "const",
-      "constValue": 1,
-      "comment": "1 = General"
+      "value": "2"
+    },
+    "StatusChangedAt": {
+      "convertType": "const",
+      "value": "GETDATE()"
+    },
+    "StatusChangedBy": {
+      "convertType": "const",
+      "value": "-1"
     },
     "CreatedAt": {
-      "convertType": "expression",
-      "expression": "new Date()",
-      "comment": "Current timestamp"
+      "convertType": "const",
+      "value": "GETDATE()"
     },
     "CreatedBy": {
       "convertType": "const",
-      "constValue": -1,
-      "comment": "System user"
+      "value": "-1"
     },
     "UpdatedAt": {
-      "convertType": "expression",
-      "expression": "new Date()",
-      "comment": "Current timestamp"
+      "convertType": "const",
+      "value": "GETDATE()"
     },
     "UpdatedBy": {
       "convertType": "const",
-      "constValue": -1,
-      "comment": "System user"
+      "value": "-1"
     }
   },
   "localizationMappings": {
-    "hebrew": {
-      "languageId": 1,
-      "mappings": {
-        "Description": {
-          "convertType": "direct",
-          "oldTable": "Kupat1.Galeries",
-          "oldColumn": "Name",
-          "comment": "Hebrew description from Name field"
-        },
-        "DisplayInMain": {
-          "convertType": "direct",
-          "oldTable": "Kupat1.Galeries",
-          "oldColumn": "ShowHomePage",
-          "comment": "Show in main page flag"
-        },
-        "Display": {
-          "convertType": "expression",
-          "expression": "!row.Hide ? 1 : 0",
-          "oldTable": "Kupat1.Galeries",
-          "oldColumn": "Hide",
-          "comment": "Negation of Hide field"
-        },
-        "CreatedAt": {
-          "convertType": "expression",
-          "expression": "new Date()",
-          "comment": "Current timestamp"
-        },
-        "CreatedBy": {
-          "convertType": "const",
-          "constValue": -1,
-          "comment": "System user"
-        },
-        "UpdatedAt": {
-          "convertType": "expression",
-          "expression": "new Date()",
-          "comment": "Current timestamp"
-        },
-        "UpdatedBy": {
-          "convertType": "const",
-          "constValue": -1,
-          "comment": "System user"
-        }
+    "targetTable": "gallerylocalization",
+    "parentFkColumn": "GalleryId",
+    "languageColumn": "Language",
+    "Title": {
+      "hebrew": {
+        "convertType": "expression",
+        "oldTable": "Galeries",
+        "oldColumn": "Name",
+        "expression": "value ? value.substring(0, 200) : null"
+      },
+      "english": {
+        "convertType": "expression",
+        "oldTable": "Galeries",
+        "oldColumn": "Name_en",
+        "expression": "value ? value.substring(0, 200) : null"
+      },
+      "french": {
+        "convertType": "expression",
+        "oldTable": "Galeries",
+        "oldColumn": "Name_fr",
+        "expression": "value ? value.substring(0, 200) : null"
       }
     },
-    "english": {
-      "languageId": 2,
-      "mappings": {
-        "Description": {
-          "convertType": "direct",
-          "oldTable": "Kupat1.Galeries",
-          "oldColumn": "Name_en",
-          "comment": "English description from Name_en field"
-        },
-        "DisplayInMain": {
-          "convertType": "direct",
-          "oldTable": "Kupat1.Galeries",
-          "oldColumn": "ShowHomePage",
-          "comment": "Show in main page flag"
-        },
-        "Display": {
-          "convertType": "expression",
-          "expression": "!row.Hide_en ? 1 : 0",
-          "oldTable": "Kupat1.Galeries",
-          "oldColumn": "Hide_en",
-          "comment": "Negation of Hide_en field"
-        },
-        "CreatedAt": {
-          "convertType": "expression",
-          "expression": "new Date()",
-          "comment": "Current timestamp"
-        },
-        "CreatedBy": {
-          "convertType": "const",
-          "constValue": -1,
-          "comment": "System user"
-        },
-        "UpdatedAt": {
-          "convertType": "expression",
-          "expression": "new Date()",
-          "comment": "Current timestamp"
-        },
-        "UpdatedBy": {
-          "convertType": "const",
-          "constValue": -1,
-          "comment": "System user"
-        }
+    "Display": {
+      "hebrew": {
+        "convertType": "expression",
+        "oldTable": "Galeries",
+        "oldColumn": "Hide",
+        "expression": "row.Hide ? 0 : 1"
+      },
+      "english": {
+        "convertType": "expression",
+        "oldTable": "Galeries",
+        "oldColumn": "Hide_en",
+        "expression": "row.Hide_en ? 0 : 1"
+      },
+      "french": {
+        "convertType": "expression",
+        "oldTable": "Galeries",
+        "oldColumn": "Hide_fr",
+        "expression": "row.Hide_fr ? 0 : 1"
       }
     },
-    "french": {
-      "languageId": 3,
-      "mappings": {
-        "Description": {
-          "convertType": "direct",
-          "oldTable": "Kupat1.Galeries",
-          "oldColumn": "Name_fr",
-          "comment": "French description from Name_fr field"
-        },
-        "DisplayInMain": {
-          "convertType": "direct",
-          "oldTable": "Kupat1.Galeries",
-          "oldColumn": "ShowHomePage",
-          "comment": "Show in main page flag"
-        },
-        "Display": {
-          "convertType": "expression",
-          "expression": "!row.Hide_fr ? 1 : 0",
-          "oldTable": "Kupat1.Galeries",
-          "oldColumn": "Hide_fr",
-          "comment": "Negation of Hide_fr field"
-        },
-        "CreatedAt": {
-          "convertType": "expression",
-          "expression": "new Date()",
-          "comment": "Current timestamp"
-        },
-        "CreatedBy": {
-          "convertType": "const",
-          "constValue": -1,
-          "comment": "System user"
-        },
-        "UpdatedAt": {
-          "convertType": "expression",
-          "expression": "new Date()",
-          "comment": "Current timestamp"
-        },
-        "UpdatedBy": {
-          "convertType": "const",
-          "constValue": -1,
-          "comment": "System user"
-        }
-      }
+    "CreatedAt": {
+      "convertType": "const",
+      "value": "GETDATE()"
+    },
+    "CreatedBy": {
+      "convertType": "const",
+      "value": "-1"
+    },
+    "UpdatedAt": {
+      "convertType": "const",
+      "value": "GETDATE()"
+    },
+    "UpdatedBy": {
+      "convertType": "const",
+      "value": "-1"
     }
   }
 }

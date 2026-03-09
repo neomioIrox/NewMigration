@@ -10,7 +10,9 @@
     "sourcePrimaryKey": "productsid",
     "order": 3
   },
-  "whereClause": "Certificate = 1 AND NOT EXISTS (SELECT * FROM ProductGroup g WHERE g.ParentProductId = Products.ProductsId OR g.SubProductId = Products.ProductsId)",
+  "_deprecated": "No longer needed - all collections are now identified by TerminalId=1 in Collections_Fixed",
+  "whereClause": "1=0",
+  "_oldWhereClause": "Certificate = 1 AND NOT EXISTS (SELECT * FROM ProductGroup g WHERE g.ParentProductId = Products.ProductsId OR g.SubProductId = Products.ProductsId)",
   "columnMappings": {
     "Name": {
       "convertType": "expression",

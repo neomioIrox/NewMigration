@@ -34,17 +34,23 @@ Source: products (MSSQL)  →  Target: project (MySQL)
 סה"כ שורות: 1,271
 ```
 
-### תנאי סינון (whereClause)
+### תנאי סינון (whereClause) - גרסה חדשה
 ```sql
-IsNull([Certificate],0)=0 AND IsNull([Donation],0)=0
-AND productsid NOT IN (SELECT ProductsId FROM news)
+TerminalId = 4
 ```
 
-**משמעות:**
-- `Certificate = 0` - לא תעודה
-- `Donation = 0` - לא תרומה
-- `NOT IN news` - לא מופיע בטבלת news
-- **התוצאה = קרנות בלבד**
+**משמעות:** סוג הפרויקט נקבע לפי עמודת `TerminalId` בטבלת `products`:
+- `TerminalId = 4` → קרן (ProjectType = 1)
+- `TerminalId = 1` → מגבית (ProjectType = 2)
+
+**מקור הנתונים:** קובץ `legacy/data/TerminalProducts.xlsx` (553 שורות)
+- סקריפט `scripts/fixes/update-terminal-from-excel.js` מעדכן את עמודת `TerminalId` ב-MSSQL
+
+**תנאי סינון ישן (הוחלף):**
+```sql
+-- היה: פרוצדורה מורכבת עם Certificate, ProductGroup, רשימות ID
+-- הפך ל: פשוט TerminalId = 4 (קרנות) או TerminalId = 1 (מגביות)
+```
 
 ---
 
@@ -393,9 +399,11 @@ Results: 6,110/6,137 inserted, 27 errors (duplicate key violations)
 |------|-------|
 | `server/mappings/AffiliateMapping.json` | מיפוי מקורות אב (ParentSources → affiliate) |
 | `server/mappings/SourceMapping.json` | מיפוי מקורות (UserSources → source) |
-| `server/mappings/ProjectMapping_Funds_Fixed.json` | מיפוי קרנות |
-| `server/mappings/ProjectMapping_Collections_Fixed.json` | מיפוי אוספים |
-| `server/mappings/ProjectMapping_Collections_Type2.json` | מיפוי אוספים Type2 |
+| `server/mappings/ProjectMapping_Funds_Fixed.json` | מיפוי קרנות (TerminalId=4) |
+| `server/mappings/ProjectMapping_Collections_Fixed.json` | מיפוי מגביות (TerminalId=1) |
+| `server/mappings/ProjectMapping_Collections_Type2.json` | deprecated - מוזג ל-Collections_Fixed |
+| `legacy/data/TerminalProducts.xlsx` | מיפוי productsid → Terminal (מקור להחלטת סוג פרויקט) |
+| `scripts/fixes/update-terminal-from-excel.js` | סקריפט עדכון TerminalId ב-MSSQL מה-Excel |
 | `server/mappings/RecruitersGroupMapping.json` | מיפוי קבוצות מגייסים |
 | `server/mappings/RecruiterMapping.json` | מיפוי מגייסים |
 | `server/src/engine/migration-engine.js` | מנוע המיגרציה (כולל LinkSetting) |
@@ -409,19 +417,103 @@ Results: 6,110/6,137 inserted, 27 errors (duplicate key violations)
 
 ---
 
-## סדר הרצה כולל
+## סדר הרצה כולל (מעודכן 2026-03-08) - מההתחלה
 
 ```
-Step 0:  AffiliateMapping                ← מקורות אב              [ ] טרם הורץ (חדש)
-Step 0.1: SourceMapping                  ← מקורות                 [ ] טרם הורץ (חדש)
-Step 1:  LutFundCategoryMapping          ← Lookup tables           [v] 5/5
-Step 2:  ProjectMapping_Funds_Fixed      ← קרנות                   [v] 1,271/1,271
-Step 3:  ProjectMapping_Collections_Fixed ← אוספים                 [v] 683/683
-Step 4:  ProjectMapping_Collections_Type2 ← אוספים Type2           [v] 26/26
-Step 5:  PrayerMapping                    ← תפילות                 [v] 294/294
-Step 6:  RecruitersGroupMapping           ← קבוצות מגייסים         [v] 235/235
-Step 7:  RecruiterMapping                 ← מגייסים                [v] 6,110/6,137 (27 כפילויות)
-Step 8:  RecruiterLocalizationMapping     ← תרגומי מגייסים         [ ] טרם הורץ
-Step 9:  GalleryMapping_Images/Videos     ← מדיה                   [ ] טרם הורץ
-Step 10: FundCategoryMapping              ← קטגוריות קרנות         [ ] טרם הורץ
+Step 1:   LutFundCategoryMapping           ← lookup tables (5 שורות)                      [ ]
+Step 2:   AffiliateMapping                 ← מקורות אב (ParentSources → affiliate)       [ ]
+Step 3:   SourceMapping                    ← מקורות (UserSources → source)                [ ] תלוי ב-2
+Step 4:   ProjectMapping_Funds_Fixed       ← קרנות (TerminalId=4)                         [ ]
+Step 5:   ProjectMapping_Collections_Fixed ← מגביות (TerminalId=1)                        [ ]
+Step 6:   ProjectMapping_Collections_Type2 ← פרויקטים נוספים                              [ ]
+Step 7:   PrayerMapping                    ← תפילות                                      [ ]
+Step 8:   RecruitersGroupMapping           ← קבוצות מגייסים                               [ ]
+Step 9:   RecruiterMapping                 ← מגייסים                                      [ ] תלוי ב-8
+Step 10:  GalleryMapping_Images            ← גלריות תמונות (Galeries → gallery)           [ ]
+Step 11:  GalleryMediaMapping_Images       ← מדיה לגלריות (GaleryPics → media)            [ ] תלוי ב-10
+Step 12:  GalleryMapping_Videos            ← גלריות וידאו (Videos → gallery+media)        [ ]
+Step 13:  FundCategoryMapping              ← קטגוריות קרנות                               [ ] תלוי ב-4
+Step 14:  CustomerUserMapping              ← משתמשים (Users → customeruser)                [ ]
+Step 15:  DonationMapping                  ← תרומות (Orders → donation+address+currency)   [ ] תלוי ב-4-7,9,14
 ```
+
+### הערות
+- RecruiterLocalizationMapping ו-ProjectItemLocalizationMapping מושבתים (לא בהרצה)
+- LutFundCategory ראשון כי הוא lookup table שאחרים תלויים בו
+- Donation אחרון כי הוא תלוי כמעט בכל השאר
+
+### תלויות בין שלבים
+- Step 3: Source תלוי ב-Affiliate (FK: AffiliateId)
+- Steps 4-7: Projects לפני Recruiters, Gallery, FundCategory (FK: ProjectId)
+- Step 11: אחרי Step 10 (FK: GalleryId)
+- Step 15: אחרי Steps 4-7 + 9 + 14 (FK: RecruiterId, UserId, ProjectItem)
+
+---
+
+# Step 11: מיגרציית תרומות (Donations)
+
+## סקירה כללית
+
+```
+Source: Orders (MSSQL)  →  Target: donation + donationcurrencyvalue + address (MySQL)
+סה"כ שורות: ~180,000+
+תנאי סינון: ChargeStatus = 'OrderFinished' OR DateCreated > DATEADD(month, -1, GETDATE())
+```
+
+**מנוע ייעודי:** `server/src/engine/donation-engine.js` (לא JSON mapping - לוגיקה מורכבת מדי)
+
+### למה מנוע ייעודי ולא JSON mapping?
+1. **Address inline** - יצירת רשומות Address תוך כדי עיבוד שורה
+2. **ClearingMethodAreaId** - DB lookup מורכב (PaymentMethod + Language + Currency)
+3. **DonationCurrencyValue** - 1-3 שורות child לכל תרומה
+4. **ItemId priority** - Prayer > Product > ItemType priority (5→4→1→2→3)
+5. **MoreProviderDetails** - JSON aggregation מ-10 שדות כרטיס
+
+## מיפוי העמודות: Orders → donation
+
+| עמודת מקור (Orders) | עמודת יעד (donation) | סוג המרה | הערות |
+|---------------------|---------------------|----------|-------|
+| - | ItemId | FK priority | Prayer > Product > default=1 |
+| ChargeStatus | Status | expression | OrderFinished→2, Redirected→1, Manual→4 |
+| ChargeCurrency | Currency | expression | ₪→1, $→2, €→3, £→4 |
+| OrderLaguage | LanguageId | expression | he→1, en→2, fr→3 |
+| Total / Payments | MonthlySum | expression | Total / Payments |
+| DonationType | PaymentType | expression | FixedDonation→1, else→2 |
+| PaymentMethod+Lang+Currency | ClearingMethodAreaId | DB lookup | clearingmethodarea |
+| Card*/Voucher* | MoreProviderDetails | JSON | 10 שדות → JSON |
+| UserId | UserId | FK | CustomerUser cache |
+| RecruiterId | RecruiterId | FK | RecruiterMapping cache |
+| Billing* | ReceiptAddress | Address inline | יצירת Address |
+| Certificate* | ShippingAddress | Address inline | יצירת Address |
+| DateCreated | CreatedAt | direct | |
+| - | RecordStatus | const = 2 | פעיל |
+| - | TreatStatus | const = 1 | NotRequired |
+
+## טבלת child: donationcurrencyvalue
+
+לכל תרומה נוצרות 1-3 שורות:
+
+| Currency | RateInILS | TotalSum | תנאי |
+|----------|-----------|----------|-------|
+| 1 (ILS) | 1 | TotalInILS | TotalInILS > 0 |
+| 2 (USD) | USDRate | TotalInUSD | TotalInUSD > 0 && USDRate |
+| 3 (EUR) | EURRate | TotalInEUR | TotalInEUR > 0 && EURRate |
+
+## באג שתוקן: ClearingMethodAreaId
+בסקריפט legacy ערכי UK(2) ו-USA(3) היו מוחלפים - תוקן במנוע החדש
+
+## הפעלה
+
+```
+POST /api/migrations/start-donations
+Body: { "batchSize": 1000, "dryRun": false }
+```
+
+## קבצים
+
+| קובץ | תיאור |
+|------|-------|
+| `server/src/engine/donation-engine.js` | מנוע מיגרציית תרומות |
+| `server/src/services/migration-manager.js` | אינטגרציה |
+| `server/src/routes/migrations.js` | route: POST /start-donations |
+| `legacy/scripts/migration/migrate-donations.js` | סקריפט מקורי (reference) |

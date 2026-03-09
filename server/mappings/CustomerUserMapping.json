@@ -1,0 +1,96 @@
+{
+  "filename": "CustomerUserMapping",
+  "description": "מיפוי משתמשים - Users (MSSQL) to customeruser (MySQL)",
+  "sourceTable": "Users",
+  "targetTable": "customeruser",
+  "sourceIdColumn": "Id",
+  "_meta": {
+    "entityType": "CustomerUser"
+  },
+  "columnMappings": {
+    "FirstName": {
+      "convertType": "expression",
+      "oldColumn": "FirstName",
+      "expression": "value ? value.substring(0, 100) : 'Unknown'"
+    },
+    "LastName": {
+      "convertType": "expression",
+      "oldColumn": "LastName",
+      "expression": "value ? value.substring(0, 300) : 'Name'"
+    },
+    "Gender": {
+      "convertType": "const",
+      "value": null
+    },
+    "Email": {
+      "convertType": "expression",
+      "oldColumn": "Email",
+      "expression": "value ? value.substring(0, 100) : ('user' + row.Id + '@unknown.com')"
+    },
+    "UserName": {
+      "convertType": "expression",
+      "oldColumn": "UserName",
+      "expression": "value ? value.substring(0, 35) : ('user' + row.Id)",
+      "comment": "max 40 chars - truncate to 35 to leave room for dedup suffix. Unique constraint may cause errors on duplicates."
+    },
+    "Password": {
+      "convertType": "expression",
+      "oldColumn": "PasswordHash",
+      "expression": "value ? value.substring(0, 200) : ''",
+      "comment": "Store original hash as-is"
+    },
+    "Phone": {
+      "convertType": "expression",
+      "oldColumn": "PhoneNumber",
+      "expression": "(value && value.indexOf('**') === -1) ? value.substring(0, 100) : null",
+      "comment": "Filter out masked phone numbers containing **"
+    },
+    "RecordStatus": {
+      "convertType": "const",
+      "value": "2",
+      "comment": "2 = Accept/Active"
+    },
+    "StatusChangedAt": {
+      "convertType": "const",
+      "value": "GETDATE()"
+    },
+    "StatusChangedBy": {
+      "convertType": "const",
+      "value": "-1"
+    },
+    "CreatedAt": {
+      "convertType": "expression",
+      "oldColumn": "DateCreated",
+      "expression": "value || null",
+      "defaultValue": "GETDATE()"
+    },
+    "CreatedBy": {
+      "convertType": "const",
+      "value": "-1"
+    },
+    "UpdatedAt": {
+      "convertType": "const",
+      "value": "GETDATE()"
+    },
+    "UpdatedBy": {
+      "convertType": "const",
+      "value": "-1"
+    },
+    "IdNumber": {
+      "convertType": "const",
+      "value": null
+    },
+    "IsEmailVerified": {
+      "convertType": "const",
+      "value": "0"
+    }
+  },
+  "dependencies": [],
+  "notes": [
+    "~3,839 משתמשים צפויים",
+    "UserName unique constraint - כפילויות יתועדו כשגיאות",
+    "entity_type = 'CustomerUser' - משמש כ-FK ל-DonationMapping",
+    "Phone: מסנן טלפונים עם ** (מוסתרים)",
+    "חייב לרוץ לפני מיגרציית תרומות (Step 11)"
+  ]
+}

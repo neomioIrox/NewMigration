@@ -2,7 +2,7 @@ const EventEmitter=require("events");
 const mssqlDb=require("../db/mssql");
 const {processRow,processColumn,processLocalizations,LANG_IDS}=require("./row-processor");
 const {insertRow,insertRowWithTracking,recordMapping,updateRow,recordError}=require("./batch-runner");
-const {preloadFKCache}=require("./fk-resolver");
+const {preloadFKCache,resolveFK}=require("./fk-resolver");
 const {evaluateCondition,processGetDate}=require("./expression-eval");
 const tracker=require("../services/tracker");
 const logger=require("../logger");
@@ -207,6 +207,11 @@ class MigrationEngine extends EventEmitter{
               await this._processTranslations(m,row,newId);
             }
 
+            // 10. After-insert junction/link table records
+            if(m.afterInsertMappings){
+              await this._processAfterInsertMappings(m,row,newId,mediaIdMap,sourceId);
+            }
+
           }catch(err){
             this.counters.errors++;
             await recordError(this.runId,sourceId,"transform",err.message,row,err.stack);
@@ -388,6 +393,47 @@ class MigrationEngine extends EventEmitter{
         UpdatedBy:-1
       });
       await recordMapping("EntityMedia_"+lang,sourceId,emId,this.runId);
+    }
+  }
+
+  // ======= After-Insert Junction/Link Table Records =======
+  async _processAfterInsertMappings(m,row,newId,mediaIdMap,sourceId){
+    var now=processGetDate();
+    for(var aim of m.afterInsertMappings){
+      var targetTable=aim.targetTable;
+      var junctionRow={};
+      for(var colName of Object.keys(aim.columns)){
+        var colDef=aim.columns[colName];
+        if(colDef.source==="newId"){
+          junctionRow[colName]=newId;
+        }else if(colDef.source==="mediaIdMap"){
+          var mediaId=mediaIdMap[colDef.key];
+          if(!mediaId) break; // skip junction if media wasn't created
+          junctionRow[colName]=mediaId;
+        }else if(colDef.source==="fk_lookup"){
+          var lookupResult=await resolveFK(colDef.entityType,row[colDef.oldColumn]);
+          if(!lookupResult){
+            logger.warn("afterInsert FK lookup failed",{entityType:colDef.entityType,sourceVal:row[colDef.oldColumn]});
+            break;
+          }
+          junctionRow[colName]=lookupResult;
+        }else if(colDef.convertType==="const"){
+          var val=colDef.value;
+          if(val==="GETDATE()")val=now;
+          else if(typeof val==="string"&&val.trim()!==""&&!isNaN(val))val=Number(val);
+          junctionRow[colName]=val;
+        }else if(colDef.convertType==="expression"){
+          junctionRow[colName]=await processColumn(colName,colDef,row,m.fkMappings);
+        }else if(colDef.convertType==="direct"){
+          junctionRow[colName]=row[colDef.oldColumn];
+        }
+      }
+      // Only insert if all columns were resolved (no break)
+      if(Object.keys(junctionRow).length===Object.keys(aim.columns).length){
+        var jId=await insertRow(targetTable,junctionRow);
+        var entityLabel=aim.entityType||targetTable;
+        await recordMapping(entityLabel,sourceId,jId,this.runId);
+      }
     }
   }
 

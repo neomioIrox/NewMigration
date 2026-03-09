@@ -49,4 +49,94 @@ router.get("/:id/progress",async function(req,res){
   }catch(err){res.status(500).json({error:err.message});}
 });
 
+router.post("/start-donations",async function(req,res){
+  try{
+    var {batchSize,dryRun}=req.body;
+    var engine=manager.startDonationMigration(
+      {batchSize:batchSize||1000,dryRun:dryRun||false},
+      req.app.get("io")
+    );
+    res.json({message:"Donation migration started",dryRun:dryRun||false,batchSize:batchSize||1000});
+  }catch(err){res.status(500).json({error:err.message});}
+});
+
+// Rebuild id_mappings for CustomerUser from existing target data + clean donation data
+router.post("/prepare-donation-rerun",async function(req,res){
+  try{
+    var targetDb=require("../db/mysql-target");
+    var trackerDb=require("../db/mysql-tracker");
+
+    // 1. Rebuild CustomerUser id_mappings (same ID in both DBs)
+    var [users]=await targetDb.query("SELECT Id FROM customeruser");
+    if(users.length>0){
+      var mPlaceholders=users.map(function(){return"(?,?,?,?)"}).join(",");
+      var mVals=[];
+      for(var u of users){mVals.push("CustomerUser",String(u.Id),String(u.Id),null);}
+      await trackerDb.query(
+        "INSERT INTO id_mappings (entity_type,source_id,target_id,run_id) VALUES "+mPlaceholders
+        +" ON DUPLICATE KEY UPDATE target_id=VALUES(target_id)",mVals);
+    }
+
+    // 2. Delete old donation data from target
+    await targetDb.query("DELETE FROM donationcurrencyvalue");
+    var [donCount]=await targetDb.query("SELECT COUNT(*) as c FROM donation");
+    await targetDb.query("DELETE FROM donation");
+    // Delete addresses created by donation migration (those without FK references now)
+    // We can't easily identify which addresses were ours, but since donation.ReceiptAddress/ShippingAddress are now deleted,
+    // orphaned addresses from the migration are acceptable for now
+
+    // 3. Clear donation-related tracker data
+    await trackerDb.query("DELETE FROM row_status WHERE run_id IN (SELECT id FROM migration_runs WHERE mapping_name='DonationMapping')");
+    await trackerDb.query("DELETE FROM migration_errors WHERE run_id IN (SELECT id FROM migration_runs WHERE mapping_name='DonationMapping')");
+    await trackerDb.query("DELETE FROM id_mappings WHERE entity_type='Donation'");
+    await trackerDb.query("DELETE FROM migration_runs WHERE mapping_name='DonationMapping'");
+    // Also clean the failed CustomerUser re-run
+    await trackerDb.query("DELETE FROM row_status WHERE run_id IN (SELECT id FROM migration_runs WHERE mapping_name='CustomerUserMapping')");
+    await trackerDb.query("DELETE FROM migration_errors WHERE run_id IN (SELECT id FROM migration_runs WHERE mapping_name='CustomerUserMapping')");
+    await trackerDb.query("DELETE FROM migration_runs WHERE mapping_name='CustomerUserMapping'");
+
+    res.json({
+      customerUserMappings:users.length,
+      donationsDeleted:donCount[0].c,
+      ready:true
+    });
+  }catch(err){res.status(500).json({error:err.message});}
+});
+
+router.post("/update-terminals",async function(req,res){
+  try{
+    var path=require("path");
+    var XLSX=require("xlsx");
+    var mssql=require("../db/mssql");
+    var dryRun=req.body.dryRun===true;
+    var excelPath=path.join(__dirname,"../../../legacy/data/TerminalProducts.xlsx");
+    var wb=XLSX.readFile(excelPath);
+    var ws=wb.Sheets[wb.SheetNames[0]];
+    var rows=XLSX.utils.sheet_to_json(ws);
+    var validRows=rows.filter(function(r){return r.Terminal===1||r.Terminal===4;});
+
+    if(dryRun){
+      var dist={};
+      validRows.forEach(function(r){dist[r.Terminal]=(dist[r.Terminal]||0)+1;});
+      return res.json({dryRun:true,totalRows:rows.length,validRows:validRows.length,skipped:rows.length-validRows.length,distribution:dist});
+    }
+
+    var pool=await mssql.getPool();
+    var updated=0,errors=0,errorDetails=[];
+    for(var i=0;i<validRows.length;i++){
+      try{
+        await pool.request()
+          .input("terminal",validRows[i].Terminal)
+          .input("pid",validRows[i].productsid)
+          .query("UPDATE products SET Terminal = @terminal WHERE productsid = @pid");
+        updated++;
+      }catch(err){
+        errors++;
+        errorDetails.push({productsid:validRows[i].productsid,error:err.message});
+      }
+    }
+    res.json({dryRun:false,updated:updated,errors:errors,errorDetails:errorDetails.slice(0,10)});
+  }catch(err){res.status(500).json({error:err.message});}
+});
+
 module.exports=router;

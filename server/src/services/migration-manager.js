@@ -1,6 +1,7 @@
 const fs=require("fs");
 const path=require("path");
 const MigrationEngine=require("../engine/migration-engine");
+const DonationEngine=require("../engine/donation-engine");
 const tracker=require("./tracker");
 const logger=require("../logger");
 
@@ -46,6 +47,18 @@ function pauseMigration(runId){
 async function resumeMigration(runId,io){
   var run=await tracker.getRun(runId);
   if(!run||run.status!=="paused") return null;
+  // Use DonationEngine for donation runs
+  if(run.mapping_name==="DonationMapping"){
+    var dEngine=new DonationEngine({batchSize:run.batch_size});
+    dEngine.on("started",function(d){if(io) io.emit("migration:started",d);});
+    dEngine.on("progress",function(d){if(io) io.emit("migration:progress",d);});
+    dEngine.on("paused",function(d){if(io) io.emit("migration:paused",d);});
+    dEngine.on("completed",function(d){if(io) io.emit("migration:completed",d);activeEngines.delete(d.runId);});
+    dEngine.on("error",function(d){if(io) io.emit("migration:error",d);activeEngines.delete(d.runId);});
+    activeEngines.set(runId,dEngine);
+    dEngine.run(runId).catch(function(e){logger.error("Donation resume failed: "+e.message);});
+    return dEngine;
+  }
   var mapping=loadMapping(run.mapping_name);
   var engine=new MigrationEngine(mapping,{batchSize:run.batch_size});
   engine.on("started",function(d){if(io) io.emit("migration:started",d);});
@@ -69,6 +82,21 @@ async function restartMigration(runId,io){
   return startMigration(run.mapping_name,{batchSize:run.batch_size},io);
 }
 
+function startDonationMigration(options,io){
+  var engine=new DonationEngine(options);
+  engine.on("started",function(data){
+    if(io) io.emit("migration:started",data);
+    // Register immediately when runId is known
+    if(data.runId) activeEngines.set(data.runId,engine);
+  });
+  engine.on("progress",function(data){if(io) io.emit("migration:progress",data);});
+  engine.on("paused",function(data){if(io) io.emit("migration:paused",data);});
+  engine.on("completed",function(data){if(io) io.emit("migration:completed",data);activeEngines.delete(data.runId);});
+  engine.on("error",function(data){if(io) io.emit("migration:error",data);activeEngines.delete(data.runId);});
+  engine.run().catch(function(err){logger.error("Donation migration failed: "+err.message);});
+  return engine;
+}
+
 function getActiveEngine(runId){return activeEngines.get(runId)||null;}
 
-module.exports={loadMapping,listMappings,startMigration,pauseMigration,resumeMigration,restartMigration,getActiveEngine};
+module.exports={loadMapping,listMappings,startMigration,startDonationMigration,pauseMigration,resumeMigration,restartMigration,getActiveEngine};

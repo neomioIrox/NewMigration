@@ -1,178 +1,211 @@
 {
-  "tableName": "Gallery",
-  "sourceTable": "Kupat1.Videos",
-  "description": "Migration mapping for Video galleries from Kupat1.Videos to Gallery table",
-  "mediaType": 2,
+  "filename": "GalleryMapping_Videos",
+  "sourceTable": "Videos",
+  "targetTable": "gallery",
+  "sourceIdColumn": "VideosId",
+  "whereClause": "Link IS NOT NULL AND Link != ''",
+  "_meta": {
+    "entityType": "Gallery_Videos",
+    "sourceTable": "Videos",
+    "targetTable": "gallery",
+    "sourcePrimaryKey": "VideosId",
+    "order": 9.3,
+    "description": "Video galleries: Videos -> gallery + gallerylocalization + media + gallerymedia"
+  },
   "columnMappings": {
     "Name": {
-      "convertType": "direct",
-      "oldTable": "Kupat1.Videos",
+      "convertType": "expression",
+      "oldTable": "Videos",
       "oldColumn": "Name",
-      "comment": "Gallery name from source"
+      "expression": "value ? value.replace(/[\\uD800-\\uDBFF][\\uDC00-\\uDFFF]/g, '').substring(0, 200) : ('Video ' + row.VideosId)"
     },
-    "MediaType": {
-      "convertType": "const",
-      "constValue": 2,
-      "comment": "2 = Video"
+    "Order": {
+      "convertType": "direct",
+      "oldTable": "Videos",
+      "oldColumn": "Sort"
     },
-    "Category": {
+    "RecordStatus": {
       "convertType": "const",
-      "constValue": 1,
-      "comment": "1 = General"
+      "value": "2"
+    },
+    "StatusChangedAt": {
+      "convertType": "const",
+      "value": "GETDATE()"
+    },
+    "StatusChangedBy": {
+      "convertType": "const",
+      "value": "-1"
     },
     "CreatedAt": {
-      "convertType": "expression",
-      "expression": "new Date()",
-      "comment": "Current timestamp"
+      "convertType": "const",
+      "value": "GETDATE()"
     },
     "CreatedBy": {
       "convertType": "const",
-      "constValue": -1,
-      "comment": "System user"
+      "value": "-1"
     },
     "UpdatedAt": {
-      "convertType": "expression",
-      "expression": "new Date()",
-      "comment": "Current timestamp"
+      "convertType": "const",
+      "value": "GETDATE()"
     },
     "UpdatedBy": {
       "convertType": "const",
-      "constValue": -1,
-      "comment": "System user"
+      "value": "-1"
     }
   },
   "localizationMappings": {
+    "targetTable": "gallerylocalization",
+    "parentFkColumn": "GalleryId",
+    "languageColumn": "Language",
+    "Title": {
+      "hebrew": {
+        "convertType": "expression",
+        "oldTable": "Videos",
+        "oldColumn": "Name",
+        "expression": "value ? value.replace(/[\\uD800-\\uDBFF][\\uDC00-\\uDFFF]/g, '').substring(0, 200) : null"
+      },
+      "english": {
+        "convertType": "expression",
+        "oldTable": "Videos",
+        "oldColumn": "Name_en",
+        "expression": "value ? value.replace(/[\\uD800-\\uDBFF][\\uDC00-\\uDFFF]/g, '').substring(0, 200) : null"
+      },
+      "french": {
+        "convertType": "expression",
+        "oldTable": "Videos",
+        "oldColumn": "Name_fr",
+        "expression": "value ? value.replace(/[\\uD800-\\uDBFF][\\uDC00-\\uDFFF]/g, '').substring(0, 200) : null"
+      }
+    },
+    "Display": {
+      "hebrew": {
+        "convertType": "expression",
+        "oldTable": "Videos",
+        "oldColumn": "Hide",
+        "expression": "row.Hide ? 0 : 1"
+      },
+      "english": {
+        "convertType": "expression",
+        "oldTable": "Videos",
+        "oldColumn": "Hide_en",
+        "expression": "row.Hide_en ? 0 : 1"
+      },
+      "french": {
+        "convertType": "expression",
+        "oldTable": "Videos",
+        "oldColumn": "Hide_fr",
+        "expression": "row.Hide_fr ? 0 : 1"
+      }
+    },
+    "CreatedAt": {
+      "convertType": "const",
+      "value": "GETDATE()"
+    },
+    "CreatedBy": {
+      "convertType": "const",
+      "value": "-1"
+    },
+    "UpdatedAt": {
+      "convertType": "const",
+      "value": "GETDATE()"
+    },
+    "UpdatedBy": {
+      "convertType": "const",
+      "value": "-1"
+    }
+  },
+  "mediaMappings": {
     "hebrew": {
-      "languageId": 1,
-      "mappings": {
-        "Description": {
-          "convertType": "direct",
-          "oldTable": "Kupat1.Videos",
+      "galleryVideo": {
+        "RelativePath": {
+          "convertType": "expression",
+          "oldTable": "Videos",
+          "oldColumn": "Link",
+          "expression": "value ? value.substring(0, 500) : null"
+        },
+        "YearDirectory": {
+          "convertType": "const",
+          "value": "legacy"
+        },
+        "MonthDirectory": {
+          "convertType": "const",
+          "value": "gallery"
+        },
+        "SourceType": {
+          "convertType": "const",
+          "value": "1"
+        },
+        "MediaType": {
+          "convertType": "const",
+          "value": "2"
+        },
+        "FriendlyName": {
+          "convertType": "expression",
+          "oldTable": "Videos",
           "oldColumn": "Name",
-          "comment": "Hebrew description from Name field"
+          "expression": "value ? value.substring(0, 100) : null"
         },
-        "DisplayInMain": {
-          "convertType": "direct",
-          "oldTable": "Kupat1.Videos",
-          "oldColumn": "ShowHomePage",
-          "comment": "Show in main page flag"
+        "MatchToPlatform": {
+          "convertType": "const",
+          "value": "3"
         },
-        "Display": {
-          "convertType": "expression",
-          "expression": "!row.Hide ? 1 : 0",
-          "oldTable": "Kupat1.Videos",
-          "oldColumn": "Hide",
-          "comment": "Negation of Hide field"
+        "RecordStatus": {
+          "convertType": "const",
+          "value": "2"
+        },
+        "StatusChangedAt": {
+          "convertType": "const",
+          "value": "GETDATE()"
+        },
+        "StatusChangedBy": {
+          "convertType": "const",
+          "value": "-1"
         },
         "CreatedAt": {
-          "convertType": "expression",
-          "expression": "new Date()",
-          "comment": "Current timestamp"
+          "convertType": "const",
+          "value": "GETDATE()"
         },
         "CreatedBy": {
           "convertType": "const",
-          "constValue": -1,
-          "comment": "System user"
+          "value": "-1"
         },
         "UpdatedAt": {
-          "convertType": "expression",
-          "expression": "new Date()",
-          "comment": "Current timestamp"
+          "convertType": "const",
+          "value": "GETDATE()"
         },
         "UpdatedBy": {
           "convertType": "const",
-          "constValue": -1,
-          "comment": "System user"
-        }
+          "value": "-1"
+        },
+        "condition": "row.Link != null && row.Link != ''"
       }
-    },
-    "english": {
-      "languageId": 2,
-      "mappings": {
-        "Description": {
-          "convertType": "direct",
-          "oldTable": "Kupat1.Videos",
-          "oldColumn": "Name_en",
-          "comment": "English description from Name_en field"
+    }
+  },
+  "afterInsertMappings": [
+    {
+      "targetTable": "gallerymedia",
+      "entityType": "GalleryMedia_Video",
+      "columns": {
+        "GalleryId": {
+          "source": "newId"
         },
-        "DisplayInMain": {
-          "convertType": "direct",
-          "oldTable": "Kupat1.Videos",
-          "oldColumn": "ShowHomePage",
-          "comment": "Show in main page flag"
+        "MediaId": {
+          "source": "mediaIdMap",
+          "key": "hebrew_galleryVideo"
         },
-        "Display": {
-          "convertType": "expression",
-          "expression": "!row.Hide_en ? 1 : 0",
-          "oldTable": "Kupat1.Videos",
-          "oldColumn": "Hide_en",
-          "comment": "Negation of Hide_en field"
+        "isMainMedia": {
+          "convertType": "const",
+          "value": "1"
         },
         "CreatedAt": {
-          "convertType": "expression",
-          "expression": "new Date()",
-          "comment": "Current timestamp"
+          "convertType": "const",
+          "value": "GETDATE()"
         },
         "CreatedBy": {
           "convertType": "const",
-          "constValue": -1,
-          "comment": "System user"
-        },
-        "UpdatedAt": {
-          "convertType": "expression",
-          "expression": "new Date()",
-          "comment": "Current timestamp"
-        },
-        "UpdatedBy": {
-          "convertType": "const",
-          "constValue": -1,
-          "comment": "System user"
-        }
-      }
-    },
-    "french": {
-      "languageId": 3,
-      "mappings": {
-        "Description": {
-          "convertType": "direct",
-          "oldTable": "Kupat1.Videos",
-          "oldColumn": "Name_fr",
-          "comment": "French description from Name_fr field"
-        },
-        "DisplayInMain": {
-          "convertType": "direct",
-          "oldTable": "Kupat1.Videos",
-          "oldColumn": "ShowHomePage",
-          "comment": "Show in main page flag"
-        },
-        "Display": {
-          "convertType": "expression",
-          "expression": "!row.Hide_fr ? 1 : 0",
-          "oldTable": "Kupat1.Videos",
-          "oldColumn": "Hide_fr",
-          "comment": "Negation of Hide_fr field"
-        },
-        "CreatedAt": {
-          "convertType": "expression",
-          "expression": "new Date()",
-          "comment": "Current timestamp"
-        },
-        "CreatedBy": {
-          "convertType": "const",
-          "constValue": -1,
-          "comment": "System user"
-        },
-        "UpdatedAt": {
-          "convertType": "expression",
-          "expression": "new Date()",
-          "comment": "Current timestamp"
-        },
-        "UpdatedBy": {
-          "convertType": "const",
-          "constValue": -1,
-          "comment": "System user"
+          "value": "-1"
         }
       }
     }
-  }
+  ]
 }
