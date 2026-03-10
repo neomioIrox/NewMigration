@@ -1,13 +1,13 @@
 {
   "filename": "GalleryMapping_Videos",
   "sourceTable": "Videos",
-  "targetTable": "gallery",
+  "targetTable": "Gallery",
   "sourceIdColumn": "VideosId",
   "whereClause": "Link IS NOT NULL AND Link != ''",
   "_meta": {
     "entityType": "Gallery_Videos",
     "sourceTable": "Videos",
-    "targetTable": "gallery",
+    "targetTable": "Gallery",
     "sourcePrimaryKey": "VideosId",
     "order": 9.3,
     "description": "Video galleries: Videos -> gallery + gallerylocalization + media + gallerymedia"
@@ -54,7 +54,7 @@
     }
   },
   "localizationMappings": {
-    "targetTable": "gallerylocalization",
+    "targetTable": "GalleryLocalization",
     "parentFkColumn": "GalleryId",
     "languageColumn": "Language",
     "Title": {
@@ -183,7 +183,7 @@
   },
   "afterInsertMappings": [
     {
-      "targetTable": "gallerymedia",
+      "targetTable": "GalleryMedia",
       "entityType": "GalleryMedia_Video",
       "columns": {
         "GalleryId": {

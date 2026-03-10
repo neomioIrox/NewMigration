@@ -2,7 +2,7 @@
   "filename": "RecruitersGroupMapping",
   "description": "מיפוי קבוצות מגייסים - RecruitersGroups to recruitersgroup",
   "sourceTable": "RecruitersGroups",
-  "targetTable": "recruitersgroup",
+  "targetTable": "RecruitersGroup",
   "sourceIdColumn": "ID",
   "sourceQuery": "SELECT rg.*, COALESCE(rg.ProjectId, pstop.ProductId) AS ResolvedProjectId FROM RecruitersGroups rg WITH (NOLOCK) OUTER APPLY (SELECT TOP 1 ps.ProductId FROM ProductStock ps WITH (NOLOCK) WHERE ps.GroupId = rg.ID AND ps.ProductId IS NOT NULL) pstop",
   "whereClause": "ResolvedProjectId IS NOT NULL",
@@ -51,7 +51,7 @@
     "ProjectId": "Project"
   },
   "localizationMappings": {
-    "targetTable": "recruitersgrouplanguage",
+    "targetTable": "RecruitersGroupLanguage",
     "parentFkColumn": "RecruiterGroupId",
     "languageColumn": "LanguageId",
     "Name": {

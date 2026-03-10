@@ -49,7 +49,7 @@ class DonationEngine extends EventEmitter{
     this.isRunning=true;
     this.pauseRequested=false;
     var sourceTable="Orders";
-    var targetTable="donation";
+    var targetTable="Donation";
     var sourceIdCol="OrdersId";
     var entityType="Donation";
 
@@ -330,7 +330,7 @@ class DonationEngine extends EventEmitter{
     for(var a of addressRows){
       vals.push(a.Street,a.City,a.Country,a.ZipCode);
     }
-    var sql="INSERT INTO `address` (`"+cols.join("`,`")+"`) VALUES "+placeholders;
+    var sql="INSERT INTO `Address` (`"+cols.join("`,`")+"`) VALUES "+placeholders;
     var [result]=await targetDb.query(sql,vals);
 
     // MySQL returns first insertId, rest are sequential
@@ -354,7 +354,7 @@ class DonationEngine extends EventEmitter{
         vals.push(v===undefined?null:v);
       }
     }
-    var sql="INSERT INTO `donation` (`"+cols.join("`,`")+"`) VALUES "+placeholders;
+    var sql="INSERT INTO `Donation` (`"+cols.join("`,`")+"`) VALUES "+placeholders;
     var [result]=await targetDb.query(sql,vals);
 
     var firstId=result.insertId;
@@ -373,7 +373,7 @@ class DonationEngine extends EventEmitter{
     for(var cv of cvRows){
       vals.push(cv.DonationId,cv.Currency,cv.RateInILS,cv.TotalSum,cv.CreatedAt,cv.CreatedBy,cv.UpdatedAt,cv.UpdatedBy);
     }
-    var sql="INSERT INTO `donationcurrencyvalue` (`"+cols.join("`,`")+"`) VALUES "+placeholders;
+    var sql="INSERT INTO `DonationCurrencyValue` (`"+cols.join("`,`")+"`) VALUES "+placeholders;
     await targetDb.query(sql,vals);
   }
 
@@ -404,7 +404,7 @@ class DonationEngine extends EventEmitter{
   // ============================================
   async _preloadClearingMethodAreas(){
     try{
-      var [rows]=await targetDb.query("SELECT Id,ClearingMethodId,Area FROM clearingmethodarea");
+      var [rows]=await targetDb.query("SELECT Id,ClearingMethodId,Area FROM ClearingMethodArea");
       for(var r of rows){
         this.clearingMethodAreaCache.set(r.ClearingMethodId+"_"+r.Area,r.Id);
       }

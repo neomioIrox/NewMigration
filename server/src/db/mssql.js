@@ -7,7 +7,8 @@ function getErrorMessage(err) {
   if (typeof err === 'string') return err;
   if (err && err.message) return err.message;
   if (Array.isArray(err)) return err.map(e => e.message || JSON.stringify(e)).join('; ');
-  return JSON.stringify(err);
+  try { return JSON.stringify(err, Object.getOwnPropertyNames(err)); } catch(e) {}
+  return String(err);
 }
 
 async function getPool() {

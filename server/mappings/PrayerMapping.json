@@ -2,12 +2,12 @@
   "filename": "PrayerMapping",
   "description": "Mapping for Prayers table to project (ProjectType=2) with PrayerName items (ItemType=3)",
   "sourceTable": "Prayers",
-  "targetTable": "project",
+  "targetTable": "Project",
   "sourceIdColumn": "PrayersId",
   "_meta": {
     "entityType": "Project",
     "sourceTable": "Prayers",
-    "targetTable": "project",
+    "targetTable": "Project",
     "sourcePrimaryKey": "PrayersId",
     "order": 4
   },
@@ -70,7 +70,7 @@
   },
   "fkMappings": {},
   "localizationMappings": {
-    "targetTable": "projectlocalization",
+    "targetTable": "ProjectLocalization",
     "parentFkColumn": "ProjectId",
     "Title": {
       "hebrew": {

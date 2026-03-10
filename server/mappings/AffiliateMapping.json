@@ -2,7 +2,7 @@
   "filename": "AffiliateMapping",
   "description": "מיפוי מקורות אב - ParentSources to affiliate",
   "sourceTable": "ParentSources",
-  "targetTable": "affiliate",
+  "targetTable": "Affiliate",
   "sourceIdColumn": "Id",
   "sourceQuery": "SELECT * FROM ParentSources WITH (NOLOCK)",
   "whereClause": null,

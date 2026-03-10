@@ -2,7 +2,7 @@
   "filename": "RecruiterMapping",
   "description": "מיפוי מגייסים - ProductStock to recruiter",
   "sourceTable": "ProductStock",
-  "targetTable": "recruiter",
+  "targetTable": "Recruiter",
   "sourceIdColumn": "ProductStockId",
   "whereClause": "ProductId IS NOT NULL",
   "columnMappings": {
@@ -71,7 +71,7 @@
     "RecruiterGroupId": "RecruitersGroupMapping"
   },
   "localizationMappings": {
-    "targetTable": "recruiterlocalization",
+    "targetTable": "RecruiterLocalization",
     "parentFkColumn": "RecruiterId",
     "languageColumn": "LanguageId",
     "Name": {

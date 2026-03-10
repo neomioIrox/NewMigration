@@ -1,12 +1,12 @@
 {
   "filename": "GalleryMapping_Images",
   "sourceTable": "Galeries",
-  "targetTable": "gallery",
+  "targetTable": "Gallery",
   "sourceIdColumn": "GaleriesId",
   "_meta": {
     "entityType": "Gallery_Images",
     "sourceTable": "Galeries",
-    "targetTable": "gallery",
+    "targetTable": "Gallery",
     "sourcePrimaryKey": "GaleriesId",
     "order": 9.1,
     "description": "Image galleries: Galeries -> gallery + gallerylocalization (3 langs)"
@@ -53,7 +53,7 @@
     }
   },
   "localizationMappings": {
-    "targetTable": "gallerylocalization",
+    "targetTable": "GalleryLocalization",
     "parentFkColumn": "GalleryId",
     "languageColumn": "Language",
     "Title": {

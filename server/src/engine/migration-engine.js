@@ -157,7 +157,7 @@ class MigrationEngine extends EventEmitter{
                 var itemMapping=m.projectItemMappings[itemKey];
                 var itemRow=await processRow(itemMapping,row,m.fkMappings);
                 itemRow.ProjectId=newId;
-                itemId=await insertRow("projectitem",itemRow);
+                itemId=await insertRow("ProjectItem",itemRow);
                 await recordMapping("ProjectItem_"+itemKey,sourceId,itemId,this.runId);
 
                 // 5b. projectItemLocalizationMappings (with conditional FR/EN)
@@ -174,7 +174,7 @@ class MigrationEngine extends EventEmitter{
                         pilRow[fld]=await processColumn(fld,fd,row,m.fkMappings);
                       }
                     }
-                    await insertRow("projectitemlocalization",pilRow);
+                    await insertRow("ProjectItemLocalization",pilRow);
                   }
                 }
 
@@ -270,7 +270,7 @@ class MigrationEngine extends EventEmitter{
             mediaRow[ck]=cd;
           }
         }
-        var mediaId=await insertRow("media",mediaRow);
+        var mediaId=await insertRow("Media",mediaRow);
         var mapKey=lang+"_"+mediaKey;
         mediaIdMap[mapKey]=mediaId;
         await recordMapping("Media_"+mapKey,sourceId,mediaId,this.runId);
@@ -298,14 +298,14 @@ class MigrationEngine extends EventEmitter{
         });
       }
       // Insert entitycontent
-      var contentId=await insertRow("entitycontent",{
+      var contentId=await insertRow("EntityContent",{
         Name:null,
         IsTemplate:0,
         CreatedAt:now,
         CreatedBy:1
       });
       // Insert entitycontentitem
-      await insertRow("entitycontentitem",{
+      await insertRow("EntityContentItem",{
         ContentId:contentId,
         ItemType:11,
         ItemDefinition:JSON.stringify({Text:descText}),
@@ -363,7 +363,7 @@ class MigrationEngine extends EventEmitter{
           UpdatedAt:now,
           UpdatedBy:-1
         };
-        var linkId=await insertRow("linksetting",lsData);
+        var linkId=await insertRow("LinkSetting",lsData);
         linkSettingIds[btnType+"_"+lang]=linkId;
         await recordMapping("LinkSetting_"+btnType+"_"+lang,sourceId,linkId,this.runId);
       }
@@ -382,7 +382,7 @@ class MigrationEngine extends EventEmitter{
       var videoMediaId=mediaIdMap[lang+"_"+emDef.mediaType];
       if(!videoMediaId) continue;
       var langId=LANG_IDS[lang]||1;
-      var emId=await insertRow("entitymedia",{
+      var emId=await insertRow("EntityMedia",{
         EntityType:emDef.EntityType,
         EntityId:newId,
         Language:langId,
@@ -477,7 +477,7 @@ class MigrationEngine extends EventEmitter{
         if(contentIdMap[lang]) setData.ContentId=contentIdMap[lang];
 
         if(Object.keys(setData).length>0){
-          await updateRow("projectlocalization",setData,{ProjectId:newId,Language:langId});
+          await updateRow("ProjectLocalization",setData,{ProjectId:newId,Language:langId});
         }
       }
     }
@@ -500,7 +500,7 @@ class MigrationEngine extends EventEmitter{
         // NOTE: ProjectFooterLinkSettingId is now updated per-item in _updateItemLocalizationLinks
 
         if(Object.keys(setData).length>0){
-          await updateRow("projectitemlocalization",setData,{ItemId:itemId,Language:langId});
+          await updateRow("ProjectItemLocalization",setData,{ItemId:itemId,Language:langId});
         }
       }
     }
@@ -519,7 +519,7 @@ class MigrationEngine extends EventEmitter{
       var footerLinkId=linkSettingIds["footerButton_"+lang];
       if(footerLinkId) setData.ProjectFooterLinkSettingId=footerLinkId;
       if(Object.keys(setData).length>0){
-        await updateRow("projectitemlocalization",setData,{ItemId:itemId,Language:langId});
+        await updateRow("ProjectItemLocalization",setData,{ItemId:itemId,Language:langId});
       }
     }
   }
@@ -532,7 +532,7 @@ class MigrationEngine extends EventEmitter{
       if(tDef.condition&&!evaluateCondition(tDef.condition,row)) continue;
       var transValue=row[tDef.sourceColumn];
       if(!transValue||String(transValue).trim()==="") continue;
-      await insertRow("translations",{
+      await insertRow("Translations",{
         TableName:tDef.tableName,
         FieldName:tDef.fieldName,
         RecordId:newId,

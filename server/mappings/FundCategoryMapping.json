@@ -1,12 +1,12 @@
 {
   "filename": "FundCategoryMapping",
   "sourceTable": "products",
-  "targetTable": "fundcategory",
+  "targetTable": "FundCategory",
   "sourceIdColumn": "productsid",
   "_meta": {
     "entityType": "FundCategory",
     "sourceTable": "products",
-    "targetTable": "fundcategory",
+    "targetTable": "FundCategory",
     "sourcePrimaryKey": "productsid",
     "dependsOn": ["Project", "LutFundCategory"],
     "order": 12

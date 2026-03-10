@@ -1,13 +1,13 @@
 {
   "filename": "GalleryMediaMapping_Images",
   "sourceTable": "GaleryPics",
-  "targetTable": "media",
+  "targetTable": "Media",
   "sourceIdColumn": "GaleryPicsId",
   "whereClause": "Pic IS NOT NULL AND Pic != ''",
   "_meta": {
     "entityType": "Media_GalleryImage",
     "sourceTable": "GaleryPics",
-    "targetTable": "media",
+    "targetTable": "Media",
     "sourcePrimaryKey": "GaleryPicsId",
     "order": 9.2,
     "description": "Gallery image media: GaleryPics -> media + gallerymedia junction. Must run AFTER GalleryMapping_Images.",
@@ -77,7 +77,7 @@
   },
   "afterInsertMappings": [
     {
-      "targetTable": "gallerymedia",
+      "targetTable": "GalleryMedia",
       "entityType": "GalleryMedia_Image",
       "columns": {
         "GalleryId": {

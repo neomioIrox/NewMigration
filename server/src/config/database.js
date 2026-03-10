@@ -1,14 +1,16 @@
+require('dotenv').config({ path: require('path').resolve(__dirname, '../../../.env') });
+
 const config = {
   mssql: {
-    connectionString: 'Driver={ODBC Driver 17 for SQL Server};Server=DESKTOP-7QELS7G;Database=kupat3_5;Trusted_Connection=Yes;',
-    database: 'kupatOld',
-    requestTimeout: 300000
+    connectionString: process.env.MSSQL_CONNECTION_STRING,
+    database: process.env.MSSQL_DATABASE,
+    requestTimeout: parseInt(process.env.MSSQL_REQUEST_TIMEOUT) || 300000
   },
   mysqlTarget: {
-    host: 'localhost',
-    user: 'root',
-    password: '1234',
-    database: 'kupathairnew',
+    host: process.env.MYSQL_TARGET_HOST,
+    user: process.env.MYSQL_TARGET_USER,
+    password: process.env.MYSQL_TARGET_PASSWORD,
+    database: process.env.MYSQL_TARGET_DATABASE,
     charset: 'utf8mb4',
     connectTimeout: 10000,
     waitForConnections: true,
@@ -16,10 +18,10 @@ const config = {
     queueLimit: 0
   },
   mysqlTracker: {
-    host: 'localhost',
-    user: 'root',
-    password: '1234',
-    database: 'migration_tracker',
+    host: process.env.MYSQL_TRACKER_HOST,
+    user: process.env.MYSQL_TRACKER_USER,
+    password: process.env.MYSQL_TRACKER_PASSWORD,
+    database: process.env.MYSQL_TRACKER_DATABASE,
     connectTimeout: 10000,
     waitForConnections: true,
     connectionLimit: 10,

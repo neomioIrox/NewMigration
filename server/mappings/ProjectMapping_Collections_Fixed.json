@@ -1,12 +1,12 @@
 {
   "filename": "ProjectMapping_Collections_Fixed",
   "sourceTable": "products",
-  "targetTable": "project",
+  "targetTable": "Project",
   "sourceIdColumn": "productsid",
   "_meta": {
     "entityType": "Project",
     "sourceTable": "products",
-    "targetTable": "project",
+    "targetTable": "Project",
     "sourcePrimaryKey": "productsid",
     "order": 2
   },
@@ -87,7 +87,7 @@
     "CreatedAt": "ProductCreatedDate.json"
   },
   "localizationMappings": {
-    "targetTable": "projectlocalization",
+    "targetTable": "ProjectLocalization",
     "parentFkColumn": "ProjectId",
     "Title": {
       "hebrew": {

@@ -1,12 +1,12 @@
 {
   "filename": "LutFundCategoryMapping",
   "sourceTable": "Cats",
-  "targetTable": "lutfundcategory",
+  "targetTable": "LutFundCategory",
   "sourceIdColumn": "CatsId",
   "_meta": {
     "entityType": "LutFundCategory",
     "sourceTable": "Cats",
-    "targetTable": "lutfundcategory",
+    "targetTable": "LutFundCategory",
     "sourcePrimaryKey": "CatsId",
     "order": 0
   },

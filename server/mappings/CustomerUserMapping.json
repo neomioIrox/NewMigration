@@ -2,7 +2,7 @@
   "filename": "CustomerUserMapping",
   "description": "מיפוי משתמשים - Users (MSSQL) to customeruser (MySQL)",
   "sourceTable": "Users",
-  "targetTable": "customeruser",
+  "targetTable": "CustomerUser",
   "sourceIdColumn": "Id",
   "_meta": {
     "entityType": "CustomerUser"
