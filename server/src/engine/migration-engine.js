@@ -12,6 +12,7 @@ class MigrationEngine extends EventEmitter{
     super();
     this.mapping=mapping;
     this.batchSize=(options&&options.batchSize)||500;
+    this.totalLimit=(options&&options.totalLimit)||0;
     this.runId=null;
     this.pauseRequested=false;
     this.isRunning=false;
@@ -64,8 +65,15 @@ class MigrationEngine extends EventEmitter{
 
       // Count source rows
       var whereClause=m.whereClause?" WHERE ("+m.whereClause+")":"";
+      // If totalLimit is set, wrap query to get only the last N rows by ID
+      var limitWrap=this.totalLimit>0;
       var countSql;
-      if(m.sourceQuery){
+      if(limitWrap){
+        var innerSql=m.sourceQuery
+          ?"WITH src AS ("+m.sourceQuery+") SELECT TOP "+this.totalLimit+" * FROM src"+whereClause+" ORDER BY "+sourceIdCol+" DESC"
+          :"SELECT TOP "+this.totalLimit+" * FROM "+sourceTable+" WITH (NOLOCK)"+whereClause+" ORDER BY "+sourceIdCol+" DESC";
+        countSql="SELECT COUNT(*) as cnt FROM ("+innerSql+") AS _limited";
+      }else if(m.sourceQuery){
         countSql="WITH src AS ("+m.sourceQuery+") SELECT COUNT(*) as cnt FROM src"+whereClause;
       }else{
         countSql="SELECT COUNT(*) as cnt FROM "+sourceTable+" WITH (NOLOCK)"+whereClause;
@@ -102,7 +110,14 @@ class MigrationEngine extends EventEmitter{
         var whereExtra=lastId?" AND "+sourceIdCol+">"+lastId:"";
         var orderBy=" ORDER BY "+sourceIdCol+" ASC";
         var batchSql;
-        if(m.sourceQuery){
+        if(limitWrap){
+          // Subquery: get last N rows by descending ID, then paginate ascending from that subset
+          var innerQ=m.sourceQuery
+            ?"WITH src AS ("+m.sourceQuery+") SELECT TOP "+this.totalLimit+" * FROM src"+whereClause+" ORDER BY "+sourceIdCol+" DESC"
+            :"SELECT TOP "+this.totalLimit+" * FROM "+sourceTable+" WITH (NOLOCK)"+whereClause+" ORDER BY "+sourceIdCol+" DESC";
+          var limitWhere=lastId?" WHERE "+sourceIdCol+">"+lastId:"";
+          batchSql="SELECT TOP "+this.batchSize+" * FROM ("+innerQ+") AS _limited"+limitWhere+orderBy;
+        }else if(m.sourceQuery){
           batchSql="WITH src AS ("+m.sourceQuery+") SELECT TOP "+this.batchSize+" * FROM src"+whereClause+(whereClause?whereExtra:(whereExtra?" WHERE 1=1"+whereExtra:""))+orderBy;
         }else{
           batchSql="SELECT TOP "+this.batchSize+" * FROM "+sourceTable+" WITH (NOLOCK)"+whereClause+(whereClause?whereExtra:(whereExtra?" WHERE 1=1"+whereExtra:""))+orderBy;

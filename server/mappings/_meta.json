@@ -87,6 +87,12 @@
         "Project",
         "LutFundCategory"
       ]
+    },
+    {
+      "mapping": "AsakimDonationMapping",
+      "entityType": "AsakimDonation",
+      "order": 13,
+      "dependsOn": []
     }
   ]
 }

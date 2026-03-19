@@ -9,9 +9,9 @@ router.get("/",async function(req,res){
 
 router.post("/start",async function(req,res){
   try{
-    var {mappingName,batchSize}=req.body;
+    var {mappingName,batchSize,totalLimit}=req.body;
     if(!mappingName) return res.status(400).json({error:"mappingName required"});
-    var engine=manager.startMigration(mappingName,{batchSize:batchSize||500},req.app.get("io"));
+    var engine=manager.startMigration(mappingName,{batchSize:batchSize||500,totalLimit:totalLimit||0},req.app.get("io"));
     res.json({message:"Migration started",mappingName:mappingName});
   }catch(err){res.status(500).json({error:err.message});}
 });
@@ -57,6 +57,28 @@ router.post("/start-donations",async function(req,res){
       req.app.get("io")
     );
     res.json({message:"Donation migration started",dryRun:dryRun||false,batchSize:batchSize||1000});
+  }catch(err){res.status(500).json({error:err.message});}
+});
+
+router.post("/start-asakim-donations",async function(req,res){
+  try{
+    var {batchSize,dryRun}=req.body;
+    var engine=manager.startAsakimDonationMigration(
+      {batchSize:batchSize||2000,dryRun:dryRun||false},
+      req.app.get("io")
+    );
+    res.json({message:"AsakimDonation migration started",dryRun:dryRun||false,batchSize:batchSize||2000});
+  }catch(err){res.status(500).json({error:err.message});}
+});
+
+router.post("/start-praynames",async function(req,res){
+  try{
+    var {batchSize,dryRun}=req.body;
+    var engine=manager.startPrayNameMigration(
+      {batchSize:batchSize||2000,dryRun:dryRun||false},
+      req.app.get("io")
+    );
+    res.json({message:"PrayName migration started",dryRun:dryRun||false,batchSize:batchSize||2000});
   }catch(err){res.status(500).json({error:err.message});}
 });
 

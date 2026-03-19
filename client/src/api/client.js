@@ -11,7 +11,7 @@ export const api={
   getMappings:()=>fetchJson("/mappings"),
   getMapping:(name)=>fetchJson("/mappings/"+name),
   getRuns:()=>fetchJson("/migrations"),
-  startMigration:(mappingName,batchSize)=>fetchJson("/migrations/start",{method:"POST",body:JSON.stringify({mappingName,batchSize})}),
+  startMigration:(mappingName,batchSize,options)=>fetchJson("/migrations/start",{method:"POST",body:JSON.stringify({mappingName,batchSize,...options})}),
   pauseMigration:(id)=>fetchJson("/migrations/"+id+"/pause",{method:"POST"}),
   resumeMigration:(id)=>fetchJson("/migrations/"+id+"/resume",{method:"POST"}),
   restartMigration:(id)=>fetchJson("/migrations/"+id+"/restart",{method:"POST"}),
@@ -25,4 +25,6 @@ export const api={
   clearHistory:()=>fetchJson("/migrations/history",{method:"DELETE"}),
   updateTerminals:(dryRun)=>fetchJson("/migrations/update-terminals",{method:"POST",body:JSON.stringify({dryRun})}),
   startDonationMigration:(batchSize,dryRun)=>fetchJson("/migrations/start-donations",{method:"POST",body:JSON.stringify({batchSize,dryRun})}),
+  startPrayNameMigration:(batchSize,dryRun)=>fetchJson("/migrations/start-praynames",{method:"POST",body:JSON.stringify({batchSize,dryRun})}),
+  startAsakimDonationMigration:(batchSize,dryRun)=>fetchJson("/migrations/start-asakim-donations",{method:"POST",body:JSON.stringify({batchSize,dryRun})}),
 };
