@@ -12,6 +12,7 @@ const migrationsRouter=require("./routes/migrations");
 const statusRouter=require("./routes/status");
 const idLookupsRouter=require("./routes/id-lookups");
 const errorsRouter=require("./routes/errors");
+const validationRouter=require("./routes/validation");
 
 const app=express();
 const server=http.createServer(app);
@@ -31,6 +32,7 @@ app.use("/api/migrations",migrationsRouter);
 app.use("/api/status",statusRouter);
 app.use("/api/id-mappings",idLookupsRouter);
 app.use("/api/errors",errorsRouter);
+app.use("/api/validation",validationRouter);
 
 // Health check
 app.get("/api/health",function(req,res){res.json({status:"ok",uptime:process.uptime()});});

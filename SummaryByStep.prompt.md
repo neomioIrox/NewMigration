@@ -397,8 +397,10 @@ Results: 6,110/6,137 inserted, 27 errors (duplicate key violations)
 
 | קובץ | תיאור |
 |------|-------|
-| `server/mappings/AffiliateMapping.json` | מיפוי מקורות אב (ParentSources → affiliate) |
-| `server/mappings/SourceMapping.json` | מיפוי מקורות (UserSources → source) |
+| `server/mappings/AffiliateMapping.json` | מיפוי מקורות אב (ParentSources → Affiliate + User) - כולל יצירת User אוטומטית ב-`afterInsertMappings` (targetTable="User" PascalCase חובה ב-RDS) |
+| `server/mappings/SourceMapping.json` | מיפוי מקורות (UserSources → Source) - Description עם fallback ל-Name + `postMigrationRunners: ["set-default-source-id"]` שממלא את Affiliate.DefaultSourceId אוטומטית בסוף הריצה |
+| `server/src/engine/post-runners/set-default-source-id.js` | מודול post-migration — Code↔SourceCode + fallback ל-lowest Source.Id |
+| `scripts/rerun-affiliate-source/` | סקריפטי ניקוי/תיקון (01-precheck, 02-cleanup, 03-set-default-source-id, 04-inplace-fix) + README |
 | `server/mappings/ProjectMapping_Funds_Fixed.json` | מיפוי קרנות (TerminalId=4) |
 | `server/mappings/ProjectMapping_Collections_Fixed.json` | מיפוי מגביות (TerminalId=1) |
 | `server/mappings/ProjectMapping_Collections_Type2.json` | deprecated - מוזג ל-Collections_Fixed |
@@ -421,7 +423,7 @@ Results: 6,110/6,137 inserted, 27 errors (duplicate key violations)
 
 ```
 Step 1:   LutFundCategoryMapping           ← lookup tables (5 שורות)                      [ ]
-Step 2:   AffiliateMapping                 ← מקורות אב (ParentSources → affiliate)       [ ]
+Step 2:   AffiliateMapping                 ← מקורות אב (ParentSources → affiliate+user)  [ ] *דורש Role Id=3 (שותף)
 Step 3:   SourceMapping                    ← מקורות (UserSources → source)                [ ] תלוי ב-2
 Step 4:   ProjectMapping_Funds_Fixed       ← קרנות (TerminalId=4)                         [ ]
 Step 5:   ProjectMapping_Collections_Fixed ← מגביות (TerminalId=1)                        [ ]
@@ -431,22 +433,27 @@ Step 8:   RecruitersGroupMapping           ← קבוצות מגייסים      
 Step 9:   RecruiterMapping                 ← מגייסים                                      [ ] תלוי ב-8
 Step 10:  GalleryMapping_Images            ← גלריות תמונות (Galeries → gallery)           [ ]
 Step 11:  GalleryMediaMapping_Images       ← מדיה לגלריות (GaleryPics → media)            [ ] תלוי ב-10
-Step 12:  GalleryMapping_Videos            ← גלריות וידאו (Videos → gallery+media)        [ ]
+Step 12:  migrate-video-gallery-media.js   ← גלריית וידאו (Videos → VideoGalleryMedia)    [x] ✅ 327 שורות
 Step 13:  FundCategoryMapping              ← קטגוריות קרנות                               [ ] תלוי ב-4
 Step 14:  CustomerUserMapping              ← משתמשים (Users → customeruser)                [ ]
 Step 15:  DonationMapping                  ← תרומות (Orders → donation+address+currency)   [ ] תלוי ב-4-7,9,14
+Step 16:  PrayNameMapping                 ← שמות לתפילה (PrayerNames → PrayName)          [ ] תלוי ב-15
 ```
 
 ### הערות
 - RecruiterLocalizationMapping ו-ProjectItemLocalizationMapping מושבתים (לא בהרצה)
 - LutFundCategory ראשון כי הוא lookup table שאחרים תלויים בו
 - Donation אחרון כי הוא תלוי כמעט בכל השאר
+- **Step 2 (Affiliate):** יוצר אוטומטית User לכל affiliate מ-ParentSources.UserName/Password (afterInsertMappings + updateParentColumn). חובה להריץ `create-affiliate-role.js` לפני כדי שיהיה Role Id=3. **שם הטבלה targetTable="User" PascalCase** (AWS RDS case-sensitive).
+- **Step 3 (Source):** שדה Description עושה fallback ל-Name כש-Title ריק/NULL. בסוף הריצה המנוע מריץ אוטומטית את `post-runners/set-default-source-id.js` שממלא את `Affiliate.DefaultSourceId` (Code↔SourceCode + fallback ל-lowest Source.Id). אין צורך להריץ ידנית.
 
 ### תלויות בין שלבים
-- Step 3: Source תלוי ב-Affiliate (FK: AffiliateId)
+- Step 2: Affiliate דורש Role Id=3 (שותף) - הריצו `create-affiliate-role.js` לפני
+- Step 3: Source תלוי ב-Affiliate (FK: AffiliateId). ה-`postMigrationRunners` בסוף Step 3 דורש שכל ה-Source כבר נכנסו.
 - Steps 4-7: Projects לפני Recruiters, Gallery, FundCategory (FK: ProjectId)
 - Step 11: אחרי Step 10 (FK: GalleryId)
 - Step 15: אחרי Steps 4-7 + 9 + 14 (FK: RecruiterId, UserId, ProjectItem)
+- Step 16: אחרי Step 15 (FK: OrderId → Donation id_mappings)
 
 ---
 
@@ -517,3 +524,216 @@ Body: { "batchSize": 1000, "dryRun": false }
 | `server/src/services/migration-manager.js` | אינטגרציה |
 | `server/src/routes/migrations.js` | route: POST /start-donations |
 | `legacy/scripts/migration/migrate-donations.js` | סקריפט מקורי (reference) |
+
+---
+
+# Step 16: מיגרציית שמות לתפילה (PrayerNames → PrayName)
+
+## דוח ניתוח מיגרציה: PrayName
+
+### סיכום
+
+| פרט | ערך |
+|------|------|
+| טבלת מקור (MSSQL) | PrayerNames (kupat_09_03) |
+| טבלת יעד (MySQL) | PrayName (kupathairnew) |
+| שורות במקור | 966,600 (מסוננות OrderFinished: 760,606) |
+| שורות קיימות ביעד | 0 |
+| עמודות במקור | 10 (PrayerNamesId, FirstName, LastName, Comment, OrderId, DateCreated, Gender, PrayerId, OrderLaguage, ProjectId) |
+| עמודות ביעד | 11 (Id, BelongToEntityType, BelongToEntityId, Name, Gender, ParentName, PrayDescription, CreatedAt, CreatedBy, UpdatedAt, UpdatedBy) |
+| סוג המרה | 1x auto, 3x const, 4x expression, 1x FK, 1x direct |
+| לוקליזציה | לא |
+| תלויות FK | Donation (entity_type='Donation' — 1,392,279 רשומות ב-id_mappings) |
+
+### סקירה כללית
+
+```
+Source: PrayerNames (MSSQL)  →  Target: PrayName (MySQL)
+סה"כ שורות: 966,600 (OrderFinished: 760,606)
+תנאי סינון: JOIN Orders ON PrayerNames.OrderId = Orders.OrdersId WHERE Orders.ChargeStatus = 'OrderFinished'
+```
+
+**מנוע ייעודי:** `server/src/engine/prayname-engine.js` (bulk insert — ~760K שורות, FK resolution מ-Donation)
+
+### למה מנוע ייעודי ולא JSON mapping?
+1. **נפח גבוה** — ~760K שורות דורש bulk insert (כמו donation-engine)
+2. **FK resolution** — OrderId צריך lookup ב-Donation id_mappings
+3. **Gender mapping** — המרת ערכים: 0→1(Male), 1→2(Female), ערכי זבל→NULL
+4. **WHERE clause מורכב** — JOIN עם טבלת Orders לסינון לפי ChargeStatus
+
+## מיפוי העמודות: PrayerNames → PrayName
+
+| עמודת מקור (PrayerNames) | עמודת יעד (PrayName) | סוג המרה | הערות |
+|--------------------------|---------------------|----------|-------|
+| - | Id | auto | AUTO_INCREMENT |
+| - | BelongToEntityType | const = 4 | Donation (LutEntityType.Id=4) |
+| OrderId | BelongToEntityId | FK | Donation id_mappings lookup (source_id=OrderId → target_id) |
+| FirstName | Name | expression | truncate to 100, NULL → "" (NOT NULL) |
+| Gender | Gender | expression | 0→1(Male), 1→2(Female), other→NULL |
+| LastName | ParentName | expression | truncate to 100 |
+| Comment | PrayDescription | expression | NULL/empty → "" (NOT NULL, text type) |
+| DateCreated | CreatedAt | direct | NULL → GETDATE() |
+| - | CreatedBy | const = -1 | System (User.Id=-1) |
+| - | UpdatedAt | const = GETDATE() | |
+| - | UpdatedBy | const = -1 | System (User.Id=-1) |
+
+### עמודות מקור שלא ממופות (dropped)
+- `PrayerNamesId` — PK מקורי, לא נדרש (target הוא AUTO_INCREMENT)
+- `PrayerId` — מזהה תפילה, לא רלוונטי לטבלת PrayName
+- `OrderLaguage` — שפת ההזמנה, לא נדרש
+- `ProjectId` — פרויקט, לא נדרש
+
+## מטריצת תאימות עמודות
+
+| עמודה ביעד | סוג | NOT NULL | מיפוי | מקור | תאימות |
+|------------|------|----------|--------|------|---------|
+| Id | int | YES | auto | - | ✅ |
+| BelongToEntityType | int | YES | const=4 | - | ✅ FK→LutEntityType(4=Donation) |
+| BelongToEntityId | int | YES | FK | OrderId | ⚠️ צריך Donation id_mappings |
+| Name | varchar(100) | YES | expression | FirstName nvarchar(200) | ⚠️ truncate to 100 + NULL handling |
+| Gender | int | NO (nullable) | expression | Gender int | ⚠️ ערכי זבל (19944477, 19958276) |
+| ParentName | varchar(100) | NO (nullable) | expression | LastName nvarchar(200) | ⚠️ truncate to 100 |
+| PrayDescription | text | YES | expression | Comment nvarchar(max) | ⚠️ NULL → "" |
+| CreatedAt | datetime | YES | direct | DateCreated | ⚠️ NULL → GETDATE() |
+| CreatedBy | int | YES | const=-1 | - | ✅ FK→User(-1=System) |
+| UpdatedAt | datetime | YES | const=GETDATE() | - | ✅ |
+| UpdatedBy | int | YES | const=-1 | - | ✅ FK→User(-1=System) |
+
+## בעיות שנמצאו
+
+### 🟡 אזהרה (מומלץ לתקן)
+- **Length overflow**: FirstName/LastName הם nvarchar(200) במקור, Name/ParentName הם varchar(100) ביעד → צריך truncate ל-100
+- **Gender junk values**: שני ערכים לא תקינים (19944477, 19958276) → ימופו ל-NULL
+- **FirstName nullable**: FirstName הוא nullable במקור אבל Name הוא NOT NULL ביעד → צריך default ""
+- **Comment nullable**: Comment הוא nullable במקור אבל PrayDescription הוא NOT NULL ביעד → צריך default ""
+- **DateCreated nullable**: DateCreated nullable במקור אבל CreatedAt NOT NULL ביעד → צריך default GETDATE()
+
+### 🔵 מידע
+- 966,600 שורות סה"כ, 760,606 מסוננות (OrderFinished) — ~79% מהנתונים
+- ~205,994 שורות לא יועברו (הזמנות שלא הושלמו)
+- Donation id_mappings: 1,392,279 רשומות — מספיק לכיסוי
+- עמודות מקור PrayerId, OrderLaguage, ProjectId לא ממופות (בכוונה)
+- FK constraints ביעד: BelongToEntityType→LutEntityType, Gender→LutGender, CreatedBy/UpdatedBy→User
+
+### ✅ בדיקות שעברו
+- LutEntityType(4) = "Donation" — קיים ✅
+- LutGender: 1=Male, 2=Female — קיימים ✅
+- User(-1) = "System" — קיים ✅
+- Donation id_mappings: 1,392,279 > 0 — קיים ✅
+- PrayName target table: 0 rows — נקי ✅
+
+### המלצה
+✅ **מוכן להרצה** — כל התלויות קיימות, אין בעיות קריטיות. האזהרות מטופלות בלוגיקת ה-expression.
+
+## הפעלה
+
+מה-UI: כפתור ייעודי "התחל מיגרציית שמות לתפילה" (כמו תרומות)
+
+```
+POST /api/migrations/start-praynames
+Body: { "batchSize": 2000, "dryRun": false }
+```
+
+תומך ב: pause/resume, dry run, progress bar עם ETA
+
+## קבצים
+
+| קובץ | תיאור |
+|------|-------|
+| `server/src/engine/prayname-engine.js` | מנוע מיגרציית שמות לתפילה (bulk insert) |
+| `server/src/services/migration-manager.js` | startPrayNameMigration + resume support |
+| `server/src/routes/migrations.js` | route: POST /start-praynames |
+| `client/src/api/client.js` | startPrayNameMigration API method |
+| `client/src/components/MigrationRunner.jsx` | PrayNameRunner UI component |
+| `server/src/engine/donation-engine.js` | reference pattern (bulk insert) |
+
+---
+
+# Step 12: מיגרציית גלריית וידאו (Videos → VideoGalleryMedia)
+
+## סיכום
+| פרט | ערך |
+|------|------|
+| טבלת מקור (MSSQL) | `Videos` (kupat_09_03) |
+| טבלאות יעד (MySQL) | `LinkSetting` + `Media` + `VideoGalleryMedia` |
+| שורות מקור | 128 סה"כ, 127 עם `Link IS NOT NULL AND Link != ''` |
+| שורות ביעד | 127 LinkSetting + 256 Media + **327** VideoGalleryMedia (127 he + 106 en + 94 fr) |
+
+**סקריפט ייעודי:** [scripts/migration/migrate-video-gallery-media.js](scripts/migration/migrate-video-gallery-media.js) (לא JSON mapping — לוגיקה מורכבת של dedup מדיה + 3 שפות + fallback לעברית)
+
+### מדוע סקריפט ייעודי ולא JSON?
+1. **יעד מרובה-טבלאות** — כל וידאו יוצר LinkSetting (1) + Media (עד 3, עם dedup לפי URL) + VideoGalleryMedia (עד 3 שפות)
+2. **Media dedup חוצה שפות** — כשכל השפות חולקות אותו URL, נוצר Media אחד ו-3 VGM מצביעים אליו
+3. **Title/Description fallback** — כש-`Name_X` ריק אבל `Hide_X=0`, הכותרת והתיאור נופלים לעברית (כמו באתר הישן)
+4. **URL fallback** — `Link_X` פגום/ריק → שימוש ב-`Link` העברי
+
+### אסטרטגיית היעד
+המסד החדש **אינו תומך** ב-URL שונה לוידאו-לשפה דרך `Gallery`/`GalleryMedia` (אין שם עמודת `Language`). האפליקציה קוראת וידאו **אך ורק** מ-`VideoGalleryMedia` דרך `GET /api/gallery/getVideoGalleryQuickView/{langId}` — זו היא הטבלה היחידה שבה לכל שפה יש שורה עצמאית עם MediaId נפרד.
+
+### כלל ההכללה (match את https://www.kupat.org.il/videos)
+```
+For each source video, for each language (he/en/fr):
+  Skip only if: Name_X is empty AND Hide_X = 1  (אין שם ואין להציג)
+  Otherwise: include the row
+    Title       = Name_X ? Name_X : Name (Hebrew fallback)
+    Description = Description_X ? Description_X : Description (Hebrew fallback)
+    URL         = isValidUrl(Link_X) ? Link_X : Link (Hebrew fallback)
+    DisplayInGallery  = (Hide_X == 0 ? 1 : 0)
+    DisplayInMainPage = ShowHomePage
+```
+
+### LinkSetting דמי
+ל-`LinkSetting.ProjectId` הוא `NOT NULL` ולכן כל וידאו דורש פרויקט. כל הווידאו הם "מידע כללי" ללא פרויקט ספציפי, ולכן **כולם מצביעים ל-`Project.Id=1`** ("מגבית קופת העיר כללית"). `LinkType=3` (ListItem), `LinkTargetType=1` (ToProjectPage).
+
+## מיפוי העמודות: Videos → VideoGalleryMedia
+
+| עמודת מקור (Videos) | עמודת יעד (VideoGalleryMedia) | סוג המרה | הערות |
+|---------------------|-------------------------------|----------|-------|
+| - | LanguageId | const | 1/2/3 (אחד מ-he/en/fr) |
+| Link / Link_en / Link_fr | → Media.RelativePath → MediaId | expression + FK | dedup לפי URL, fallback ל-Link העברי |
+| - | LinkSettingId | FK | LinkSetting חדש אחד לכל וידאו |
+| Name / Name_en / Name_fr | Title | expression | fallback ל-Name העברי אם ריק |
+| Description / Description_en / Description_fr | Description | expression | fallback ל-Description העברי |
+| Hide / Hide_en / Hide_fr | DisplayInGallery | expression | 1 אם Hide=0, אחרת 0 |
+| ShowHomePage | DisplayInMainPage | direct | דגל אחד לכל 3 השפות |
+
+### עמודות מקור שלא ממופות (dropped)
+- `Pic` (thumbnail) — ב-`VideoGalleryMedia` אין עמודת thumbnail → מידע אבד בכוונה
+- `WistiaId`, `WistiaId_en`, `WistiaId_fr` — לא רלוונטי למסד החדש
+- `Sort` — סדר הצגה נקבע ע"י `CreatedAt` + logic ב-FE
+
+## התאמה מול האתר הישן
+
+| שפה | אתר ישן | מיגרציה (visible) | התאמה |
+|-----|---------|-------------------|--------|
+| עברית (he) | 122 | 122 | ✅ |
+| אנגלית (en) | 89 | 89 | ✅ |
+| צרפתית (fr) | 89 | 89 | ✅ |
+
+## הרצה
+
+```bash
+# ניקוי מיגרציה ישנה (אם קיימת ב-Gallery/GalleryMedia)
+node scripts/migration/cleanup-wrong-gallery-videos.js --execute
+
+# מיגרציה
+node scripts/migration/migrate-video-gallery-media.js
+
+# אימות + API חי
+node scripts/checks/verify-video-gallery-media.js --api
+```
+
+## קבצים
+
+| קובץ | תיאור |
+|------|-------|
+| `scripts/migration/migrate-video-gallery-media.js` | סקריפט המיגרציה הראשי |
+| `scripts/migration/cleanup-wrong-gallery-videos.js` | ניקוי נסיון ישן שהלך ל-`Gallery` (לא בשימוש) |
+| `scripts/migration/patch-video-gallery-media-fallback.js` | חד-פעמי — הוספת 12 שורות Hebrew-fallback לאחר הרצה ישנה |
+| `scripts/checks/verify-video-gallery-media.js` | אימות ספירות + Spot check + קריאה ל-API החי |
+| `server/mappings/GalleryMapping_Videos.json` | ⚠️ **ישן/לא בשימוש** — היה מכוון ל-`Gallery` שלא נגיש ל-FE |
+
+## בעיות שנפתרו
+
+- **יעד שגוי בתחילה** — נכתב מיפוי ל-`Gallery`+`GalleryMedia` אך ה-FE קורא מ-`VideoGalleryMedia` (הטבלה הנכונה לגלריות וידאו). תוקן ע"י מעבר לסקריפט ייעודי.
+- **חסרים 12 וידאו באנגלית/צרפתית** בהרצה ראשונה (Name_X ריק) — תוקן ב-patch script עם Hebrew-fallback, ההיגיון הוטמע בסקריפט הראשי ליציאות עתידיות נקיות.

@@ -1,7 +1,8 @@
 const EventEmitter=require("events");
 const mssqlDb=require("../db/mssql");
+const targetDb=require("../db/mysql-target");
 const {processRow,processColumn,processLocalizations,LANG_IDS}=require("./row-processor");
-const {insertRow,insertRowWithTracking,recordMapping,updateRow,recordError}=require("./batch-runner");
+const {insertRow,insertRowWithTracking,recordMapping,markRowProcessed,updateRow,recordError,findExistingId}=require("./batch-runner");
 const {preloadFKCache,resolveFK}=require("./fk-resolver");
 const {evaluateCondition,processGetDate}=require("./expression-eval");
 const tracker=require("../services/tracker");
@@ -21,6 +22,26 @@ class MigrationEngine extends EventEmitter{
   }
 
   requestPause(){this.pauseRequested=true;}
+
+  // Load a frozen scope list (array of ids) from server/data for scopeFilter
+  _loadScopeList(file){
+    var fs=require("fs");
+    var path=require("path");
+    var fp=path.join(__dirname,"../../data",file);
+    if(!fs.existsSync(fp)) throw new Error("scopeFilter list not found: "+fp+" (run scripts/migration/extract-scope-products.js)");
+    var raw=JSON.parse(fs.readFileSync(fp,"utf8"));
+    var ids=Array.isArray(raw)?raw:(raw.productIds||raw.ids||[]);
+    return ids.map(Number).filter(function(x){return!isNaN(x)});
+  }
+
+  // Hebrew media values (image > video > default media 1). Mirrored onto the main
+  // Project/ProjectItem tables so the Hebrew settings appear "doubled" (table + Hebrew loc).
+  _hebrewMediaValues(mediaIdMap){
+    var mainMedia=mediaIdMap["hebrew_projectImage"]||mediaIdMap["hebrew_projectVideo"]||1;
+    var imageForLists=mediaIdMap["hebrew_projectImage"]||1;
+    var banner=mediaIdMap["hebrew_donationBanner"]||null;
+    return {mainMedia:mainMedia,imageForLists:imageForLists,banner:banner};
+  }
 
   // Check if a language localization should be created for this row
   shouldCreateLang(lang,row,sourceId,m){
@@ -63,8 +84,15 @@ class MigrationEngine extends EventEmitter{
         }
       }
 
-      // Count source rows
-      var whereClause=m.whereClause?" WHERE ("+m.whereClause+")":"";
+      // Count source rows — combine mapping whereClause with optional scopeFilter (frozen product list)
+      var effectiveWhere=m.whereClause||null;
+      if(m.scopeFilter){
+        var scopeIds=this._loadScopeList(m.scopeFilter.file);
+        var scopeCond=scopeIds.length?(m.scopeFilter.column+" IN ("+scopeIds.join(",")+")"):"1=0";
+        effectiveWhere=effectiveWhere?"("+effectiveWhere+") AND ("+scopeCond+")":scopeCond;
+        logger.info("scopeFilter applied",{file:m.scopeFilter.file,column:m.scopeFilter.column,count:scopeIds.length});
+      }
+      var whereClause=effectiveWhere?" WHERE ("+effectiveWhere+")":"";
       // If totalLimit is set, wrap query to get only the last N rows by ID
       var limitWrap=this.totalLimit>0;
       var countSql;
@@ -139,8 +167,35 @@ class MigrationEngine extends EventEmitter{
 
           try{
             // 1. Transform and insert main row
-            var targetRow=await processRow(m.columnMappings,row,m.fkMappings);
-            var newId=await insertRowWithTracking(targetTable,targetRow,this.runId,sourceId,entityType);
+            // fixedParentProjectId — "collapse" mode: do NOT create a per-row parent (Project).
+            // Instead attach the child items (projectItemMappings) to an existing parent row.
+            // Used by PrayerMapping: every prayer becomes a ProjectItem under Project Id=1, with
+            // no per-prayer Project/ProjectLocalization. Donation linkage is unaffected because
+            // donations bind to ProjectItem (via ProjectItem_prayerName), never to Project.
+            // Collapse mode also supports a PER-ROW parent: parentProjectIdColumn resolves the
+            // parent ProjectId from a source column (e.g. ProductGroup.ParentProductId joined in via
+            // sourceQuery), so each sub-product's items attach to its own campaign's Project instead
+            // of a global constant. Project.Id == parent productsid (the parent ran with preserveSourceId).
+            var fixedParent=(m.fixedParentProjectId!==undefined&&m.fixedParentProjectId!==null)||!!m.parentProjectIdColumn;
+            var newId;
+            if(fixedParent){
+              // No main-table INSERT, no Project id_mapping. newId is the parent ProjectId —
+              // a constant (fixedParentProjectId) or resolved per row (parentProjectIdColumn).
+              newId=m.parentProjectIdColumn?row[m.parentProjectIdColumn]:m.fixedParentProjectId;
+              if(newId===undefined||newId===null) throw new Error("collapse mode: parent ProjectId unresolved (parentProjectIdColumn="+m.parentProjectIdColumn+")");
+            }else{
+              var targetRow=await processRow(m.columnMappings,row,m.fkMappings);
+              var explicitId;
+              if(m.preserveSourceId){
+                // Insert with target Id == source Id so FKs need no translation.
+                // id_mappings is still recorded (source==target) as a transitional bridge
+                // for tables not yet converted to preserveSourceId.
+                var idCol=m.targetIdColumn||"Id";
+                targetRow[idCol]=sourceId;
+                explicitId=sourceId;
+              }
+              newId=await this._insertMainRow(m,targetTable,targetRow,sourceId,entityType,explicitId);
+            }
             this.counters.inserted++;
 
             // Track which languages were created
@@ -161,7 +216,9 @@ class MigrationEngine extends EventEmitter{
             }
 
             // 4. Handle localizations (with conditional FR/EN)
-            if(m.localizationMappings){
+            // Skipped in collapse mode: the parent Project already exists; per-row
+            // ProjectLocalization would create duplicate rows under the shared parent.
+            if(m.localizationMappings&&!fixedParent){
               createdLangs=await this._processLocalizationsConditional(m,row,newId,sourceId);
             }
 
@@ -170,8 +227,24 @@ class MigrationEngine extends EventEmitter{
             if(m.projectItemMappings){
               for(var itemKey of Object.keys(m.projectItemMappings)){
                 var itemMapping=m.projectItemMappings[itemKey];
-                var itemRow=await processRow(itemMapping,row,m.fkMappings);
+                // Underscore-prefixed keys are per-item directives, not columns.
+                // _localizationOverrides: constant values forced onto this item's
+                // ProjectItemLocalization in every language (e.g. {"DisplayInSite":0} to hide it).
+                var itemLocOverrides=itemMapping._localizationOverrides||null;
+                var itemColMap={};
+                for(var icol of Object.keys(itemMapping)){if(icol.charAt(0)!=="_")itemColMap[icol]=itemMapping[icol];}
+                var itemRow=await processRow(itemColMap,row,m.fkMappings);
                 itemRow.ProjectId=newId;
+                // Hebrew media settings also live on the main ProjectItem table ("doubled" — always Hebrew)
+                var itemHebMedia=m.mediaMappings?this._hebrewMediaValues(mediaIdMap):null;
+                if(itemHebMedia){
+                  itemRow.MainMedia=itemHebMedia.mainMedia;
+                  itemRow.ImageForListsView=itemHebMedia.imageForLists;
+                  if(itemHebMedia.banner){
+                    itemRow.MediaForExecutePage=itemHebMedia.banner;
+                    itemRow.MobileMediaForExecutePage=itemHebMedia.banner;
+                  }
+                }
                 itemId=await insertRow("ProjectItem",itemRow);
                 await recordMapping("ProjectItem_"+itemKey,sourceId,itemId,this.runId);
 
@@ -189,6 +262,18 @@ class MigrationEngine extends EventEmitter{
                         pilRow[fld]=await processColumn(fld,fd,row,m.fkMappings);
                       }
                     }
+                    // Fill the Hebrew ProjectItemLocalization media (MainMedia/ImageForListsView were NULL)
+                    if(itemHebMedia&&lang==="hebrew"){
+                      pilRow.MainMedia=itemHebMedia.mainMedia;
+                      pilRow.ImageForListsView=itemHebMedia.imageForLists;
+                    }
+                    // Per-item localization overrides (e.g. force DisplayInSite=0 to hide this item)
+                    if(itemLocOverrides){for(var ovk of Object.keys(itemLocOverrides))pilRow[ovk]=itemLocOverrides[ovk];}
+                    // Collapse mode: there is no per-row Project/ProjectLocalization to hold the rich
+                    // content, so attach the EntityContent (built in step 3 from this row's Description)
+                    // to THIS item's localization. In normal mode content goes to ProjectLocalization
+                    // (see _postInsertUpdates), so this only fires for per-row-parent collapse (Type3_Subs).
+                    if(fixedParent&&contentIdMap&&contentIdMap[lang]) pilRow.ContentId=contentIdMap[lang];
                     await insertRow("ProjectItemLocalization",pilRow);
                   }
                 }
@@ -227,6 +312,13 @@ class MigrationEngine extends EventEmitter{
               await this._processAfterInsertMappings(m,row,newId,mediaIdMap,sourceId);
             }
 
+            // 11. Collapse mode: no main-table INSERT occurred (insertRowWithTracking was
+            // skipped), so flag the source row processed — tag it with the created
+            // ProjectItem id — to keep isRowProcessed()/resume working.
+            if(fixedParent){
+              await markRowProcessed(this.runId,sourceId,itemId||newId);
+            }
+
           }catch(err){
             this.counters.errors++;
             await recordError(this.runId,sourceId,"transform",err.message,row,err.stack);
@@ -244,6 +336,36 @@ class MigrationEngine extends EventEmitter{
         if(rows.length<this.batchSize) hasMore=false;
       }
 
+      // preserveSourceId: realign AUTO_INCREMENT so future app inserts continue past the
+      // migrated IDs ("restore the identity"). MySQL usually auto-bumps on explicit insert,
+      // but we set it explicitly to be safe (e.g. after deletes/ghost rows).
+      if(m.preserveSourceId){
+        try{
+          var idColReset=m.targetIdColumn||"Id";
+          var [maxRows]=await targetDb.query("SELECT MAX(`"+idColReset+"`) AS maxId FROM `"+targetTable+"`");
+          var nextId=(maxRows&&maxRows[0]&&maxRows[0].maxId!=null)?Number(maxRows[0].maxId)+1:1;
+          await targetDb.query("ALTER TABLE `"+targetTable+"` AUTO_INCREMENT = "+nextId);
+          logger.info("AUTO_INCREMENT realigned",{table:targetTable,nextId:nextId});
+        }catch(err){
+          logger.error("Failed to realign AUTO_INCREMENT",{table:targetTable,error:err.message});
+        }
+      }
+
+      // Post-migration runners (e.g. populate back-references that need all rows to exist first)
+      if(m.postMigrationRunners&&Array.isArray(m.postMigrationRunners)){
+        for(var runnerName of m.postMigrationRunners){
+          try{
+            logger.info("Running post-migration runner",{runner:runnerName,runId:this.runId});
+            var runner=require("./post-runners/"+runnerName);
+            var runnerResult=await runner.run();
+            logger.info("Post-migration runner completed",{runner:runnerName,runId:this.runId,result:runnerResult});
+          }catch(err){
+            logger.error("Post-migration runner failed",{runner:runnerName,runId:this.runId,error:err.message,stack:err.stack});
+            // Don't fail the main migration — post-runners are best-effort enrichment
+          }
+        }
+      }
+
       // Completed
       await tracker.updateRunStatus(this.runId,"completed");
       await tracker.updateRunCounters(this.runId,this.counters.processed,this.counters.inserted,this.counters.skipped,this.counters.errors,lastId);
@@ -258,6 +380,40 @@ class MigrationEngine extends EventEmitter{
       logger.error("Migration failed",{runId:this.runId,error:err.message});
       this.isRunning=false;
       throw err;
+    }
+  }
+
+  // Insert the main target row, retrying with a uniqueness suffix when a column
+  // declared in m.dedupColumns (e.g. CustomerUser.UserName, a UNIQUE constraint)
+  // collides. The suffix derives from the globally-unique source Id, so a single
+  // retry converges; the attempt counter is a defensive bound. The base value is
+  // truncated to keep "<base>_<sourceId>" within m.dedupMaxLen (default 40 chars,
+  // CustomerUser.UserName width). Only engages when dedupColumns is set, so other
+  // mappings are unaffected.
+  async _insertMainRow(m,targetTable,targetRow,sourceId,entityType,explicitId){
+    var dedupCols=m.dedupColumns||[];
+    var maxLen=m.dedupMaxLen||40;
+    for(var attempt=0;;attempt++){
+      try{
+        return await insertRowWithTracking(targetTable,targetRow,this.runId,sourceId,entityType,explicitId);
+      }catch(err){
+        // Only resolve a duplicate on a declared dedup column whose UNIQUE index name
+        // actually appears in the error message. Never mask a PRIMARY/other-constraint
+        // collision — important since preserveSourceId inserts an explicit PK, so a
+        // dirty re-run could raise ER_DUP_ENTRY on the Id, which must surface, not retry.
+        var col=(err&&err.code==="ER_DUP_ENTRY"&&err.message)
+          ?dedupCols.filter(function(c){return err.message.indexOf(c)!==-1;})[0]
+          :null;
+        if(col&&attempt<dedupCols.length+3){
+          var suffix="_"+sourceId+(attempt>0?("_"+attempt):"");
+          var base=targetRow[col]==null?"":String(targetRow[col]);
+          var maxBase=Math.max(0,maxLen-suffix.length);
+          targetRow[col]=base.substring(0,maxBase)+suffix;
+          logger.warn("dedup suffix applied",{table:targetTable,column:col,sourceId:sourceId,newValue:targetRow[col]});
+          continue;
+        }
+        throw err;
+      }
     }
   }
 
@@ -445,9 +601,26 @@ class MigrationEngine extends EventEmitter{
       }
       // Only insert if all columns were resolved (no break)
       if(Object.keys(junctionRow).length===Object.keys(aim.columns).length){
-        var jId=await insertRow(targetTable,junctionRow);
+        var jId=null;
+        // lookupKey: check if record already exists before inserting
+        if(aim.lookupKey){
+          var lookupVal=junctionRow[aim.lookupKey];
+          if(lookupVal!=null){
+            jId=await findExistingId(targetTable,aim.lookupKey,lookupVal);
+          }
+        }
+        if(!jId){
+          jId=await insertRow(targetTable,junctionRow);
+        }
         var entityLabel=aim.entityType||targetTable;
         await recordMapping(entityLabel,sourceId,jId,this.runId);
+        // updateParentColumn: write child ID back to the parent record
+        if(aim.updateParentColumn&&jId){
+          var parentTable=m.targetTable;
+          var updateData={};
+          updateData[aim.updateParentColumn]=jId;
+          await updateRow(parentTable,updateData,{Id:newId});
+        }
       }
     }
   }
@@ -455,9 +628,23 @@ class MigrationEngine extends EventEmitter{
   // ======= Post-Insert UPDATEs =======
   async _postInsertUpdates(m,row,newId,itemId,mediaIdMap,contentIdMap,linkSettingIds,createdLangs){
     var langsToUpdate=createdLangs.length>0?createdLangs:["hebrew","english","french"];
+    // Collapse mode: the parent (Project + ProjectLocalization) is shared/pre-existing and must
+    // never be touched per-row. Skip ALL parent-level writes here — only the item-level updates
+    // below (ProjectItemLocalization) are valid. Without this guard, a non-empty linkSettingIds
+    // would overwrite the shared Project's localization (MainLinkButtonSettingId/MainMedia), and a
+    // sub-product's media would overwrite the parent campaign Project's media.
+    // Covers BOTH collapse forms: a constant parent (fixedParentProjectId) and a per-row parent
+    // (parentProjectIdColumn) — must match the main loop's fixedParent definition.
+    var fixedParent=(m.fixedParentProjectId!==undefined&&m.fixedParentProjectId!==null)||!!m.parentProjectIdColumn;
+
+    // Hebrew media settings also live on the main Project table ("doubled" — always Hebrew)
+    if(m.mediaMappings&&!fixedParent){
+      var projHebMedia=this._hebrewMediaValues(mediaIdMap);
+      await updateRow(m.targetTable,{MainMedia:projHebMedia.mainMedia,ImageForListsView:projHebMedia.imageForLists},{Id:newId});
+    }
 
     // ProjectLocalization updates
-    if(m.localizationMappings&&(Object.keys(mediaIdMap).length>0||Object.keys(contentIdMap).length>0||Object.keys(linkSettingIds).length>0)){
+    if(m.localizationMappings&&!fixedParent&&(Object.keys(mediaIdMap).length>0||Object.keys(contentIdMap).length>0||Object.keys(linkSettingIds).length>0)){
       for(var lang of langsToUpdate){
         var langId=LANG_IDS[lang]||1;
         var setData={};

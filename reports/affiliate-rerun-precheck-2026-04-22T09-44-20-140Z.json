@@ -1,0 +1,377 @@
+{
+  "timestamp": "2026-04-22T09:44:20.140Z",
+  "mssql": {
+    "parentSources": {
+      "total": 99,
+      "nullName": 0,
+      "nullUserName": 0,
+      "nullPassword": 0,
+      "nullCode": 0
+    },
+    "userSources": {
+      "total": 10969,
+      "nullParent": 8676,
+      "zeroParent": 37
+    },
+    "userSourcesMigratable": 2240,
+    "userSourcesOrphanNonExistent": 16,
+    "descriptionFallback": {
+      "titleEmptyNameFilled": 1479,
+      "bothEmpty": 0,
+      "titleFilled": 761
+    },
+    "userNameCollisions20": [],
+    "userNameDuplicatesFull": [],
+    "samplesParentSources": [
+      {
+        "Id": 1,
+        "Name": "כיכר השבת",
+        "Code": "KikS",
+        "UserName": "KikarShabat",
+        "userNameLen": 11
+      },
+      {
+        "Id": 2,
+        "Name": "חדרי חרדים",
+        "Code": "hed",
+        "UserName": "hed",
+        "userNameLen": 3
+      },
+      {
+        "Id": 3,
+        "Name": "אבי כהן",
+        "Code": "AviCohen",
+        "UserName": "AviCohen",
+        "userNameLen": 8
+      },
+      {
+        "Id": 5,
+        "Name": "ROY",
+        "Code": "roy",
+        "UserName": "roy",
+        "userNameLen": 3
+      },
+      {
+        "Id": 7,
+        "Name": "SIMHA",
+        "Code": "re",
+        "UserName": "rem",
+        "userNameLen": 3
+      }
+    ],
+    "samplesUserSources": [
+      {
+        "UserSourcesId": 1,
+        "Name": "facebook",
+        "Title": null,
+        "ParentSourcesId": 0
+      },
+      {
+        "UserSourcesId": 2,
+        "Name": "whatsapp",
+        "Title": null,
+        "ParentSourcesId": 0
+      },
+      {
+        "UserSourcesId": 3,
+        "Name": "emailkupat",
+        "Title": null,
+        "ParentSourcesId": 93
+      },
+      {
+        "UserSourcesId": 5,
+        "Name": "kolhai",
+        "Title": "רדיו קול חי כתבות",
+        "ParentSourcesId": 20
+      },
+      {
+        "UserSourcesId": 6,
+        "Name": "email",
+        "Title": "אימייל קופת העיר ישראל",
+        "ParentSourcesId": 93
+      }
+    ]
+  },
+  "target": {
+    "affiliate": {
+      "total": 105,
+      "userIdNull": "101",
+      "defaultSourceIdNull": "105"
+    },
+    "source": {
+      "total": 2247,
+      "descriptionNull": "1478"
+    },
+    "sourceBadFk": 0,
+    "usersRole3": 1,
+    "affiliateUserOrphan": 0,
+    "samplesAffiliate": [
+      {
+        "Id": 1,
+        "Name": "ynet",
+        "UserId": 2,
+        "DefaultSourceId": null
+      },
+      {
+        "Id": 2,
+        "Name": "ערוץ 14",
+        "UserId": 3,
+        "DefaultSourceId": null
+      },
+      {
+        "Id": 3,
+        "Name": "ערוץ 7",
+        "UserId": 4,
+        "DefaultSourceId": null
+      },
+      {
+        "Id": 4,
+        "Name": "כיכר השבת",
+        "UserId": null,
+        "DefaultSourceId": null
+      },
+      {
+        "Id": 5,
+        "Name": "חדרי חרדים",
+        "UserId": null,
+        "DefaultSourceId": null
+      }
+    ],
+    "samplesSource": [
+      {
+        "Id": 1,
+        "AffiliateId": 1,
+        "SourceCode": "ynetkatava",
+        "Description": "כתבה"
+      },
+      {
+        "Id": 2,
+        "AffiliateId": 1,
+        "SourceCode": "YNET 2",
+        "Description": "פרסומת"
+      },
+      {
+        "Id": 3,
+        "AffiliateId": 2,
+        "SourceCode": "CHD 9",
+        "Description": "כתבה"
+      },
+      {
+        "Id": 4,
+        "AffiliateId": 2,
+        "SourceCode": "CHD 2",
+        "Description": "כתבה נוספת"
+      },
+      {
+        "Id": 5,
+        "AffiliateId": 2,
+        "SourceCode": "CHD 8",
+        "Description": "פרסומת חדשה"
+      }
+    ],
+    "samplesUsers": [
+      {
+        "Id": 5,
+        "UserName": "recruiter1",
+        "FirstName": "מגייסי",
+        "LastName": "משפחת כהן",
+        "RoleId": 3
+      }
+    ]
+  },
+  "tracker": {
+    "perEntityType": [
+      {
+        "entity_type": "AffiliateMapping",
+        "n": 99
+      },
+      {
+        "entity_type": "AsakimDonation",
+        "n": 87725
+      },
+      {
+        "entity_type": "CustomerUser",
+        "n": 4160
+      },
+      {
+        "entity_type": "Donation",
+        "n": 1391400
+      },
+      {
+        "entity_type": "EntityContent_english",
+        "n": 715
+      },
+      {
+        "entity_type": "EntityContent_french",
+        "n": 574
+      },
+      {
+        "entity_type": "EntityContent_hebrew",
+        "n": 812
+      },
+      {
+        "entity_type": "FundCategory",
+        "n": 261
+      },
+      {
+        "entity_type": "Gallery_Images",
+        "n": 79
+      },
+      {
+        "entity_type": "GalleryMedia_Image",
+        "n": 1197
+      },
+      {
+        "entity_type": "GalleryMedia_Video",
+        "n": 127
+      },
+      {
+        "entity_type": "LinkSetting_footerButton_english",
+        "n": 1901
+      },
+      {
+        "entity_type": "LinkSetting_footerButton_french",
+        "n": 1864
+      },
+      {
+        "entity_type": "LinkSetting_footerButton_hebrew",
+        "n": 1901
+      },
+      {
+        "entity_type": "LinkSetting_listViewButton_english",
+        "n": 1901
+      },
+      {
+        "entity_type": "LinkSetting_listViewButton_french",
+        "n": 1864
+      },
+      {
+        "entity_type": "LinkSetting_listViewButton_hebrew",
+        "n": 1901
+      },
+      {
+        "entity_type": "LinkSetting_mainButton_english",
+        "n": 1901
+      },
+      {
+        "entity_type": "LinkSetting_mainButton_french",
+        "n": 1864
+      },
+      {
+        "entity_type": "LinkSetting_mainButton_hebrew",
+        "n": 1901
+      },
+      {
+        "entity_type": "LutFundCategory",
+        "n": 5
+      },
+      {
+        "entity_type": "Media_english_donationBanner",
+        "n": 107
+      },
+      {
+        "entity_type": "Media_english_projectImage",
+        "n": 346
+      },
+      {
+        "entity_type": "Media_french_donationBanner",
+        "n": 104
+      },
+      {
+        "entity_type": "Media_french_projectImage",
+        "n": 288
+      },
+      {
+        "entity_type": "Media_GalleryImage",
+        "n": 1230
+      },
+      {
+        "entity_type": "Media_hebrew_donationBanner",
+        "n": 159
+      },
+      {
+        "entity_type": "Media_hebrew_galleryVideo",
+        "n": 127
+      },
+      {
+        "entity_type": "Media_hebrew_projectImage",
+        "n": 1322
+      },
+      {
+        "entity_type": "Media_hebrew_projectVideo",
+        "n": 1
+      },
+      {
+        "entity_type": "PrayName",
+        "n": 760606
+      },
+      {
+        "entity_type": "Project",
+        "n": 2002
+      },
+      {
+        "entity_type": "ProjectItem_certificate",
+        "n": 837
+      },
+      {
+        "entity_type": "ProjectItem_donation",
+        "n": 837
+      },
+      {
+        "entity_type": "ProjectItem_funds",
+        "n": 1064
+      },
+      {
+        "entity_type": "ProjectItem_prayerName",
+        "n": 294
+      },
+      {
+        "entity_type": "RecruiterMapping",
+        "n": 3274
+      },
+      {
+        "entity_type": "RecruitersGroupMapping",
+        "n": 362
+      },
+      {
+        "entity_type": "SourceMapping",
+        "n": 2240
+      },
+      {
+        "entity_type": "VideoGallery_LinkSetting",
+        "n": 127
+      },
+      {
+        "entity_type": "VideoGallery_Media_en",
+        "n": 68
+      },
+      {
+        "entity_type": "VideoGallery_Media_fr",
+        "n": 61
+      },
+      {
+        "entity_type": "VideoGallery_Media_he",
+        "n": 127
+      },
+      {
+        "entity_type": "VideoGallery_VGM_en",
+        "n": 106
+      },
+      {
+        "entity_type": "VideoGallery_VGM_fr",
+        "n": 94
+      },
+      {
+        "entity_type": "VideoGallery_VGM_he",
+        "n": 127
+      }
+    ],
+    "AffiliateMapping": 99,
+    "AffiliateUser": 0,
+    "SourceMapping": 2240
+  },
+  "crossDb": {
+    "trackerAffiliateTargetsMissing": 0,
+    "affiliateRowsMissingFromTracker": 6
+  }
+}

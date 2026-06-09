@@ -13,7 +13,7 @@ const { mssqlConfig, mysqlConfig } = require('../../config/database');
  * STEP 3: Migrate UserSources → source (1,902 rows with ParentSourcesId)
  */
 
-const AFFILIATE_ROLE_ID = 1; // Role "מנהל מערכת" (using existing role)
+const AFFILIATE_ROLE_ID = 3; // Role "שותף" (affiliate role - run create-affiliate-role.js first)
 
 async function migrateAffiliatesAndSources() {
   const results = {

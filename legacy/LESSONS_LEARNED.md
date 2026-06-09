@@ -2,6 +2,38 @@
 
 ## הסטוריה
 
+### Video Gallery Migration — יעד שגוי בתחילה (Apr 22, 2026) ⚠️
+**הלקח החשוב ביותר: אמת תחילה מאיזו טבלה ה-FE קורא, לא איזו טבלה "נראית נכונה" סמנטית.**
+
+- כתבנו מיפוי שמעביר `Videos` ל-`Gallery`+`GalleryMedia`+`GalleryLocalization`+`Media` — שהן הטבלאות "הלוגיות" לגלריה.
+- הרצנו, קיבלנו 127 גלריות מוצלחות. המיגרציה עברה 100%.
+- אבל ה-FE **לא קרא** מהטבלאות האלה בכלל — הוא קורא מ-`VideoGalleryMedia` דרך `POST /api/gallery/getVideoGalleryQuickView/{langId}`.
+- המיגרציה הלכה לטבלה שאין לה שימוש באפליקציה.
+
+**איך אימתנו לבסוף:**
+1. הורדנו את ה-JS bundle של האתר (`main.js`)
+2. חיפשנו `videoGallery` / `VideoGallery` במחרוזות
+3. מצאנו את ה-URL `gallery/getVideoGalleryQuickView/{langId}`
+4. `POST`-נו עם `languageId=1/2/3` וראינו בדיוק איזו טבלה ה-API מחזיר שורות ממנה
+
+**תחקיר ראשוני שהיה צריך לעשות לפני המיפוי:**
+- לא להסיק מסכמת DB — להוריד bundle ולחפש מאיזה endpoint האתר קורא
+- אם יש כמה טבלאות עם שם דומה (`GalleryMedia` vs `VideoGalleryMedia`), לבדוק אילו מהן באמת מכילות נתונים באתר החי
+- לבדוק FKs — `GalleryMedia` אין לה `Language` column, אז היא **מבנית** לא יכולה לתמוך ברב-לשוניות; זה אמור לעורר חשד מיידי
+
+**בעיה מבנית שנחשפה:**
+- `VideoGalleryMedia.LinkSettingId NOT NULL`, וה-`LinkSetting.ProjectId NOT NULL` — ז"א שכל וידאו *חייב* להיות מקושר לפרויקט. אצלנו הוידאו הם "מידע כללי" ללא פרויקט → השתמשנו ב-`Project.Id=1` ("מגבית כללית") כברירת מחדל.
+
+**אימות מול האתר הישן:**
+- השוואה מול `https://www.kupat.org.il/videos` (122 visible בעברית), `https://www.kupat.org/videos` (89 EN), `https://www.koupathair.com/videos` (89 FR) — התאמה מלאה לאחר Hebrew-fallback למקרה שבו `Name_X` ריק אבל `Hide_X=0`.
+
+**קבצים:**
+- `scripts/migration/migrate-video-gallery-media.js` — המיגרציה הנכונה (VideoGalleryMedia)
+- `scripts/migration/cleanup-wrong-gallery-videos.js` — ניקוי המיגרציה השגויה הראשונה
+- `scripts/checks/verify-video-gallery-media.js` — אימות עם קריאה ל-API החי
+
+---
+
 ### Campaign Type 3 Migration (Nov 29, 2025) ⚠️
 **בעיה קריטית בסדר המיגרציות - לא הושלמה!**
 
@@ -453,15 +485,19 @@ FK_User_RI_Role FOREIGN KEY (RoleId) REFERENCES role (Id)
 2. יצירת role חדש: `scripts/utils/create-affiliate-role.js` → RoleId=3 "שותף"
 3. החלטה פשוטה יותר: שימוש ב-RoleId=1 (admin) קיים
 
-**הפתרון הסופי:**
+**הפתרון הסופי (מעודכן 2026-04-20):**
 ```javascript
-const AFFILIATE_ROLE_ID = 1; // Use existing admin role
+const AFFILIATE_ROLE_ID = 3; // Role "שותף" - run create-affiliate-role.js first
 ```
+
+**עדכון:** ה-RoleId תוקן ל-3 (שותף) במקום 1 (מנהל מערכת). חובה להריץ `create-affiliate-role.js` לפני המיגרציה.
+
+בנוסף, ב-`AffiliateMapping.json` נוספו `afterInsertMappings` שיוצרים User אוטומטית לכל Affiliate ומעדכנים את affiliate.UserId - כך שלא צריך יותר את Step 0.5 בסקריפט הישן.
 
 **לקח:**
 ⚠️ לפני יצירת רשומות עם FK - בדוק שהרשומות המקושרות קיימות!
-⚠️ שאל: "האם צריך role חדש או אפשר להשתמש בקיים?"
-✅ פשוט = טוב: שימוש בקיים (RoleId=1) > יצירת חדש (RoleId=3)
+⚠️ השתמש ב-Role ייעודי (RoleId=3 שותף) ולא ב-admin (RoleId=1)
+✅ afterInsertMappings + updateParentColumn = יצירת רשומות תלויות בתוך המנוע
 
 ---
 
@@ -608,19 +644,19 @@ await mysqlConn.query('SET FOREIGN_KEY_CHECKS = 1');
 ```
 Old DB                    New DB
 ┌─────────────────┐      ┌─────────────┐
-│ ParentSources   │ ───→ │ user        │ (RoleId=1)
-│ (78 rows)       │   ┌→ │ affiliate   │
+│ ParentSources   │ ───→ │ user        │ (RoleId=3 שותף, afterInsertMappings)
+│ (78 rows)       │   ┌→ │ affiliate   │ (UserId ← user.Id via updateParentColumn)
 └─────────────────┘   │  └─────────────┘
                       │         ↓
 ┌─────────────────┐   │  ┌─────────────┐
-│ UserSources     │ ──┴→ │ source      │
+│ UserSources     │ ──┴→ │ source      │ (Description fallback: Title → Name)
 │ (1,902 rows)    │      └─────────────┘
 └─────────────────┘
 ```
 
-**4 שלבים:**
-1. STEP 0.5: `ParentSources` → `user` (78 users)
-2. STEP 1: `ParentSources` → `affiliate` (78 affiliates)
+**4 שלבים (מעודכן 2026-04-20 - Step 0.5 משולב ב-afterInsertMappings):**
+1. ~~STEP 0.5~~ → משולב: יצירת `user` אוטומטית ע"י afterInsertMappings ב-AffiliateMapping
+2. STEP 1: `ParentSources` → `affiliate` (78 affiliates) + `user` (afterInsertMappings + updateParentColumn)
 3. STEP 2: Generate `AffiliateId.json` mapping (ParentSourcesId → AffiliateId)
 4. STEP 3: `UserSources` → `source` (1,902 sources) using mapping
 
@@ -732,6 +768,106 @@ Total UserSources: 7,605
 
 ---
 
+### 12. **AWS RDS Case-Sensitive Table Names** (Apr 22, 2026) ⚠️
+
+**הגילוי:**
+ה-DB החדש מתארח ב-AWS RDS (Linux) עם `lower_case_table_names=0` — כל שמות הטבלאות PascalCase (Affiliate, Source, User, Project...) ורגישים לאותיות. ב-`AffiliateMapping.json` ה-`afterInsertMappings[0].targetTable` היה `"user"` lowercase. המנוע ניסה `INSERT INTO user` ונכשל בשקט. תוצאה: 99 Affiliates נוצרו אבל 0 Users — `tracker.AffiliateUser = 0` בכל הריצות.
+
+**התסמין:**
+- `Affiliate.UserId IS NULL` בכל השורות למרות ש-`afterInsertMappings` מוגדר נכון
+- `id_mappings` ריק ל-entity_type `AffiliateUser`
+- אין שגיאה בלוגים של המיגרציה (המנוע תופס את השגיאה ומדווח שורה בודדת נכשלה, אבל הריצה ממשיכה)
+
+**פתרון:**
+✅ תמיד לכתוב שמות טבלאות ב-PascalCase בכל מיפוי JSON (כולל ב-`afterInsertMappings[].targetTable`)
+✅ ה-`"targetTable"` העיקרי של המפה האב היה נכון (`"Affiliate"`, `"Source"`) — הבאג היה רק בשדה המקונן
+📝 כלל: אם עוברים ב-DB מקומי (Windows MySQL case-insensitive) ל-RDS, לוודא PascalCase בכל שורה שמגיעה ל-SQL
+
+---
+
+### 13. **postMigrationRunners — Engine Hook להרצת צעדים אחרי המיגרציה** (Apr 22, 2026) ⭐NEW
+
+**הצורך:**
+`Affiliate.DefaultSourceId` דורש מידע שקיים רק אחרי ש-Source כולה נכנסה. זה לא יכול להיות עמודה רגילה ב-`columnMappings` של Affiliate. ב-AffiliateMapping.json היה שדה מדומה `postMigrationScript` שהגדיר SQL — אבל המנוע **מעולם לא הריץ אותו** (dead field), וה-SQL עצמו הפנה לעמודה לא קיימת `originalSourceId`.
+
+**הפתרון:**
+נוסף למנוע hook חדש שמריץ מודולים אחרי שהלולאה העיקרית מסתיימת:
+
+```json
+// server/mappings/SourceMapping.json
+{
+  ...
+  "postMigrationRunners": ["set-default-source-id"]
+}
+```
+
+```javascript
+// server/src/engine/migration-engine.js (סוף run())
+if(m.postMigrationRunners&&Array.isArray(m.postMigrationRunners)){
+  for(var runnerName of m.postMigrationRunners){
+    try{
+      var runner=require("./post-runners/"+runnerName);
+      await runner.run();
+    }catch(err){
+      logger.error("Post-migration runner failed",{runner:runnerName,error:err.message});
+      // לא נכשל על הריצה הראשית
+    }
+  }
+}
+```
+
+המודול [server/src/engine/post-runners/set-default-source-id.js](../server/src/engine/post-runners/set-default-source-id.js) idempotent — מעדכן רק `Affiliate` עם `DefaultSourceId=NULL`. אסטרטגיה: Code↔SourceCode, ואם אין התאמה — `MIN(Source.Id)` לאותו Affiliate.
+
+**לקח:**
+✅ דברים שדורשים שכל הנתונים קיימים — hook ייעודי בסוף המיגרציה, לא SQL ב-JSON
+✅ post-runners best-effort: כישלון לא שובר את הריצה הראשית
+✅ idempotent — בטוח להריץ חוזר אחרי ריצה חלקית
+
+---
+
+### 14. **FK Chain ל-Donation חוסם clean re-run של Source** (Apr 22, 2026) 🔴
+
+**הגילוי:**
+בניסיון `DELETE FROM Source` לפני מיגרציה מחדש, קיבלנו:
+```
+Cannot delete or update a parent row: a foreign key constraint fails
+(`Donation`, CONSTRAINT `FK_Donation_SI_Source` FOREIGN KEY (`SourceId`) REFERENCES `Source` (`Id`))
+```
+
+עם **1.39 מיליון Donations** המצביעות על Source. לא אפשרי "פשוט למחוק".
+
+**הפתרון שנבחר (in-place fix):**
+במקום למחוק ולהריץ מחדש — עדכון נתונים קיימים במקום. שמר על `Source.Id` היציב → Donation FKs לא נשברו.
+- [scripts/rerun-affiliate-source/04-inplace-fix.js](../scripts/rerun-affiliate-source/04-inplace-fix.js) — Phase A (Description) + Phase B (Users)
+- [scripts/rerun-affiliate-source/03-set-default-source-id.js](../scripts/rerun-affiliate-source/03-set-default-source-id.js) — DefaultSourceId
+
+**לקח:**
+⚠️ לפני שמתכננים clean re-run, לבדוק את כל ה-FKs היוצאים מהטבלה: `SELECT ... FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE WHERE REFERENCED_TABLE_NAME='Source'`
+✅ אם יש FKs חיצוניים עם הרבה נתונים — in-place fix עדיף
+✅ אם חייבים clean re-run: לבנות snapshot של ה-FKs, לנקות, למגרר, ו-re-link
+
+---
+
+### 15. **Case-Insensitive UNIQUE על UserName גורם duplicate error למרות lookup צולח** (Apr 22, 2026)
+
+**הגילוי:**
+ניסיון `INSERT INTO User (UserName='YNET', ...)` נכשל עם `Duplicate entry 'YNET' for key 'User.UserName'` — כי משתמש קיים עם `UserName='ynet'` (case-insensitive UNIQUE). אבל **ה-lookup שלנו לא תפס**: `SELECT Id FROM User WHERE UserName IN ('YNET', ...)` החזיר את `'ynet'` (case-insensitive match ב-SELECT), אבל ה-Map ב-JS המקשה לפי `r.UserName` (הערך 'ynet') ולקאפ לפי `'YNET'` נכשל.
+
+**הפתרון:**
+```javascript
+// set key in lowercase
+rows.forEach(r => existingUsers.set(String(r.UserName).toLowerCase(), r.Id));
+// get in lowercase
+let userId = existingUsers.get(String(p.userName).toLowerCase());
+// also: try/catch על INSERT + fallback ל-SELECT במקרה של ER_DUP_ENTRY
+```
+
+**לקח:**
+✅ SELECT של MySQL case-insensitive, אבל JS Map case-sensitive — normalize ל-lowercase בשני הצדדים
+✅ לעטוף INSERT ב-try/catch עם חזרת נפילה ל-SELECT על `ER_DUP_ENTRY` — מטפל ב-race conditions וב-edge cases
+
+---
+
 ## סיכום לשיחה הבאה 📝
 
 ### מה השלמנו:
@@ -756,6 +892,13 @@ Total UserSources: 7,605
 9. SET FOREIGN_KEY_CHECKS=0 רק לניקוי (בזהירות!)
 10. Multi-table migration עם intermediate JSON mappings
 11. זהה ופלטר orphaned data לפני מיגרציה
+12. **afterInsertMappings + updateParentColumn** - יצירת רשומות תלויות ועדכון FK חזרה לאב
+13. **lookupKey** - מניעת כפילויות ב-afterInsertMappings (בדיקה לפני INSERT)
+14. **Description fallback** - תמיד הגדר fallback כש-source column עלול להיות NULL
+15. **AWS RDS PascalCase** - כל שמות הטבלאות ב-JSON mappings חייבים להיות PascalCase (Affiliate, Source, User...), כולל ב-afterInsertMappings[].targetTable
+16. **postMigrationRunners** - hook חדש במנוע להרצת מודולים אחרי הלולאה הראשית. מתאים לשדות שדורשים את כל הנתונים (כמו DefaultSourceId)
+17. **FK chain ל-Donation חוסם clean re-run** - in-place fix עדיף על cleanup מלא כש-FKs חיצוניים עם הרבה נתונים
+18. **normalize case** בשני הצדדים של lookup (SELECT + JS Map) כש-UNIQUE constraint case-insensitive
 
 ### הכנה למיגרציה הבאה:
 1. קרא LESSONS_LEARNED.md (10 דקות) ⭐
@@ -781,7 +924,14 @@ Total UserSources: 7,605
 ---
 
 **נוצר:** 26-27 נובמבר 2025
+**עדכון אחרון:** 20 אפריל 2026
 **מיגרציות:**
 - Recruiters (4 tables, 7,313 rows) - ✅ 100% Success
 - Affiliates & Sources (3 tables, 1,941 rows) - ✅ 99.1% Success
 **סה"כ:** 7 tables, 9,254 rows
+
+**תיקוני Affiliates & Sources (2026-04-20):**
+- תוקן RoleId מ-1 (admin) ל-3 (שותף)
+- נוספו afterInsertMappings ב-AffiliateMapping ליצירת User אוטומטית
+- נוספו lookupKey + updateParentColumn במנוע המיגרציה
+- תוקן Description ב-SourceMapping עם fallback ל-Name

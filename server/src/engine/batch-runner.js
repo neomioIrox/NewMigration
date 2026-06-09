@@ -11,7 +11,7 @@ async function insertRow(tableName,data){
   return result.insertId;
 }
 
-async function insertRowWithTracking(tableName,data,runId,sourceId,entityType){
+async function insertRowWithTracking(tableName,data,runId,sourceId,entityType,explicitId){
   var conn=await targetDb.getConnection();
   try{
     await conn.beginTransaction();
@@ -20,7 +20,9 @@ async function insertRowWithTracking(tableName,data,runId,sourceId,entityType){
     var vals=cols.map(function(c){var v=data[c];return v===undefined?null:v});
     var sql="INSERT INTO `"+tableName+"` ("+cols.map(function(c){return"`"+c+"`"}).join(",")+") VALUES ("+placeholders+")";
     var [result]=await conn.execute(sql,vals);
-    var newId=result.insertId;
+    // preserveSourceId: when an explicit PK is supplied, mysql2's result.insertId is 0
+    // (LAST_INSERT_ID() updates only for auto-generated values), so use the explicit value.
+    var newId=(explicitId!==undefined&&explicitId!==null)?explicitId:result.insertId;
     await conn.commit();
     conn.release();
     // Record in tracker
@@ -44,6 +46,15 @@ async function recordMapping(entityType,sourceId,targetId,runId){
     [entityType,String(sourceId),String(targetId),runId]);
 }
 
+// Mark a source row as processed in row_status WITHOUT inserting a main-table row.
+// Used in collapse mode (fixedParentProjectId), where no per-row parent (Project) is
+// created but the source row must still be flagged done so isRowProcessed()/resume work.
+async function markRowProcessed(runId,sourceId,targetId){
+  await trackerDb.query(
+    "INSERT INTO row_status (run_id,source_id,status,target_id) VALUES (?,?,?,?) ON DUPLICATE KEY UPDATE status=VALUES(status),target_id=VALUES(target_id)",
+    [runId,String(sourceId),"inserted",targetId!=null?String(targetId):null]);
+}
+
 async function updateRow(tableName,setData,whereData){
   var setCols=Object.keys(setData);
   var whereCols=Object.keys(whereData);
@@ -65,4 +76,11 @@ async function recordError(runId,sourceId,errorType,errorMessage,sourceData,stac
     [runId,String(sourceId),"error",errorMessage]);
 }
 
-module.exports={insertRow,insertRowWithTracking,recordMapping,updateRow,recordError};
+async function findExistingId(tableName,column,value){
+  var sql="SELECT `Id` FROM `"+tableName+"` WHERE `"+column+"`=? LIMIT 1";
+  var [rows]=await targetDb.query(sql,[value]);
+  if(rows&&rows.length>0) return rows[0].Id;
+  return null;
+}
+
+module.exports={insertRow,insertRowWithTracking,recordMapping,markRowProcessed,updateRow,recordError,findExistingId};

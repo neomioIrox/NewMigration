@@ -18,8 +18,12 @@
 | recruitersGroupLanguage | ProductsGroup | 111 | ✅ 100% (37 groups × 3 languages) |
 | recruiter | ProductStock | 3,828 | ✅ 100% |
 | recruiterLocalization | ProductStock | 3,337 | ✅ 100% (3,321 HE, 15 EN, 1 FR) |
-| affiliate | ParentSources | 78 | ✅ 100% |
-| source | UserSources | 1,863 | ✅ 100% |
+| Affiliate | ParentSources | 99 (+6 ghosts) | ✅ תוקן 2026-04-22: UserId=99/99, DefaultSourceId=96/99 (3 ללא Source כלל), 99 Users חדשים ב-RoleId=3 |
+| Source | UserSources | 2,240 (+7 ghosts) | ✅ תוקן 2026-04-22: Description NULL 1,478→0 ע"י fallback ל-Name |
+| User (AffiliateUser) | ParentSources | 99 | ✅ נוצר ב-afterInsertMappings, רשום ב-tracker כ-`AffiliateUser` |
+| LinkSetting (video gallery) | Videos | 127 | ✅ 100% |
+| Media (video gallery) | Videos | 256 | ✅ 100% (deduped by URL) |
+| VideoGalleryMedia | Videos | 327 | ✅ 100% (127 he + 106 en + 94 fr — matches old site) |
 
 ### Known Issues Fixed
 
@@ -107,6 +111,54 @@
    - Documentation: [docs/CASE_SENSITIVITY_FIX.md](docs/CASE_SENSITIVITY_FIX.md)
    - Date Fixed: January 5, 2026
    - **Result**: Migration now works on both AWS MySQL (case-sensitive) and Windows MySQL (case-insensitive)
+
+10. **Affiliate UserId=NULL - לא נוצר User לכל מקור אב** (תוקן 2026-04-20, תיקון נוסף 2026-04-22)
+   - Problem: AffiliateMapping.json הגדיר UserId כ-NULL קבוע, לא יצר User לכל affiliate
+   - Impact: 99 affiliates ללא UserId - לא ניתן להתחבר למערכת
+   - Root Cause: לוגיקת יצירת User הייתה רק בסקריפט legacy, לא ב-JSON mapping
+   - Solution (2026-04-20): הוספת `afterInsertMappings` ב-AffiliateMapping.json שיוצר User מ-ParentSources.UserName/Password
+   - Engine Enhancement: תמיכה ב-`lookupKey` (מניעת כפילויות) ו-`updateParentColumn` (עדכון UserId חזרה)
+   - **תיקון משלים 2026-04-22**: `afterInsertMappings[0].targetTable` היה `"user"` lowercase — AWS RDS case-sensitive, זה נכשל בשקט ולא נוצרו Users. תוקן ל-`"User"` PascalCase.
+   - Files Fixed:
+     - `server/mappings/AffiliateMapping.json` - afterInsertMappings ליצירת User + `"User"` PascalCase + הסרת `postMigrationScript` המת
+     - `server/src/engine/migration-engine.js` - lookupKey + updateParentColumn + `postMigrationRunners` hook
+     - `server/src/engine/batch-runner.js` - findExistingId function
+     - `legacy/scripts/migration/migrate-affiliates-sources-all.js` - RoleId 1→3
+   - **Action Required**: הריצו `create-affiliate-role.js` לפני מיגרציה חדשה, ואז הריצו מחדש
+
+12. **Video Gallery — יעד שגוי בתחילה** (תוקן 2026-04-22)
+   - Problem: `GalleryMapping_Videos.json` מיגרר ל-`Gallery` + `GalleryLocalization` + `GalleryMedia` + `Media`, אבל ה-FE קורא וידאו **אך ורק** מ-`VideoGalleryMedia` (דרך `GET /api/gallery/getVideoGalleryQuickView/{langId}`)
+   - Impact: 127 גלריות נוצרו אבל לא נגישות מהאתר
+   - Root Cause: `GalleryMedia` חסר עמודת `Language` ולכן לא יכול לתמוך ב-URL שונה לכל שפה (46% מהוידאו במקור יש להם Link_en/Link_fr שונים). `VideoGalleryMedia` נבנה בדיוק למטרה הזו.
+   - Solution:
+     - ניקוי המיגרציה הישנה: `scripts/migration/cleanup-wrong-gallery-videos.js` (מחק 127 Gallery + 381 GalleryLocalization + 127 GalleryMedia + 127 Media)
+     - סקריפט מיגרציה חדש ייעודי (לא JSON, כי הלוגיקה מורכבת מדי): `scripts/migration/migrate-video-gallery-media.js`
+     - LinkSetting דמה (127 שורות) כי `LinkSetting.ProjectId NOT NULL` — כולם מצביעים ל-`Project.Id=1`
+     - Fallback לעברית כש-`Name_X` ריק אבל `Hide_X=0` (match אתר ישן)
+   - Verification: `scripts/checks/verify-video-gallery-media.js --api` — API החי החזיר 135/114/94 entities (תואם)
+   - Result: 122 he + 89 en + 89 fr visible — **בדיוק כמו https://www.kupat.org.il/videos**
+
+11. **Source Description=NULL כש-Title ריק** (תוקן 2026-04-20, תיקון data ב-2026-04-22)
+   - Problem: SourceMapping.json מיפה Description מ-UserSources.Title בלבד, כש-Title ריק Description=NULL
+   - Impact: 1,478 מ-2,240 מקורות ללא תיאור כלל
+   - Solution: הוספת fallback ל-UserSources.Name כש-Title ריק
+   - File Fixed: `server/mappings/SourceMapping.json` (expression: `Title.trim() || Name.trim() || null`)
+   - **Data Fix 2026-04-22**: `scripts/rerun-affiliate-source/04-inplace-fix.js` Phase A עדכן את 1,478 השורות הקיימות במקום (Description NULL → 0)
+
+13. **Affiliate.DefaultSourceId לא מתמלא ע"י המנוע** (תוקן 2026-04-22)
+   - Problem: ה-`postMigrationScript` ב-AffiliateMapping.json היה dead code (המנוע לא קרא לו) והפנה לעמודה לא קיימת `originalSourceId`
+   - Impact: DefaultSourceId=NULL בכל ה-Affiliates גם אחרי ריצה מלאה
+   - Solution: שלושה שינויים:
+     - הוסר ה-`postMigrationScript` המת מ-AffiliateMapping.json
+     - Hook חדש במנוע: `postMigrationRunners` — מריץ מודולים אחרי הלולאה העיקרית (`migration-engine.js` סוף `run()`)
+     - מודול חדש: `server/src/engine/post-runners/set-default-source-id.js` (Code↔SourceCode + fallback ל-lowest Source.Id)
+     - SourceMapping.json מחובר: `"postMigrationRunners": ["set-default-source-id"]`
+   - **Result**: בריצה נקייה מה-UI הכל יעבוד אוטומטית. DefaultSourceId יתמלא ב-96/99 (3 אפיליאטים ללא Source יישארו NULL).
+
+14. **FK חסימה ל-Donation.SourceId מונעת cleanup מלא של Source** (גילוי 2026-04-22)
+   - Problem: `FK_Donation_SI_Source` עם 1.39M Donations מונע DELETE FROM Source
+   - Workaround: `scripts/rerun-affiliate-source/04-inplace-fix.js` — עדכון במקום במקום ניקוי. שומר על Source.Id היציב ולא שובר FKs.
+   - **Future clean re-run**: דורש סקריפט re-link — snapshot של Donation↔UserSources.Id דרך SourceCode, NULL ל-Donation.SourceId, מחיקה+מיגרציה, ואז re-link לפי ה-snapshot. לא מומש; מתועד ב-[scripts/rerun-affiliate-source/README.md](../scripts/rerun-affiliate-source/README.md).
 
 ---
 
@@ -201,4 +253,4 @@ await conn.execute(insertQuery, values); // ❌ Fails after ~1000
 
 ---
 
-*Last updated: January 5, 2026*
+*Last updated: April 22, 2026*

@@ -10,7 +10,9 @@
       "mapping": "SourceMapping",
       "entityType": "Source",
       "order": 1,
-      "dependsOn": ["Affiliate"]
+      "dependsOn": [
+        "Affiliate"
+      ]
     },
     {
       "mapping": "LutFundCategoryMapping",
@@ -31,21 +33,35 @@
       "dependsOn": []
     },
     {
-      "mapping": "ProjectMapping_Collections_Type2",
+      "mapping": "ProjectMapping_Type3_Parents",
       "entityType": "Project",
       "order": 5,
       "dependsOn": []
     },
     {
-      "mapping": "PrayerMapping",
+      "mapping": "ProjectMapping_Type3_Subs",
       "entityType": "Project",
       "order": 6,
+      "dependsOn": [
+        "Project"
+      ]
+    },
+    {
+      "mapping": "ProjectMapping_Collections_Type2",
+      "entityType": "Project",
+      "order": 7,
+      "dependsOn": []
+    },
+    {
+      "mapping": "PrayerMapping",
+      "entityType": "Project",
+      "order": 8,
       "dependsOn": []
     },
     {
       "mapping": "RecruitersGroupMapping",
       "entityType": "RecruitersGroup",
-      "order": 7,
+      "order": 9,
       "dependsOn": [
         "Project"
       ]
@@ -53,7 +69,7 @@
     {
       "mapping": "RecruiterMapping",
       "entityType": "Recruiter",
-      "order": 8,
+      "order": 10,
       "dependsOn": [
         "Project",
         "RecruitersGroup"
@@ -62,7 +78,7 @@
     {
       "mapping": "RecruiterLocalizationMapping",
       "entityType": "RecruiterLocalization",
-      "order": 9,
+      "order": 11,
       "dependsOn": [
         "Recruiter"
       ]
@@ -70,19 +86,19 @@
     {
       "mapping": "GalleryMapping_Images",
       "entityType": "Gallery",
-      "order": 10,
+      "order": 12,
       "dependsOn": []
     },
     {
       "mapping": "GalleryMapping_Videos",
       "entityType": "Gallery",
-      "order": 11,
+      "order": 13,
       "dependsOn": []
     },
     {
       "mapping": "FundCategoryMapping",
       "entityType": "FundCategory",
-      "order": 12,
+      "order": 14,
       "dependsOn": [
         "Project",
         "LutFundCategory"
@@ -91,7 +107,7 @@
     {
       "mapping": "AsakimDonationMapping",
       "entityType": "AsakimDonation",
-      "order": 13,
+      "order": 15,
       "dependsOn": []
     }
   ]

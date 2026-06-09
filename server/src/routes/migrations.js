@@ -89,7 +89,7 @@ router.post("/prepare-donation-rerun",async function(req,res){
     var trackerDb=require("../db/mysql-tracker");
 
     // 1. Rebuild CustomerUser id_mappings (same ID in both DBs)
-    var [users]=await targetDb.query("SELECT Id FROM customeruser");
+    var [users]=await targetDb.query("SELECT Id FROM CustomerUser");
     if(users.length>0){
       var mPlaceholders=users.map(function(){return"(?,?,?,?)"}).join(",");
       var mVals=[];
@@ -99,10 +99,11 @@ router.post("/prepare-donation-rerun",async function(req,res){
         +" ON DUPLICATE KEY UPDATE target_id=VALUES(target_id)",mVals);
     }
 
-    // 2. Delete old donation data from target
-    await targetDb.query("DELETE FROM donationcurrencyvalue");
-    var [donCount]=await targetDb.query("SELECT COUNT(*) as c FROM donation");
-    await targetDb.query("DELETE FROM donation");
+    // 2. Delete old donation data from target (children first — FK to Donation)
+    await targetDb.query("DELETE FROM DonationCurrencyValue");
+    await targetDb.query("DELETE FROM DonationActionLog");
+    var [donCount]=await targetDb.query("SELECT COUNT(*) as c FROM Donation");
+    await targetDb.query("DELETE FROM Donation");
     // Delete addresses created by donation migration (those without FK references now)
     // We can't easily identify which addresses were ours, but since donation.ReceiptAddress/ShippingAddress are now deleted,
     // orphaned addresses from the migration are acceptable for now

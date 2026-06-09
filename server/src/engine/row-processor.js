@@ -1,4 +1,4 @@
-const {evaluateExpression,processGetDate}=require("./expression-eval");
+const {evaluateExpression,processGetDate,resolveDateToken}=require("./expression-eval");
 const {resolveFK,resolveStaticFK}=require("./fk-resolver");
 const logger=require("../logger");
 
@@ -9,7 +9,7 @@ async function processColumn(colName,colDef,row,fkMappings){
   var value;
   if(convertType==="const"){
     value=colDef.value;
-    if(value==="GETDATE()") value=processGetDate();
+    value=resolveDateToken(value);
     // Don't convert strings with leading zeros (like "01") to numbers - preserve as string
     return value;
   }
@@ -29,7 +29,7 @@ async function processColumn(colName,colDef,row,fkMappings){
   }
   if((value===null||value===undefined)&&colDef.defaultValue!==undefined){
     value=colDef.defaultValue;
-    if(value==="GETDATE()") value=processGetDate();
+    value=resolveDateToken(value);
   }
   if(colDef.nullable&&(value===null||value===undefined)) return null;
   return value;

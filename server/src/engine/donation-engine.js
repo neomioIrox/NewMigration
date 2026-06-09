@@ -8,6 +8,13 @@ const {processGetDate}=require("./expression-eval");
 const tracker=require("../services/tracker");
 const logger=require("../logger");
 
+// Donation scope cutoff — single source of truth: the SAME file that freezes the product
+// scope (scope-products.json was built from "OrderFinished AND DateCreated >= cutoff").
+// Only completed donations on/after this date migrate. See project_migration_scope.
+const donationScope=require("../../data/scope-products.json");
+const SCOPE_CUTOFF=(donationScope&&donationScope.cutoff)?String(donationScope.cutoff):"2025-06-01";
+if(!/^\d{4}-\d{2}-\d{2}$/.test(SCOPE_CUTOFF)) throw new Error("Invalid donation scope cutoff: "+SCOPE_CUTOFF);
+
 /**
  * Donation Migration Engine (Optimized - Bulk INSERT)
  *
@@ -27,6 +34,7 @@ class DonationEngine extends EventEmitter{
     this.stats={
       addressesCreated:0,
       currencyValuesInserted:0,
+      actionLogsInserted:0,
       itemIdStats:{fromPrayer:0,fromProduct:0,fromProductMultiChoice:0,orphaned:0}
     };
     // FK caches
@@ -41,6 +49,9 @@ class DonationEngine extends EventEmitter{
     // Warn dedup - only warn once per ProjectId/PrayerId
     this._warnedProjectIds=new Set();
     this._warnedPrayerIds=new Set();
+    // Orphan tracking: donations that HAVE a Project/Prayer reference that didn't resolve to
+    // a migrated ProjectItem. They still migrate (ItemId=1), but are logged for audit (Excel).
+    this.orphanTracking=[];
   }
 
   requestPause(){this.pauseRequested=true;}
@@ -55,7 +66,19 @@ class DonationEngine extends EventEmitter{
 
     try{
       // ========================================
-      // STEP 0: Preload FK Caches
+      // STEP 0a: Remove AUTO_INCREMENT from Donation table (ID preservation)
+      // ========================================
+      logger.info("Dropping FKs referencing Donation.Id before removing AUTO_INCREMENT");
+      try{await targetDb.query("ALTER TABLE `DonationActionLog` DROP FOREIGN KEY `FK_DonationActionLog_DI_Donation`");}catch(e){logger.info("FK_DonationActionLog_DI_Donation already dropped");}
+      try{await targetDb.query("ALTER TABLE `DonationCurrencyValue` DROP FOREIGN KEY `FK_DonationCurrencyValue_DI_Donation`");}catch(e){logger.info("FK_DonationCurrencyValue_DI_Donation already dropped");}
+      logger.info("FKs dropped");
+
+      logger.info("Removing AUTO_INCREMENT from Donation table for ID preservation");
+      await targetDb.query("ALTER TABLE `Donation` MODIFY COLUMN `Id` int NOT NULL");
+      logger.info("AUTO_INCREMENT removed from Donation table");
+
+      // ========================================
+      // STEP 0b: Preload FK Caches
       // ========================================
       logger.info("Loading FK caches for donation migration");
 
@@ -82,8 +105,11 @@ class DonationEngine extends EventEmitter{
 
       // ========================================
       // STEP 1: Count source rows
+      // Scope rule: migrate ONLY completed donations on/after the cutoff (default 2025-06-01).
+      // Matches scope-products.json's definition exactly, so every migrated donation references
+      // an in-scope product (verified: 0 in-date donations point outside the product scope).
       // ========================================
-      var whereClause=" WHERE (ChargeStatus = 'OrderFinished' OR DateCreated > DATEADD(month, -1, GETDATE()))";
+      var whereClause=" WHERE ChargeStatus = 'OrderFinished' AND DateCreated >= '"+SCOPE_CUTOFF+"'";
       var countSql="SELECT COUNT(*) as cnt FROM "+sourceTable+" WITH (NOLOCK)"+whereClause;
       var countResult=await mssqlDb.query(countSql);
       var totalRows=countResult.recordset[0].cnt;
@@ -154,6 +180,13 @@ class DonationEngine extends EventEmitter{
       await tracker.updateRunCounters(this.runId,this.counters.processed,this.counters.inserted,this.counters.skipped,this.counters.errors,lastId);
       this.emit("completed",{runId:this.runId,counters:this.counters,totalRows:totalRows,stats:this.stats,mapping:"DonationMapping"});
       logger.info("Donation migration completed",{runId:this.runId,counters:this.counters,stats:this.stats});
+
+      // Write orphan-donations audit report (donations whose project/prayer ref didn't resolve)
+      this._writeOrphanReport();
+
+      // Restore AUTO_INCREMENT on Donation table
+      await this._restoreAutoIncrement();
+
       this.isRunning=false;
       return {status:"completed",runId:this.runId,counters:this.counters,stats:this.stats};
 
@@ -161,6 +194,8 @@ class DonationEngine extends EventEmitter{
       if(this.runId) await tracker.updateRunStatus(this.runId,"failed");
       this.emit("error",{runId:this.runId,error:err.message,mapping:"DonationMapping"});
       logger.error("Donation migration failed",{runId:this.runId,error:err.message});
+      // Restore AUTO_INCREMENT even on failure
+      try{await this._restoreAutoIncrement();}catch(e){logger.error("Failed to restore AUTO_INCREMENT: "+e.message);}
       this.isRunning=false;
       throw err;
     }
@@ -183,8 +218,15 @@ class DonationEngine extends EventEmitter{
 
       try{
         var itemId=this._determineItemId(row);
-        var clearingMethodAreaId=this._getClearingMethodAreaIdSync(
+        // Orphan audit: a Project/Prayer reference existed but didn't resolve -> goes to ItemId=1.
+        if(itemId===1&&((row.ProjectId&&row.ProjectId>0)||(row.PrayerId&&row.PrayerId>0))){
+          this.orphanTracking.push({OrdersId:sourceId,ProjectId:row.ProjectId||null,PrayerId:row.PrayerId||null,
+            Total:row.Total,ChargeCurrency:row.ChargeCurrency,DateCreated:row.DateCreated,PaymentMethod:row.PaymentMethod,
+            Reason:(row.ProjectId&&row.ProjectId>0)?"project-unresolved":"prayer-unresolved"});
+        }
+        var cma=this._getClearingMethodAreaSync(
           row.PaymentMethod,row.OrderLaguage,row.ChargeCurrency);
+        var clearingMethodAreaId=cma?cma.Id:null;
 
         // Collect billing address
         var billingIdx=-1;
@@ -204,6 +246,7 @@ class DonationEngine extends EventEmitter{
 
         // Build donation data (without address IDs yet)
         var donationData={
+          Id:sourceId,
           ItemId:itemId,
           Status:this._mapStatus(row.ChargeStatus),
           Currency:this._mapCurrency(row.ChargeCurrency||row.OrderCurrency),
@@ -220,8 +263,8 @@ class DonationEngine extends EventEmitter{
           ProviderResultCode:this._trunc(row.ChargeResultNum,10),
           ProviderResultMsg:this._trunc(row.ChargeErrorDesc,2000),
           MoreProviderDetails:this._buildProviderJSON(row),
-          ReceiptBy:row.AsakimInvoiceID&&row.OrderLaguage==="he"?3:null,
-          ReceiptForCountry:row.AsakimInvoiceID&&row.OrderLaguage==="he"?1:null,
+          ReceiptBy:cma?cma.ReceiptBy:null,
+          ReceiptForCountry:cma?cma.Area:null,
           ReceiptNum:row.AsakimInvoiceID||null,
           UserId:this._resolveUserId(row.UserId),
           DonorFirstName:this._trunc(row.BillingFirstName,100),
@@ -303,6 +346,30 @@ class DonationEngine extends EventEmitter{
       this.stats.currencyValuesInserted+=allCvRows.length;
     }
 
+    // Phase 5.5: Bulk INSERT DonationActionLog (from OrderLog)
+    var actionLogRows=[];
+    for(var i=0;i<prepared.length;i++){
+      var donId=donationIds[i];
+      if(!donId) continue;
+      var orderLog=prepared[i].order.OrderLog;
+      if(orderLog){
+        actionLogRows.push({
+          DonationId:donId,
+          ActionId:1,
+          CreatedAt:prepared[i].order.DateCreated||now,
+          CreatedBy:-1,
+          UpdatedAt:now,
+          UpdatedBy:-1,
+          MoreDetails:orderLog,
+          SourceIP:prepared[i].order.Ip?this._trunc(prepared[i].order.Ip,200):null
+        });
+      }
+    }
+    if(actionLogRows.length>0){
+      await this._bulkInsertActionLogs(actionLogRows);
+      this.stats.actionLogsInserted+=actionLogRows.length;
+    }
+
     // Phase 6: Bulk INSERT id_mappings + row_status
     var mappingRows=[];
     var statusRows=[];
@@ -355,12 +422,12 @@ class DonationEngine extends EventEmitter{
       }
     }
     var sql="INSERT INTO `Donation` (`"+cols.join("`,`")+"`) VALUES "+placeholders;
-    var [result]=await targetDb.query(sql,vals);
+    await targetDb.query(sql,vals);
 
-    var firstId=result.insertId;
+    // IDs are the original source IDs (preserved)
     var ids=[];
     for(var i=0;i<prepared.length;i++){
-      ids.push(firstId+i);
+      ids.push(prepared[i].sourceId);
     }
     return ids;
   }
@@ -375,6 +442,60 @@ class DonationEngine extends EventEmitter{
     }
     var sql="INSERT INTO `DonationCurrencyValue` (`"+cols.join("`,`")+"`) VALUES "+placeholders;
     await targetDb.query(sql,vals);
+  }
+
+  async _bulkInsertActionLogs(logRows){
+    var cols=["DonationId","ActionId","CreatedAt","CreatedBy","UpdatedAt","UpdatedBy","MoreDetails","SourceIP"];
+    var singlePlaceholder="(?,?,?,?,?,?,?,?)";
+    var placeholders=logRows.map(function(){return singlePlaceholder}).join(",");
+    var vals=[];
+    for(var l of logRows){
+      vals.push(l.DonationId,l.ActionId,l.CreatedAt,l.CreatedBy,l.UpdatedAt,l.UpdatedBy,l.MoreDetails,l.SourceIP);
+    }
+    var sql="INSERT INTO `DonationActionLog` (`"+cols.join("`,`")+"`) VALUES "+placeholders;
+    await targetDb.query(sql,vals);
+  }
+
+  async _restoreAutoIncrement(){
+    logger.info("Restoring AUTO_INCREMENT on Donation table");
+    var [rows]=await targetDb.query("SELECT COALESCE(MAX(Id),0)+1 as nextId FROM `Donation`");
+    var nextId=rows[0].nextId;
+    await targetDb.query("ALTER TABLE `Donation` MODIFY COLUMN `Id` int NOT NULL AUTO_INCREMENT");
+    await targetDb.query("ALTER TABLE `Donation` AUTO_INCREMENT="+nextId);
+    logger.info("AUTO_INCREMENT restored on Donation table, next ID: "+nextId);
+
+    // Restore FKs
+    logger.info("Restoring FKs referencing Donation.Id");
+    try{await targetDb.query("ALTER TABLE `DonationActionLog` ADD CONSTRAINT `FK_DonationActionLog_DI_Donation` FOREIGN KEY (`DonationId`) REFERENCES `Donation` (`Id`)");}catch(e){logger.info("FK_DonationActionLog_DI_Donation already exists");}
+    try{await targetDb.query("ALTER TABLE `DonationCurrencyValue` ADD CONSTRAINT `FK_DonationCurrencyValue_DI_Donation` FOREIGN KEY (`DonationId`) REFERENCES `Donation` (`Id`)");}catch(e){logger.info("FK_DonationCurrencyValue_DI_Donation already exists");}
+    logger.info("FKs restored");
+  }
+
+  // Write an Excel audit of donations whose Project/Prayer reference didn't resolve
+  // (they migrated into the general bucket ItemId=1). reports/orphan-donations.xlsx.
+  _writeOrphanReport(){
+    if(this.dryRun||!this.orphanTracking||this.orphanTracking.length===0){
+      logger.info("Orphan report: no referenced-but-unresolved donations");
+      return;
+    }
+    try{
+      var XLSX=require("xlsx");
+      var path=require("path");
+      var rows=this.orphanTracking.map(function(o){
+        return {OrdersId:o.OrdersId,ProjectId:o.ProjectId||"",PrayerId:o.PrayerId||"",
+          Total:o.Total,ChargeCurrency:o.ChargeCurrency,
+          DateCreated:o.DateCreated?String(o.DateCreated):"",PaymentMethod:o.PaymentMethod||"",
+          OrphanReason:o.Reason||"",MigratedToItemId:1};
+      });
+      var ws=XLSX.utils.json_to_sheet(rows);
+      var wb=XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb,ws,"OrphanDonations");
+      var out=path.join(__dirname,"../../../reports/orphan-donations.xlsx");
+      XLSX.writeFile(wb,out);
+      logger.info("Orphan donations report written",{count:rows.length,file:out});
+    }catch(err){
+      logger.warn("Failed to write orphan donations report: "+err.message);
+    }
   }
 
   async _bulkInsertTracking(mappingRows,statusRows){
@@ -404,9 +525,9 @@ class DonationEngine extends EventEmitter{
   // ============================================
   async _preloadClearingMethodAreas(){
     try{
-      var [rows]=await targetDb.query("SELECT Id,ClearingMethodId,Area FROM ClearingMethodArea");
+      var [rows]=await targetDb.query("SELECT Id,ClearingMethodId,Area,ReceiptBy FROM ClearingMethodArea");
       for(var r of rows){
-        this.clearingMethodAreaCache.set(r.ClearingMethodId+"_"+r.Area,r.Id);
+        this.clearingMethodAreaCache.set(r.ClearingMethodId+"_"+r.Area,{Id:r.Id,Area:r.Area,ReceiptBy:r.ReceiptBy});
       }
       logger.info("ClearingMethodArea cache: "+this.clearingMethodAreaCache.size+" entries");
     }catch(err){
@@ -437,9 +558,35 @@ class DonationEngine extends EventEmitter{
     return {
       Street:street?this._trunc(street,100):"",
       City:city?this._trunc(city,100):"",
-      Country:1,
+      Country:this._mapCountry(country),
       ZipCode:zip?this._trunc(zip,10):""
     };
+  }
+
+  // ============================================
+  // Country mapping: source free-text -> LutCountry.Id
+  // LutCountry holds 12 canonical countries (Ids 1-12); 13-17 are duplicates.
+  // Address.Country is NOT NULL, so unmapped/empty falls back to 1 (Israel).
+  // ============================================
+  _mapCountry(country){
+    if(!country) return 1;
+    var k=String(country).trim().toLowerCase();
+    var map={
+      "ישראל":1,"israel":1,
+      "usa":2,"united states":2,"united states of america":2,"u.s.a.":2,"us":2,
+        "united states virgin islands":2,"guam (usa)":2,"guam usa":2,
+      "canada":3,
+      "united kingdom":4,"uk":4,"england":4,"great britain":4,"gb":4,
+      "france":5,
+      "venezuela":6,
+      "belgium":7,
+      "south africa":8,"southafrica":8,
+      "brazil":9,
+      "switzerland":10,
+      "mexico":11,
+      "argentina":12
+    };
+    return map[k]||1;
   }
 
   // ============================================
@@ -465,12 +612,17 @@ class DonationEngine extends EventEmitter{
   // ============================================
   // ClearingMethodAreaId (sync - fully cached)
   // ============================================
-  _getClearingMethodAreaIdSync(paymentMethod,orderLanguage,chargeCurrency){
+  _getClearingMethodAreaSync(paymentMethod,orderLanguage,chargeCurrency){
     if(!paymentMethod) return null;
     var clearingMethodId=this._mapClearingMethod(paymentMethod,orderLanguage,chargeCurrency);
     var area=this._mapArea(orderLanguage,chargeCurrency);
     var cacheKey=clearingMethodId+"_"+area;
     return this.clearingMethodAreaCache.get(cacheKey)||null;
+  }
+
+  _getClearingMethodAreaIdSync(paymentMethod,orderLanguage,chargeCurrency){
+    var cma=this._getClearingMethodAreaSync(paymentMethod,orderLanguage,chargeCurrency);
+    return cma?cma.Id:null;
   }
 
   // ============================================
@@ -651,7 +803,8 @@ class DonationEngine extends EventEmitter{
       "VoucherAccountNum","CardToken","CardOwnerName","CardExp",
       "CardNum","CardHolderId","CardAuthNum",
       "FirstPayment","ConstPayment","LowProfileDealGuid",
-      "AsakimInvoiceID","OrderLaguage","IsManualDonation"
+      "AsakimInvoiceID","OrderLaguage","IsManualDonation",
+      "OrderLog"
     ].join(",");
   }
 }

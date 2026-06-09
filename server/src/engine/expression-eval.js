@@ -23,12 +23,21 @@ function evaluateCondition(condition,row){
   }
 }
 
-function processGetDate(){
+function processGetDate(offsetYears){
   var n=new Date();
+  if(offsetYears){n.setFullYear(n.getFullYear()-offsetYears);}
   var pad=function(x){return String(x).padStart(2,'0');};
   return n.getFullYear()+'-'+pad(n.getMonth()+1)+'-'+pad(n.getDate())+' '+pad(n.getHours())+':'+pad(n.getMinutes())+':'+pad(n.getSeconds());
 }
 
+// Resolve date placeholder tokens used in mapping const/default values.
+// GETDATE() = now; GETDATE_MINUS_1Y() = one year ago (fallback for missing CreatedAt).
+function resolveDateToken(value){
+  if(value==="GETDATE()") return processGetDate();
+  if(value==="GETDATE_MINUS_1Y()") return processGetDate(1);
+  return value;
+}
+
 function clearCache(){fnCache.clear();}
 
-module.exports={evaluateExpression,evaluateCondition,processGetDate,clearCache};
+module.exports={evaluateExpression,evaluateCondition,processGetDate,resolveDateToken,clearCache};

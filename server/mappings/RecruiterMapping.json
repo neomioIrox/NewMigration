@@ -4,12 +4,16 @@
   "sourceTable": "ProductStock",
   "targetTable": "Recruiter",
   "sourceIdColumn": "ProductStockId",
+  "sourceQuery": "SELECT t.*, CASE WHEN t._rn = 1 THEN t._norm ELSE LEFT(t._norm,190) + N' (' + CAST(t._rn AS nvarchar(10)) + N')' END AS _DisplayName FROM (SELECT ps.*, LEFT(ISNULL(NULLIF(ps.Name,''),N'ללא שם'),200) AS _norm, ROW_NUMBER() OVER (PARTITION BY ps.ProductId, LEFT(ISNULL(NULLIF(ps.Name,''),N'ללא שם'),200) ORDER BY ps.ProductStockId) AS _rn FROM ProductStock ps WITH (NOLOCK)) t",
   "whereClause": "ProductId IS NOT NULL",
+  "preserveSourceId": true,
+  "scopeFilter": { "column": "ProductId", "file": "migrated-projects.json" },
   "columnMappings": {
     "Name": {
       "convertType": "expression",
-      "oldColumn": "Name",
-      "expression": "value ? value.substring(0, 200) : 'ללא שם'"
+      "oldColumn": "_DisplayName",
+      "expression": "value ? value.substring(0, 200) : 'ללא שם'",
+      "comment": "מקור: _DisplayName מחושב ב-sourceQuery (ROW_NUMBER) - שם נקי לראשון, סיומת (2)/(3) לכפילויות, כדי לעקוף UNIQUE(ProjectId,Name). הלוקליזציה נשארת על Name המקורי (תצוגה נקייה)"
     },
     "ProjectId": {
       "convertType": "direct",
@@ -122,6 +126,9 @@
   "notes": [
     "סדר מיגרציה: חייב להיות אחרי Project ו-RecruitersGroup",
     "FK: ProjectId -> entity_type 'Project' ב-id_mappings",
-    "FK: RecruiterGroupId -> entity_type 'RecruitersGroupMapping' ב-id_mappings"
+    "FK: RecruiterGroupId -> entity_type 'RecruitersGroupMapping' ב-id_mappings",
+    "preserveSourceId: Recruiter.Id == ProductStock.ProductStockId (שמירת המזהה המקורי). 1:1 מ-ProductStock, יעד ייעודי - אין סיכון התנגשות. ה-FK של ProjectId/RecruiterGroupId עדיין נפתר דרך id_mappings",
+    "scopeFilter: מסנן לפי ProductId IN (migrated-projects.json) - רק מגייסים ששייכים לפרויקט שהוגר בפועל. מונע מגייסים יתומים עם ProjectId=null. לרענן את הקובץ ע\"י scripts/migration/extract-migrated-projects.js לאחר שינוי בפרויקטים",
+    "בידול שמות: sourceQuery מחשב _DisplayName עם ROW_NUMBER OVER (PARTITION BY ProductId, normName) - 36 כפילויות אמיתיות במקור היו מתנגשות ב-UNIQUE(ProjectId,Name) ונמחקות. הבידול שומר את כולן (ראשון נקי, השאר עם סיומת). בחירה מודעת על פני דדופ+remap. הלוקליזציה (RecruiterLocalization.Name) נשארת על Name המקורי"
   ]
 }

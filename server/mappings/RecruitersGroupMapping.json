@@ -6,6 +6,8 @@
   "sourceIdColumn": "ID",
   "sourceQuery": "SELECT rg.*, COALESCE(rg.ProjectId, pstop.ProductId) AS ResolvedProjectId FROM RecruitersGroups rg WITH (NOLOCK) OUTER APPLY (SELECT TOP 1 ps.ProductId FROM ProductStock ps WITH (NOLOCK) WHERE ps.GroupId = rg.ID AND ps.ProductId IS NOT NULL) pstop",
   "whereClause": "ResolvedProjectId IS NOT NULL",
+  "preserveSourceId": true,
+  "scopeFilter": { "column": "ResolvedProjectId", "file": "migrated-projects.json" },
   "columnMappings": {
     "Name": {
       "convertType": "expression",
@@ -90,6 +92,8 @@
     "sourceQuery: OUTER APPLY מביא ProductId מ-ProductStock כדי לקבל ProjectId גם לקבוצות ללא ProjectId ישיר",
     "whereClause: מסנן קבוצות שלא ניתן לשייך לאף פרויקט (לא ProjectId ולא ProductStock)",
     "FK: ProjectId -> entity_type 'Project' ב-id_mappings",
-    "סדר מיגרציה: RecruitersGroup חייב להיות לפני Recruiter"
+    "סדר מיגרציה: RecruitersGroup חייב להיות לפני Recruiter",
+    "preserveSourceId: RecruitersGroup.Id == RecruitersGroups.ID (שמירת המזהה המקורי). id_mappings עדיין נרשם (source==target) כגשר, כך ש-FK של Recruiter.RecruiterGroupId דרך entity_type 'RecruitersGroupMapping' ממשיך לעבוד",
+    "scopeFilter: מסנן לפי ResolvedProjectId IN (migrated-projects.json) - רק קבוצות ששייכות לפרויקט שהוגר בפועל. מונע קבוצות יתומות עם ProjectId=null. לרענן את הקובץ ע\"י scripts/migration/extract-migrated-projects.js לאחר שינוי בפרויקטים"
   ]
 }
