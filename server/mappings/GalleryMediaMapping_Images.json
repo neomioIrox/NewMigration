@@ -10,23 +10,24 @@
     "targetTable": "Media",
     "sourcePrimaryKey": "GaleryPicsId",
     "order": 9.2,
-    "description": "Gallery image media: GaleryPics -> media + gallerymedia junction. Must run AFTER GalleryMapping_Images.",
+    "description": "Gallery image media: GaleryPics -> Media + GalleryMedia junction. Must run AFTER GalleryMapping_Images. RelativePath must be the FULL S3 key (FE builds URL as bucket + RelativePath only; Year/Month dirs are not used in URL building). Legacy files were bulk-uploaded to S3 under 2020/01/.",
     "dependencies": ["GalleryMapping_Images"]
   },
+  "postMigrationRunners": ["set-gallery-main-media"],
   "columnMappings": {
     "YearDirectory": {
       "convertType": "const",
-      "value": "legacy"
+      "value": "2020"
     },
     "MonthDirectory": {
       "convertType": "const",
-      "value": "gallery"
+      "value": "01"
     },
     "RelativePath": {
       "convertType": "expression",
       "oldTable": "GaleryPics",
       "oldColumn": "Pic",
-      "expression": "value ? value.substring(0, 500) : null"
+      "expression": "value ? ('2020/01/' + value).substring(0, 500) : null"
     },
     "SourceType": {
       "convertType": "const",

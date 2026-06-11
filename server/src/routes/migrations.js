@@ -71,6 +71,16 @@ router.post("/start-asakim-donations",async function(req,res){
   }catch(err){res.status(500).json({error:err.message});}
 });
 
+// Gallery chain: images galleries -> images media (+cover post-runner) -> videos.
+// Idempotent — completed stages are skipped, so the button also acts as "continue".
+router.post("/start-gallery",async function(req,res){
+  try{
+    var {batchSize}=req.body;
+    manager.startGalleryMigrationChain({batchSize:batchSize||500},req.app.get("io"));
+    res.json({message:"Gallery migration chain started",batchSize:batchSize||500});
+  }catch(err){res.status(500).json({error:err.message});}
+});
+
 router.post("/start-praynames",async function(req,res){
   try{
     var {batchSize,dryRun}=req.body;

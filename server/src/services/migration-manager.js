@@ -4,6 +4,7 @@ const MigrationEngine=require("../engine/migration-engine");
 const DonationEngine=require("../engine/donation-engine");
 const PrayNameEngine=require("../engine/prayname-engine");
 const AsakimDonationEngine=require("../engine/asakim-donation-engine");
+const VideoGalleryEngine=require("../engine/videogallery-engine");
 const tracker=require("./tracker");
 const logger=require("../logger");
 
@@ -24,7 +25,10 @@ function listMappings(){
 
 function startMigration(mappingName,options,io){
   var mapping=loadMapping(mappingName);
-  var engine=new MigrationEngine(mapping,options);
+  // VideoGalleryMediaMapping runs via its dedicated engine (Videos -> VideoGalleryMedia + Media + LinkSetting)
+  var engine=mappingName==="VideoGalleryMediaMapping"
+    ?new VideoGalleryEngine(options)
+    :new MigrationEngine(mapping,options);
   // Wire up WebSocket events
   engine.on("started",function(data){if(io) io.emit("migration:started",data);});
   engine.on("progress",function(data){if(io) io.emit("migration:progress",data);});
@@ -72,6 +76,18 @@ async function resumeMigration(runId,io){
     activeEngines.set(runId,aEngine);
     aEngine.run(runId).catch(function(e){logger.error("AsakimDonation resume failed: "+e.message);});
     return aEngine;
+  }
+  // Use VideoGalleryEngine for video gallery runs
+  if(run.mapping_name==="VideoGalleryMediaMapping"){
+    var vEngine=new VideoGalleryEngine({batchSize:run.batch_size});
+    vEngine.on("started",function(d){if(io) io.emit("migration:started",d);});
+    vEngine.on("progress",function(d){if(io) io.emit("migration:progress",d);});
+    vEngine.on("paused",function(d){if(io) io.emit("migration:paused",d);});
+    vEngine.on("completed",function(d){if(io) io.emit("migration:completed",d);activeEngines.delete(d.runId);});
+    vEngine.on("error",function(d){if(io) io.emit("migration:error",d);activeEngines.delete(d.runId);});
+    activeEngines.set(runId,vEngine);
+    vEngine.run(runId).catch(function(e){logger.error("VideoGallery resume failed: "+e.message);});
+    return vEngine;
   }
   // Use PrayNameEngine for prayname runs
   if(run.mapping_name==="PrayNameMapping"){
@@ -153,4 +169,78 @@ function startAsakimDonationMigration(options,io){
 
 function getActiveEngine(runId){return activeEngines.get(runId)||null;}
 
-module.exports={loadMapping,listMappings,startMigration,startDonationMigration,startPrayNameMigration,startAsakimDonationMigration,pauseMigration,resumeMigration,restartMigration,getActiveEngine};
+// ======= Gallery chain: images galleries -> images media -> videos =======
+// One-click orchestrator. Each stage is pre-checked against the tracker so the
+// button is idempotent: completed stages are skipped (a synthetic completed
+// event is emitted so the UI shows them), and clicking again after a pause
+// continues from the first unfinished stage. A partially-migrated stage aborts
+// the chain (re-running it through the generic engine would duplicate rows).
+var galleryChainRunning=false;
+
+function _awaitEngine(engine){
+  return new Promise(function(resolve){
+    engine.once("completed",function(d){resolve({status:"completed",data:d});});
+    engine.once("paused",function(d){resolve({status:"paused",data:d});});
+    engine.once("error",function(d){resolve({status:"error",data:d});});
+  });
+}
+
+async function _galleryStageState(stageName){
+  var mssqlDb=require("../db/mssql");
+  var trackerDb=require("../db/mysql-tracker");
+  var entityBySage={
+    "GalleryMapping_Images":{entity:"Gallery_Images",countSql:"SELECT COUNT(*) AS cnt FROM Galeries"},
+    "GalleryMediaMapping_Images":{entity:"Media_GalleryImage",countSql:"SELECT COUNT(*) AS cnt FROM GaleryPics WHERE Pic IS NOT NULL AND Pic != ''"}
+  };
+  var def=entityBySage[stageName];
+  if(!def) return {run:true}; // VideoGalleryMediaMapping — engine is internally idempotent
+  var srcResult=await mssqlDb.query(def.countSql);
+  var srcCount=srcResult.recordset[0].cnt;
+  var [doneRows]=await trackerDb.query(
+    "SELECT COUNT(*) AS cnt FROM id_mappings WHERE entity_type=?",[def.entity]);
+  var doneCount=doneRows[0].cnt;
+  if(doneCount===0) return {run:true,srcCount:srcCount};
+  if(doneCount>=srcCount) return {run:false,skip:true,srcCount:srcCount,doneCount:doneCount};
+  return {run:false,partial:true,srcCount:srcCount,doneCount:doneCount};
+}
+
+function startGalleryMigrationChain(options,io){
+  if(galleryChainRunning) throw new Error("Gallery migration chain is already running");
+  galleryChainRunning=true;
+  var stages=["GalleryMapping_Images","GalleryMediaMapping_Images","VideoGalleryMediaMapping"];
+
+  (async function(){
+    try{
+      for(var stageName of stages){
+        var state=await _galleryStageState(stageName);
+        if(state.partial){
+          logger.error("Gallery chain aborted — stage partially migrated",{stage:stageName,done:state.doneCount,src:state.srcCount});
+          if(io) io.emit("migration:error",{runId:null,mapping:stageName,
+            error:"השלב הושלם חלקית ("+state.doneCount+"/"+state.srcCount+") — ריצה חוזרת תיצור כפילויות. יש לנקות או להשלים ידנית."});
+          return;
+        }
+        if(state.skip){
+          logger.info("Gallery chain — stage already migrated, skipping",{stage:stageName,done:state.doneCount});
+          if(io) io.emit("migration:completed",{runId:null,mapping:stageName,skippedStage:true,
+            totalRows:state.srcCount,counters:{processed:state.doneCount,inserted:0,skipped:state.doneCount,errors:0}});
+          continue;
+        }
+        logger.info("Gallery chain — starting stage",{stage:stageName});
+        var engine=startMigration(stageName,{batchSize:(options&&options.batchSize)||500},io);
+        var result=await _awaitEngine(engine);
+        if(result.status!=="completed"){
+          logger.warn("Gallery chain stopped",{stage:stageName,status:result.status});
+          return; // engine already emitted paused/error to the UI
+        }
+      }
+      logger.info("Gallery chain completed — all stages done");
+    }catch(err){
+      logger.error("Gallery chain failed",{error:err.message,stack:err.stack});
+      if(io) io.emit("migration:error",{runId:null,mapping:"GalleryChain",error:err.message});
+    }finally{
+      galleryChainRunning=false;
+    }
+  })();
+}
+
+module.exports={loadMapping,listMappings,startMigration,startDonationMigration,startPrayNameMigration,startAsakimDonationMigration,startGalleryMigrationChain,pauseMigration,resumeMigration,restartMigration,getActiveEngine};

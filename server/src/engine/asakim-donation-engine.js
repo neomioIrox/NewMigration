@@ -7,6 +7,17 @@ const {processGetDate}=require("./expression-eval");
 const tracker=require("../services/tracker");
 const logger=require("../logger");
 
+// Scope: migrate ONLY Asakim records tied to an in-scope migrated donation.
+// AsakimDonations.DonationID == Orders.AsakimID, and the order must satisfy the SAME
+// predicate the donation engine uses (ChargeStatus='OrderFinished' AND DateCreated >= cutoff).
+// Single source of truth for the cutoff: scope-products.json. See project_migration_scope.
+const donationScope=require("../../data/scope-products.json");
+const SCOPE_CUTOFF=(donationScope&&donationScope.cutoff)?String(donationScope.cutoff):"2025-06-01";
+if(!/^\d{4}-\d{2}-\d{2}$/.test(SCOPE_CUTOFF)) throw new Error("Invalid donation scope cutoff: "+SCOPE_CUTOFF);
+const SCOPE_EXISTS=" EXISTS (SELECT 1 FROM Orders o WITH (NOLOCK)"
+  +" WHERE o.AsakimID = AsakimDonations.DonationID"
+  +" AND o.ChargeStatus='OrderFinished' AND o.DateCreated >= '"+SCOPE_CUTOFF+"')";
+
 /**
  * AsakimDonation Migration Engine (Bulk INSERT)
  *
@@ -37,8 +48,8 @@ class AsakimDonationEngine extends EventEmitter{
     var entityType="AsakimDonation";
 
     try{
-      // Count source rows
-      var countResult=await mssqlDb.query("SELECT COUNT(*) as cnt FROM AsakimDonations");
+      // Count source rows (scope-filtered)
+      var countResult=await mssqlDb.query("SELECT COUNT(*) as cnt FROM AsakimDonations WITH (NOLOCK) WHERE"+SCOPE_EXISTS);
       var totalRows=countResult.recordset[0].cnt;
 
       // Create or resume run
@@ -72,9 +83,9 @@ class AsakimDonationEngine extends EventEmitter{
           return {status:"paused",runId:this.runId,counters:this.counters};
         }
 
-        // Fetch batch
-        var whereSql=lastId?" WHERE Id>"+lastId:"";
-        var batchSql="SELECT TOP "+this.batchSize+" * FROM AsakimDonations"+whereSql+" ORDER BY Id ASC";
+        // Fetch batch (scope-filtered; keyset on Id)
+        var whereSql=" WHERE"+SCOPE_EXISTS+(lastId?" AND Id>"+lastId:"");
+        var batchSql="SELECT TOP "+this.batchSize+" * FROM AsakimDonations WITH (NOLOCK)"+whereSql+" ORDER BY Id ASC";
         var batchResult=await mssqlDb.query(batchSql);
         var rows=batchResult.recordset;
         if(!rows||rows.length===0){hasMore=false;break;}

@@ -34,6 +34,34 @@
 
 ---
 
+### גלריות תמונות מול גלריית וידאו — שתי ארכיטקטורות שונות לחלוטין (Jun 10, 2026)
+
+**אותו מסך "גלריה" באתר, שתי תשתיות נפרדות. אל תסיק מאחת על השנייה.**
+
+| היבט | גלריות תמונות | גלריית וידאו |
+|---|---|---|
+| מקור | `Galeries` (79) + `GaleryPics` (1,230 עם Pic) | `Videos` (127 עם Link) |
+| יעד | `Gallery` + `GalleryLocalization` + `Media` + `GalleryMedia` | `VideoGalleryMedia` + `Media` + `LinkSetting` — **לא** טבלאות Gallery |
+| מבנה | היררכי — גלריה מכילה תמונות | שטוח — רשימת סרטונים אחת, אין קיבוץ לגלריות |
+| רב-לשוניות | ברמת הגלריה (`GalleryLocalization`, שורה לשפה: Title/Display); התמונות משותפות לכל השפות (ל-`GalleryMedia` אין עמודת Language) | ברמת הסרטון — שורת `VideoGalleryMedia` לכל שפה (`LanguageId`, Title/Description/DisplayInGallery), עם Hebrew-fallback |
+| Media.SourceType | 2 (S3) — קבצים פיזיים ב-bucket | 1 (Youtube) — RelativePath הוא URL חיצוני מלא, אין קבצים |
+| אילוץ מבני | אין תלות בפרויקט | `LinkSettingId NOT NULL` → `ProjectId NOT NULL` → ברירת מחדל Project.Id=1 |
+| גישת FE | `gallery/getGalleries/{lang}`, `gallery/getMediaGallery/{galleryId}` | `gallery/getVideoGalleryQuickView/{lang}`, `gallery/getVideoById/` |
+| כלי מיגרציה | מיפויי מנוע: `GalleryMapping_Images` + `GalleryMediaMapping_Images` (+ post-runner `set-gallery-main-media`) | סקריפט עצמאי: `scripts/migration/migrate-video-gallery-media.js` |
+
+**בניית URL של תמונה ב-FE (אומת מה-bundle החי, Jun 2026):**
+```
+URL = "https://kupat-hair-data.s3.us-west-2.amazonaws.com/" + relativePath
+```
+- **RelativePath בלבד!** השדות `YearDirectory`/`MonthDirectory` מוחזרים מה-API אבל לא משתתפים בבניית ה-URL.
+- לכן RelativePath חייב להכיל את מפתח ה-S3 המלא, למשל `2020/01/file.jpg`.
+- כל קבצי ה-legacy הועלו ל-S3 תחת `2020/01/` (אומת 1,226/1,230 תמונות גלריה; 4 חסרות זמינות בשרת הישן `https://services.kupat.org.il/images/{Pic}`).
+- וידאו: `sourceType==1 (Youtube)` → ה-FE משתמש ב-relativePath ישירות כ-embed.
+
+**באג שתוקן (Jun 10, 2026):** `GalleryMediaMapping_Images` שם ב-RelativePath רק את שם הקובץ (עם `legacy`/`gallery` בשדות הספריות) → היה מייצר URL שבור. תוקן ל-`'2020/01/' + Pic`.
+
+---
+
 ### Campaign Type 3 Migration (Nov 29, 2025) ⚠️
 **בעיה קריטית בסדר המיגרציות - לא הושלמה!**
 

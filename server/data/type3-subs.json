@@ -1,7 +1,7 @@
 {
   "description": "Frozen Case-3 sub-product productsids (all subs of active campaigns)",
   "definition": "Case 3 (ProductGroup campaigns). Parents: Terminal=1, active (parent or any sub in scope-products.json). Subs: all subs of those parents, PLUS Terminal=1 subs of an in-scope Terminal=4 fund-parent (collapsed into the fund's Project).",
-  "generatedAt": "2026-06-09T20:06:02.068Z",
+  "generatedAt": "2026-06-10T08:09:27.689Z",
   "count": 254,
   "productIds": [
     904,

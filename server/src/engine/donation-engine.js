@@ -10,7 +10,8 @@ const logger=require("../logger");
 
 // Donation scope cutoff — single source of truth: the SAME file that freezes the product
 // scope (scope-products.json was built from "OrderFinished AND DateCreated >= cutoff").
-// Only completed donations on/after this date migrate. See project_migration_scope.
+// The cutoff decides WHICH PROJECTS exist. Donations linked to an existing project/prayer
+// migrate ALL-TIME; the cutoff applies only to general (no-project) donations. See run().
 const donationScope=require("../../data/scope-products.json");
 const SCOPE_CUTOFF=(donationScope&&donationScope.cutoff)?String(donationScope.cutoff):"2025-06-01";
 if(!/^\d{4}-\d{2}-\d{2}$/.test(SCOPE_CUTOFF)) throw new Error("Invalid donation scope cutoff: "+SCOPE_CUTOFF);
@@ -46,6 +47,8 @@ class DonationEngine extends EventEmitter{
     this.recruiterIdCache=null;
     // ClearingMethodArea cache (DB lookup results)
     this.clearingMethodAreaCache=new Map();
+    // Source attribution: normalized SourceCode -> Source.Id (lowest Id wins on duplicate codes)
+    this.sourceCodeCache=new Map();
     // Warn dedup - only warn once per ProjectId/PrayerId
     this._warnedProjectIds=new Set();
     this._warnedPrayerIds=new Set();
@@ -103,13 +106,39 @@ class DonationEngine extends EventEmitter{
       // Preload ALL ClearingMethodArea combos (small table)
       await this._preloadClearingMethodAreas();
 
+      // Preload Source codes for donation source attribution (SourceType/SourceId)
+      await this._preloadSourceCodes();
+
       // ========================================
       // STEP 1: Count source rows
-      // Scope rule: migrate ONLY completed donations on/after the cutoff (default 2025-06-01).
-      // Matches scope-products.json's definition exactly, so every migrated donation references
-      // an in-scope product (verified: 0 in-date donations point outside the product scope).
+      // Scope rule (corrected 2026-06-10): a completed donation migrates if
+      //   (a) its ProjectId exists in the TARGET DB (Project.Id==productsid, plus Type3 sub
+      //       products whose items live under their parent campaign Project) — ALL TIME; or
+      //   (b) its PrayerId is a migrated prayer (ProjectItem_prayerName) — ALL TIME; or
+      //   (c) it is recent (DateCreated >= cutoff) — keeps general donations (no project)
+      //       and recent leftovers on the previous behavior.
+      // The cutoff decides WHICH PROJECTS exist; once a project exists, ALL its donations come.
       // ========================================
-      var whereClause=" WHERE ChargeStatus = 'OrderFinished' AND DateCreated >= '"+SCOPE_CUTOFF+"'";
+      var [projRows]=await targetDb.query("SELECT Id FROM Project");
+      var scopePids=projRows.map(function(r){return Number(r.Id)}).filter(function(n){return!isNaN(n)&&n>0});
+      try{
+        var subList=require("../../data/type3-subs.json").productIds||[];
+        for(var sp of subList){sp=Number(sp);if(!isNaN(sp)&&sp>0)scopePids.push(sp);}
+      }catch(e){logger.info("type3-subs.json not found - donation scope uses target Projects only");}
+      scopePids=Array.from(new Set(scopePids));
+      var prayerPids=Array.from(this.projectItemPrayerCache.keys()).map(Number).filter(function(n){return!isNaN(n)&&n>0});
+      var whereClause=" WHERE ChargeStatus = 'OrderFinished' AND ("
+        +"ProjectId IN ("+(scopePids.length?scopePids.join(","):"0")+")"
+        +(prayerPids.length?" OR PrayerId IN ("+prayerPids.join(",")+")":"")
+        +" OR DateCreated >= '"+SCOPE_CUTOFF+"')";
+      logger.info("Donation scope",{projectsAndSubs:scopePids.length,prayers:prayerPids.length,cutoffForGenerals:SCOPE_CUTOFF});
+
+      // Skip-existing: re-runs only fill the gap. Donation.Id==OrdersId (preserveSourceId),
+      // so rows already in the target are filtered out before processing. On a fresh/empty
+      // target this set is empty and everything migrates.
+      var [existRows]=await targetDb.query("SELECT Id FROM Donation");
+      this.existingDonationIds=new Set(existRows.map(function(r){return Number(r.Id)}));
+      logger.info("Existing donations preloaded for skip",{count:this.existingDonationIds.size});
       var countSql="SELECT COUNT(*) as cnt FROM "+sourceTable+" WITH (NOLOCK)"+whereClause;
       var countResult=await mssqlDb.query(countSql);
       var totalRows=countResult.recordset[0].cnt;
@@ -161,8 +190,16 @@ class DonationEngine extends EventEmitter{
         var rows=batchResult.recordset;
         if(!rows||rows.length===0){hasMore=false;break;}
 
+        // Skip donations already in the target (gap-fill re-run); fresh target -> no-op
+        var newRows=rows;
+        if(this.existingDonationIds&&this.existingDonationIds.size>0){
+          newRows=rows.filter(function(r){return!this.existingDonationIds.has(Number(r[sourceIdCol]))}.bind(this));
+          var skippedNow=rows.length-newRows.length;
+          if(skippedNow>0){this.counters.processed+=skippedNow;this.counters.skipped+=skippedNow;}
+        }
+
         // Process entire batch with bulk inserts
-        await this._processBatch(rows,sourceIdCol);
+        if(newRows.length>0) await this._processBatch(newRows,sourceIdCol);
 
         lastId=rows[rows.length-1][sourceIdCol];
 
@@ -227,6 +264,8 @@ class DonationEngine extends EventEmitter{
         var cma=this._getClearingMethodAreaSync(
           row.PaymentMethod,row.OrderLaguage,row.ChargeCurrency);
         var clearingMethodAreaId=cma?cma.Id:null;
+        var src=this._resolveSource(row.UserSource);
+        var amount=this._authoritativeAmount(row);
 
         // Collect billing address
         var billingIdx=-1;
@@ -251,7 +290,7 @@ class DonationEngine extends EventEmitter{
           Status:this._mapStatus(row.ChargeStatus),
           Currency:this._mapCurrency(row.ChargeCurrency||row.OrderCurrency),
           LanguageId:this._mapLanguage(row.OrderLaguage),
-          MonthlySum:this._calcMonthlySum(row.Total,row.Payments),
+          MonthlySum:this._calcMonthlySum(amount,row.Payments),
           PaymentsCount:row.Payments||1,
           PaymentType:row.DonationType==="FixedDonation"?1:2,
           ReferenceNum:this._trunc(row.ReferenceCode,50),
@@ -271,11 +310,11 @@ class DonationEngine extends EventEmitter{
           DonorLastName:this._trunc(row.BillingLastName,300),
           DonorEmail:this._trunc(row.Email,100),
           DonorPhone:this._trunc(row.Phone,100),
-          SourceType:3,
-          SourceId:null,
-          UnknownSourceCode:this._extractUnknownSource(row.UserSource),
-          RecruiterId:this._resolveRecruiterId(row.RecruiterId),
-          SourceApp:this._mapSourceApp(row.IsManualDonation,row.PaymentMethod),
+          SourceType:src.type,
+          SourceId:src.id,
+          UnknownSourceCode:src.code,
+          RecruiterId:this._resolveRecruiterId(row.RecruiterId,row.UserSource),
+          SourceApp:this._mapSourceApp(row.IsManualDonation,row.PaymentMethod,row.AsakimID),
           SourceIP:this._trunc(row.Ip,200),
           EngravingName:this._trunc(row.CertificateFullName,300),
           SendReceiptByPost:row.AnonymousUser?0:1,
@@ -294,7 +333,7 @@ class DonationEngine extends EventEmitter{
           UpdatedAt:now,
           UpdatedBy:-1,
           DisplayCurrency:this._mapCurrency(row.ChargeCurrency||row.OrderCurrency),
-          DisplayMonthlySum:this._calcMonthlySum(row.Total,row.Payments),
+          DisplayMonthlySum:this._calcMonthlySum(amount,row.Payments),
           StatusReason:null
         };
 
@@ -536,6 +575,24 @@ class DonationEngine extends EventEmitter{
   }
 
   // ============================================
+  // Preload Source codes (target Source table) for donation source attribution.
+  // Normalized (trim+lowercase, strips tab-suffixed codes); lowest Id wins on duplicates.
+  // ============================================
+  async _preloadSourceCodes(){
+    try{
+      var [rows]=await targetDb.query("SELECT Id,SourceCode FROM Source ORDER BY Id ASC");
+      for(var r of rows){
+        var k=String(r.SourceCode||"").trim().toLowerCase();
+        if(!k||this.sourceCodeCache.has(k)) continue;
+        this.sourceCodeCache.set(k,r.Id);
+      }
+      logger.info("Source code cache: "+this.sourceCodeCache.size+" entries"+(this.sourceCodeCache.size===0?" (WARNING: Source not yet migrated — all donations will get SourceType=2/3!)":""));
+    }catch(err){
+      logger.warn("Failed to preload Source codes: "+err.message);
+    }
+  }
+
+  // ============================================
   // Build address data (sync, no DB)
   // ============================================
   _buildAddress(order,type){
@@ -715,13 +772,24 @@ class DonationEngine extends EventEmitter{
 
   _mapCurrency(currency){
     if(!currency) return 1;
-    switch(currency){
+    switch(String(currency).trim()){
       case "₪": case "NIS": case "ILS": return 1;
       case "$": case "USD": return 2;
       case "€": case "EUR": return 3;
       case "£": case "GBP": return 4;
+      case "C$": case "CA$": case "CAD": return 5;
       default: return 1;
     }
+  }
+
+  // Authoritative donation amount: Donation.Currency is derived from ChargeCurrency (when set),
+  // so the amount must come from the SAME currency — ChargeTotal. Orders.Total is in the ORDER
+  // currency, which differs from the charge currency on cross-currency rows (e.g. C$/£ charges
+  // on the $ site): using Total there pairs a wrong amount with the currency label.
+  _authoritativeAmount(row){
+    var cc=row.ChargeCurrency?String(row.ChargeCurrency).trim():"";
+    if(cc&&row.ChargeTotal!==null&&row.ChargeTotal!==undefined&&Number(row.ChargeTotal)>0) return row.ChargeTotal;
+    return row.Total;
   }
 
   _mapLanguage(orderLanguage){
@@ -734,10 +802,14 @@ class DonationEngine extends EventEmitter{
     }
   }
 
-  _mapSourceApp(isManualDonation,paymentMethod){
-    if(isManualDonation===true||isManualDonation===1) return 2;
-    if(paymentMethod==="NedarimPlus") return 4;
-    return 1;
+  _mapSourceApp(isManualDonation,paymentMethod,asakimId){
+    if(isManualDonation===true||isManualDonation===1) return 2; // ManagementSite
+    if(paymentMethod==="NedarimPlus") return 4;                 // Nedarim
+    if(paymentMethod==="Asakim") return 3;                      // Asakim (business app)
+    // Business orders sometimes have an empty PaymentMethod but always carry AsakimID
+    // (verified: in-scope orders with AsakimID are only Asakim=100,006 / empty=262)
+    if(!paymentMethod&&asakimId&&String(asakimId).trim()!=="") return 3;
+    return 1;                                                   // CustomerSite (default)
   }
 
   _resolveUserId(userId){
@@ -746,16 +818,36 @@ class DonationEngine extends EventEmitter{
     return mapped?parseInt(mapped):null;
   }
 
-  _resolveRecruiterId(recruiterId){
-    if(!recruiterId||recruiterId===0) return null;
-    var mapped=this.recruiterIdCache.get(String(recruiterId));
-    return mapped?parseInt(mapped):null;
+  // RecruiterId column is authoritative; when it's missing, fall back to the recruiter id
+  // embedded in UserSource ("recparam<id>"). Validated: embedded==column in 99.45% of rows
+  // that have both. Only ids resolving via RecruiterMapping are used (FK-safe).
+  _resolveRecruiterId(recruiterId,userSource){
+    if(recruiterId&&recruiterId!==0){
+      var mapped=this.recruiterIdCache.get(String(recruiterId));
+      if(mapped) return parseInt(mapped);
+    }
+    if(userSource){
+      var m=String(userSource).trim().match(/^recparam(\d+)/i);
+      if(m&&Number(m[1])>0){
+        var fb=this.recruiterIdCache.get(m[1]);
+        if(fb) return parseInt(fb);
+      }
+    }
+    return null;
   }
 
-  _extractUnknownSource(userSource){
-    if(!userSource) return null;
-    if(userSource.startsWith("recParam")) return null;
-    return this._trunc(userSource,50);
+  // Source attribution per LutDonationSourceType:
+  //   1=DefinedSource (UserSource matches Source.SourceCode -> SourceId set)
+  //   2=UnknownSource (non-empty but unmatched -> code kept in UnknownSourceCode)
+  //   3=None (empty, or recParam* which is a recruiter param handled via RecruiterId)
+  _resolveSource(userSource){
+    if(userSource===null||userSource===undefined) return {type:3,id:null,code:null};
+    var s=String(userSource).trim();
+    if(!s) return {type:3,id:null,code:null};
+    if(s.toLowerCase().startsWith("recparam")) return {type:3,id:null,code:null};
+    var sid=this.sourceCodeCache.get(s.toLowerCase());
+    if(sid) return {type:1,id:sid,code:null};
+    return {type:2,id:null,code:this._trunc(s,50)};
   }
 
   _calcMonthlySum(total,payments){
@@ -788,7 +880,7 @@ class DonationEngine extends EventEmitter{
   _getSelectColumns(){
     return [
       "OrdersId","ProjectId","PrayerId","UserId",
-      "Total","Payments","ChargeStatus","PaymentMethod",
+      "Total","ChargeTotal","Payments","ChargeStatus","PaymentMethod",
       "Currency as OrderCurrency","ChargeCurrency",
       "TotalInILS","TotalInUSD","TotalInEUR","USDRate","EURRate",
       "DonationType","ReferenceCode","TerminalNumber",
@@ -803,7 +895,7 @@ class DonationEngine extends EventEmitter{
       "VoucherAccountNum","CardToken","CardOwnerName","CardExp",
       "CardNum","CardHolderId","CardAuthNum",
       "FirstPayment","ConstPayment","LowProfileDealGuid",
-      "AsakimInvoiceID","OrderLaguage","IsManualDonation",
+      "AsakimInvoiceID","AsakimID","OrderLaguage","IsManualDonation",
       "OrderLog"
     ].join(",");
   }

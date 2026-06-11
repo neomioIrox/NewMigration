@@ -90,10 +90,19 @@
       "dependsOn": []
     },
     {
-      "mapping": "GalleryMapping_Videos",
-      "entityType": "Gallery",
+      "mapping": "GalleryMediaMapping_Images",
+      "entityType": "Media_GalleryImage",
       "order": 13,
-      "dependsOn": []
+      "dependsOn": [
+        "Gallery"
+      ]
+    },
+    {
+      "mapping": "VideoGalleryMediaMapping",
+      "entityType": "VideoGallery",
+      "order": 13.5,
+      "dependsOn": [],
+      "note": "Runs via dedicated VideoGalleryEngine (videogallery-engine.js), selectable from the UI like any mapping. Targets VideoGalleryMedia + LinkSetting + Media — NOT Gallery tables (GalleryMapping_Videos was deprecated, see mappings/deprecated/)."
     },
     {
       "mapping": "FundCategoryMapping",

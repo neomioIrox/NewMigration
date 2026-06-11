@@ -1,6 +1,7 @@
 {
   "sourceTable": "PrayerNames",
-  "sourceQuery": "SELECT pn.PrayerNamesId, pn.FirstName, pn.LastName, pn.Comment, pn.OrderId, pn.DateCreated, pn.Gender FROM PrayerNames pn WITH (NOLOCK) INNER JOIN Orders o WITH (NOLOCK) ON pn.OrderId = o.OrdersId WHERE o.ChargeStatus = 'OrderFinished'",
+  "sourceQuery": "SELECT pn.PrayerNamesId, pn.FirstName, pn.LastName, pn.Comment, pn.OrderId, pn.DateCreated, pn.Gender FROM PrayerNames pn WITH (NOLOCK) INNER JOIN Orders o WITH (NOLOCK) ON pn.OrderId = o.OrdersId WHERE o.ChargeStatus = 'OrderFinished' AND o.DateCreated >= '2025-06-01'",
+  "sourceQueryComment": "DateCreated cutoff mirrors scope-products.json (donation scope). Engine reads the live cutoff from that file; this literal is documentation only.",
   "sourceIdColumn": "PrayerNamesId",
   "targetTable": "PrayName",
   "entityType": "PrayName",

@@ -301,6 +301,127 @@ function PrayNameRunner({migrationState,runId,setRunId,lastEvent,pauseMut,resume
   );
 }
 
+const GALLERY_STAGES=[
+  {name:"GalleryMapping_Images",label:"גלריות תמונות",detail:"Galeries → Gallery + לוקליזציה (79)"},
+  {name:"GalleryMediaMapping_Images",label:"תמונות הגלריות",detail:"GaleryPics → Media + GalleryMedia (1,230) + תמונת שער"},
+  {name:"VideoGalleryMediaMapping",label:"גלריית וידאו",detail:"Videos → VideoGalleryMedia + LinkSetting (127)"}
+];
+
+function GalleryRunner({migrationState,runId,lastEvent,pauseMut,resumeMut}){
+  const[result,setResult]=useState(null);
+  const[stageResults,setStageResults]=useState({});
+
+  const startMut=useMutation({mutationFn:()=>api.startGalleryMigration(500),
+    onSuccess:(data)=>{setResult(data);setStageResults({});}});
+
+  const stageIdx=lastEvent?GALLERY_STAGES.findIndex(s=>s.name===lastEvent.mapping):-1;
+  const isGalleryEvent=stageIdx>-1;
+  const isRunning=migrationState==="running"&&isGalleryEvent;
+  const isPaused=migrationState==="paused"&&isGalleryEvent;
+  const isError=lastEvent&&lastEvent.type==="error"&&isGalleryEvent;
+  const chainDone=lastEvent&&lastEvent.type==="completed"&&lastEvent.mapping===GALLERY_STAGES[2].name;
+
+  // Accumulate per-stage completion results
+  useEffect(()=>{
+    if(lastEvent&&lastEvent.type==="completed"&&GALLERY_STAGES.some(s=>s.name===lastEvent.mapping)){
+      setStageResults(prev=>({...prev,[lastEvent.mapping]:{counters:lastEvent.counters,skippedStage:lastEvent.skippedStage}}));
+    }
+  },[lastEvent]);
+
+  const progress=lastEvent&&isGalleryEvent&&(lastEvent.type==="progress"||lastEvent.type==="paused"||lastEvent.type==="completed")?lastEvent:null;
+  const pct=progress&&progress.totalRows>0?Math.round((progress.counters.processed/progress.totalRows)*100):0;
+
+  function stageStatus(i){
+    const done=stageResults[GALLERY_STAGES[i].name];
+    if(done) return done.skippedStage?"skipped":"done";
+    if(i===stageIdx&&(isRunning)) return "running";
+    if(i===stageIdx&&isPaused) return "paused";
+    if(i===stageIdx&&isError) return "error";
+    return "pending";
+  }
+
+  const STATUS_ICON={done:"✓",skipped:"↷",running:"⏳",paused:"⏸",error:"✗",pending:"○"};
+  const STATUS_COLOR={done:"text-green-700",skipped:"text-blue-600",running:"text-pink-700 font-bold",paused:"text-yellow-700",error:"text-red-700",pending:"text-gray-400"};
+
+  return(
+    <div className="bg-white rounded-lg shadow p-6 mb-6 border-2 border-pink-200">
+      <h3 className="font-semibold mb-1 text-lg text-pink-800">מיגרציית גלריות (תמונות + וידאו)</h3>
+      <p className="text-sm text-gray-600 mb-4">שלושה שלבים ברצף אוטומטי. שלבים שכבר הושלמו מדולגים — הכפתור משמש גם כ"המשך".</p>
+
+      <div className="flex items-end gap-4 mb-4">
+        <button onClick={()=>{if(window.confirm("להתחיל מיגרציית גלריות? (תמונות + וידאו, ~1,440 שורות מקור)"))startMut.mutate();}}
+          disabled={startMut.isPending||migrationState==="running"}
+          className="bg-pink-600 text-white px-5 py-2 rounded hover:bg-pink-700 disabled:opacity-50 font-medium">
+          {startMut.isPending?"מתחיל...":"התחל מיגרציית גלריות"}
+        </button>
+        {isRunning&&runId&&(
+          <button onClick={()=>pauseMut.mutate(runId)} disabled={pauseMut.isPending}
+            className="bg-red-600 text-white px-5 py-2 rounded hover:bg-red-700 disabled:opacity-50">
+            {pauseMut.isPending?"עוצר...":"עצור"}
+          </button>
+        )}
+        {isPaused&&runId&&(
+          <button onClick={()=>resumeMut.mutate(runId)} disabled={resumeMut.isPending}
+            className="bg-green-600 text-white px-5 py-2 rounded hover:bg-green-700 disabled:opacity-50">
+            {resumeMut.isPending?"ממשיך...":"המשך שלב נוכחי"}
+          </button>
+        )}
+      </div>
+
+      {startMut.isError&&<p className="text-red-600 text-sm mb-3">{startMut.error.message}</p>}
+      {result&&!isRunning&&!chainDone&&!isGalleryEvent&&<p className="text-green-600 text-sm mb-3">{result.message}</p>}
+
+      {/* Stage list */}
+      <div className="bg-gray-50 rounded p-3 mb-3">
+        {GALLERY_STAGES.map((s,i)=>{
+          const st=stageStatus(i);
+          const res=stageResults[s.name];
+          return(
+            <div key={s.name} className="flex items-center justify-between py-1.5 border-b border-gray-100 last:border-0">
+              <div className="text-sm">
+                <span className={"ml-2 "+STATUS_COLOR[st]}>{STATUS_ICON[st]}</span>
+                <span className="font-medium">{i+1}. {s.label}</span>
+                <span className="text-gray-500 text-xs mr-2"> — {s.detail}</span>
+              </div>
+              <div className="text-xs text-gray-600">
+                {st==="skipped"&&"כבר הוגר ("+(res?.counters?.processed??"")+") — דולג"}
+                {st==="done"&&"הושלם: "+(res?.counters?.inserted?.toLocaleString()??"")+" הוכנסו"+(res?.counters?.errors>0?", "+res.counters.errors+" שגיאות":"")}
+                {st==="running"&&i===stageIdx&&progress&&progress.counters.processed?.toLocaleString()+" / "+progress.totalRows?.toLocaleString()}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Current stage progress bar */}
+      {progress&&!chainDone&&(
+        <div className="w-full bg-gray-200 rounded-full h-3 mb-2">
+          <div className={"h-3 rounded-full transition-all "+(isPaused?"bg-yellow-500":"bg-pink-600")} style={{width:Math.max(pct,1)+"%"}}/>
+        </div>
+      )}
+
+      {isPaused&&(
+        <div className="bg-yellow-50 border border-yellow-200 rounded p-3 mt-2">
+          <p className="text-yellow-800 text-sm font-semibold">השלב הנוכחי מושהה.</p>
+          <p className="text-yellow-700 text-xs mt-1">"המשך שלב נוכחי" משלים את השלב הזה בלבד; בסיומו לחצי שוב על "התחל מיגרציית גלריות" — שלבים שהושלמו ידולגו אוטומטית.</p>
+        </div>
+      )}
+
+      {chainDone&&(
+        <div className="bg-green-50 border border-green-200 rounded p-3 mt-2">
+          <p className="text-green-800 font-semibold text-sm">מיגרציית הגלריות הושלמה — כל שלושת השלבים בוצעו!</p>
+        </div>
+      )}
+
+      {isError&&(
+        <div className="bg-red-50 border border-red-200 rounded p-3 mt-2">
+          <p className="text-red-800 font-semibold text-sm">שגיאה בשלב {stageIdx+1} ({GALLERY_STAGES[stageIdx]?.label}): {lastEvent.error}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AsakimDonationRunner({migrationState,runId,setRunId,lastEvent,pauseMut,resumeMut}){
   const[batchSize,setBatchSize]=useState(2000);
   const[asakimResult,setAsakimResult]=useState(null);
@@ -324,7 +445,7 @@ function AsakimDonationRunner({migrationState,runId,setRunId,lastEvent,pauseMut,
   return(
     <div className="bg-white rounded-lg shadow p-6 mb-6 border-2 border-amber-200">
       <h3 className="font-semibold mb-1 text-lg text-amber-800">מיגרציית תרומות עסקים (AsakimDonations)</h3>
-      <p className="text-sm text-gray-600 mb-4">AsakimDonations (MSSQL) → AsakimDonation (MySQL) | ~87,725 שורות | Bulk INSERT</p>
+      <p className="text-sm text-gray-600 mb-4">AsakimDonations (MSSQL) → AsakimDonation (MySQL) | ~106,069 שורות בתחום (מתוך 120,128) | Bulk INSERT</p>
 
       <div className="flex items-end gap-4 mb-4">
         <div>
@@ -465,6 +586,9 @@ export default function MigrationRunner(){
 
       {/* AsakimDonation migration */}
       <AsakimDonationRunner migrationState={migrationState} runId={runId} setRunId={setRunId} lastEvent={lastEvent} pauseMut={pauseMut} resumeMut={resumeMut}/>
+
+      {/* Gallery migration (images + videos chain) */}
+      <GalleryRunner migrationState={migrationState} runId={runId} lastEvent={lastEvent} pauseMut={pauseMut} resumeMut={resumeMut}/>
 
       {/* Terminal updater */}
       <TerminalUpdater/>

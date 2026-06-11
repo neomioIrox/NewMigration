@@ -27,4 +27,5 @@ export const api={
   startDonationMigration:(batchSize,dryRun)=>fetchJson("/migrations/start-donations",{method:"POST",body:JSON.stringify({batchSize,dryRun})}),
   startPrayNameMigration:(batchSize,dryRun)=>fetchJson("/migrations/start-praynames",{method:"POST",body:JSON.stringify({batchSize,dryRun})}),
   startAsakimDonationMigration:(batchSize,dryRun)=>fetchJson("/migrations/start-asakim-donations",{method:"POST",body:JSON.stringify({batchSize,dryRun})}),
+  startGalleryMigration:(batchSize)=>fetchJson("/migrations/start-gallery",{method:"POST",body:JSON.stringify({batchSize})}),
 };

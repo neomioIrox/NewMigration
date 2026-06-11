@@ -1,4 +1,11 @@
 /**
+ * ⚠️ DEPRECATED — DO NOT RUN AGAINST AWS RDS ⚠️
+ * 1. Uses lowercase table names (gallery, media, ...) — fails on case-sensitive RDS (PascalCase).
+ * 2. Writes RelativePath = filename only — produces broken image URLs (the FE builds
+ *    URLs as S3 bucket + RelativePath; legacy files live under 2020/01/).
+ * Use the engine mappings instead: GalleryMapping_Images + GalleryMediaMapping_Images
+ * (includes the set-gallery-main-media post-runner). See legacy/LESSONS_LEARNED.md.
+ *
  * Gallery Images Migration Script
  *
  * Source: Galeries (MSSQL) → gallery + gallerylocalization (MySQL)

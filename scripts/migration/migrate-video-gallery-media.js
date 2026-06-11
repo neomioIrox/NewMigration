@@ -190,9 +190,12 @@ async function run() {
         // Title fallback: use Hebrew Name when the per-language name is empty.
         const titleSource = hasName ? lang.name : v.Name;
         const cleanName = cleanStr(titleSource, 200);
-        // Description fallback: use Hebrew Description when per-language is empty.
+        // Description fallback chain: per-language desc -> Hebrew desc -> title.
+        // The site FE renders `description` as the card text (not `title`), so an
+        // empty Description means a blank card — fall back to the title.
         const hasDesc = lang.desc && String(lang.desc).trim() !== "";
-        const descSource = hasDesc ? lang.desc : v.Description;
+        const hebDesc = v.Description && String(v.Description).trim() !== "";
+        const descSource = hasDesc ? lang.desc : (hebDesc ? v.Description : titleSource);
 
         // URL fallback: invalid Link_X → use Hebrew Link
         const url = isValidUrl(lang.link) ? lang.link.trim() : v.Link.trim();

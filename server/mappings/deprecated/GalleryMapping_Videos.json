@@ -10,7 +10,8 @@
     "targetTable": "Gallery",
     "sourcePrimaryKey": "VideosId",
     "order": 9.3,
-    "description": "Video galleries: Videos -> gallery + gallerylocalization + media + gallerymedia"
+    "deprecated": true,
+    "description": "DEPRECATED — DO NOT RUN. The app does NOT read videos from Gallery/GalleryMedia; it reads VideoGalleryMedia via gallery/getVideoGalleryQuickView. This mapping was run once (2026-03-11), produced invisible rows, and was cleaned up by scripts/migration/cleanup-wrong-gallery-videos.js. The correct migration is scripts/migration/migrate-video-gallery-media.js. See legacy/LESSONS_LEARNED.md."
   },
   "columnMappings": {
     "Name": {

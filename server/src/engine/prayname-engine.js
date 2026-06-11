@@ -8,6 +8,15 @@ const {processGetDate}=require("./expression-eval");
 const tracker=require("../services/tracker");
 const logger=require("../logger");
 
+// PrayName scope: only prayer names whose donation is in the migrated scope.
+// Mirror the donation cutoff (scope-products.json, the SAME file the donation engine
+// reads) so we don't process the ~600k pre-cutoff rows whose orders were never
+// migrated and would all be dropped as fkMissing. After this filter, fkMissing
+// becomes a real signal (a genuinely unresolved in-scope donation) instead of noise.
+const prayScope=require("../../data/scope-products.json");
+const SCOPE_CUTOFF=(prayScope&&prayScope.cutoff)?String(prayScope.cutoff):"2025-06-01";
+if(!/^\d{4}-\d{2}-\d{2}$/.test(SCOPE_CUTOFF)) throw new Error("Invalid PrayName scope cutoff: "+SCOPE_CUTOFF);
+
 /**
  * PrayName Migration Engine (Bulk INSERT)
  *
@@ -238,7 +247,8 @@ class PrayNameEngine extends EventEmitter{
     return "SELECT pn.PrayerNamesId, pn.FirstName, pn.LastName, pn.Comment, pn.OrderId, pn.DateCreated, pn.Gender"
       +" FROM PrayerNames pn WITH (NOLOCK)"
       +" INNER JOIN Orders o WITH (NOLOCK) ON pn.OrderId = o.OrdersId"
-      +" WHERE o.ChargeStatus = 'OrderFinished'";
+      +" WHERE o.ChargeStatus = 'OrderFinished'"
+      +" AND o.DateCreated >= '"+SCOPE_CUTOFF+"'";
   }
 
   _trunc(val,max){

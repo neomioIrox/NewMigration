@@ -11,7 +11,7 @@
     "sourcePrimaryKey": "Id",
     "dependsOn": [],
     "order": 13,
-    "description": "Asakim donations: AsakimDonations -> AsakimDonation (87,725 rows, no FK dependencies)"
+    "description": "Asakim donations: AsakimDonations -> AsakimDonation. Source 120,128 rows; scope-filtered to 106,069 rows whose DonationID matches an in-scope Orders.AsakimID (ChargeStatus='OrderFinished' AND DateCreated >= cutoff). No target FK dependency."
   },
   "columnMappings": {
     "CardName": {
@@ -138,11 +138,13 @@
     }
   },
   "notes": [
-    "87,725 שורות במקור, 0 ביעד",
-    "אין תלויות FK - ניתן להריץ בכל שלב",
+    "מקור: 120,128 שורות (נכון ל-2026-06-10). הספירה הישנה (87,725) הייתה מיושנת.",
+    "סינון scope: המנוע מהגר רק שורות שה-DonationID שלהן תואם Orders.AsakimID של תרומה בתחום (ChargeStatus='OrderFinished' ו-DateCreated מאז ה-cutoff). בתחום: 106,069 שורות.",
+    "נושרות 14,059 שורות ללא תרומה תואמת בתחום (6,270 DonationID ריק + 7,646 שלא תואם אף הזמנה + 143 מחוץ לתחום).",
+    "אין תלות FK ביעד - קורא את Orders מהמקור (MSSQL), לא את הטבלה המהוגרת, אז ניתן להריץ בכל שלב.",
     "CardName: מקוצר מ-200 ל-100 תווים",
     "StatusReason: קיימת ביעד אבל לא במקור - תישאר NULL",
     "35 עמודות מקור לא ממופות (ProjectId, SalesPerson, Shva fields, Export fields וכו')"
   ],
-  "savedAt": "2026-03-19T00:00:00.000Z"
+  "savedAt": "2026-06-10T00:00:00.000Z"
 }

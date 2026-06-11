@@ -60,8 +60,8 @@ kill <PID>
   - Three-panel layout: New DB structure, Old DB explorer, Field mappings
   - Interactive table exploration with selectable columns
 - `public/gallery-migration.html` - Gallery migration interface (Hebrew RTL)
-  - Specialized UI for ProductMedia → Media/Gallery migration
-  - Support for both image and video gallery items
+  - Specialized UI for gallery migration: source tables are `Galeries`/`GaleryPics` (images) and `Videos` (videos) — NOT ProductMedia
+  - NOTE: images and videos have completely different target architectures — see legacy/LESSONS_LEARNED.md ("גלריות תמונות מול גלריית וידאו")
 
 ### Project Structure
 
@@ -208,16 +208,19 @@ node scripts/checks/check-projectitem.js
 
 ## Gallery Migration
 
-**Feature:** Specialized interface for migrating ProductMedia gallery items (images and videos).
+**IMPORTANT:** Image galleries and video galleries have completely different source tables, target tables, and access paths. Full comparison: legacy/LESSONS_LEARNED.md ("גלריות תמונות מול גלריית וידאו").
 
-**Files:**
-- `public/gallery-migration.html` - Hebrew RTL interface for gallery migration
-- `mappings/GalleryMapping_Images.json` - Image gallery field mappings
-- `mappings/GalleryMapping_Videos.json` - Video gallery field mappings
+**Images** (`Galeries` + `GaleryPics` → `Gallery` + `GalleryLocalization` + `Media` + `GalleryMedia`):
+- `server/mappings/GalleryMapping_Images.json` — galleries + localization
+- `server/mappings/GalleryMediaMapping_Images.json` — media + junction (RelativePath must be the full S3 key `2020/01/{Pic}`; the FE builds URLs from RelativePath only)
+- Post-runner `set-gallery-main-media` marks the first pic per gallery as cover
 
-**Access:** http://localhost:3030/gallery-migration.html
+**Videos** (`Videos` → `VideoGalleryMedia` + `Media` + `LinkSetting` — NOT Gallery tables):
+- `server/mappings/VideoGalleryMediaMapping.json` — UI entry; runs via the dedicated `server/src/engine/videogallery-engine.js` (dispatched by name in migration-manager). Idempotent — already-migrated videos are skipped.
+- `scripts/migration/migrate-video-gallery-media.js` — standalone CLI equivalent (same logic)
+- `server/mappings/deprecated/GalleryMapping_Videos.json` — DEPRECATED, do not run (wrote to tables the app never reads; cleaned up 2026-04)
 
-**Purpose:** Migrate ProductMedia records from old database to new Media/Gallery structure with support for both image and video types.
+**Historical note:** `public/gallery-migration.html` was an early Hebrew RTL interface for this migration; earlier docs incorrectly described the source as "ProductMedia".
 
 ## File Modification Guidelines
 
