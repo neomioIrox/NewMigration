@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS LegacyMapping (
   SourceId    INT NOT NULL,              -- legacy id (productsid / PrayerNames id)
   ProjectId   INT NOT NULL,              -- new Project.Id
   ItemId      INT NOT NULL,              -- new ProjectItem.Id
-  MappingName VARCHAR(100) NOT NULL,     -- mapping entityType that produced the row
+  MappingName VARCHAR(100) NOT NULL,     -- mapping filename (== migration_runs.mapping_name)
   CreatedAt   DATETIME DEFAULT CURRENT_TIMESTAMP,
   UNIQUE KEY UK_Source (SourceType, SourceId),
   INDEX IX_Project (ProjectId),
@@ -89,7 +89,9 @@ Hook points in `migration-engine.js`:
 3. **Item insert** (immediately after the existing
    `recordMapping("ProjectItem_"+itemKey, sourceId, itemId, runId)` call): if
    `m.legacyMapping`, call
-   `record(m.legacyMapping.sourceType, sourceId, newId, itemId, entityType)`.
+   `record(m.legacyMapping.sourceType, sourceId, newId, itemId, m.filename||targetTable)`
+   — the mapping filename, NOT the engine's `entityType` (`_meta.entityType` is
+   `"Project"` for all four product mappings and would collide across mappings).
    `newId` is the ProjectId in both normal and collapse modes (in collapse mode
    it is the resolved parent ProjectId — constant, per-row column, or map file).
 
