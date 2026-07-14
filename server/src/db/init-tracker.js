@@ -86,7 +86,40 @@ async function initTrackerDb() {
     ].join('\n');
     await conn.query(errSql);
 
-    logger.info('Tracker DB init complete - all 4 tables ensured');
+    const pipelineRunsSql = [
+      'CREATE TABLE IF NOT EXISTS pipeline_runs (',
+      '  id INT AUTO_INCREMENT PRIMARY KEY,',
+      "  mode ENUM('fresh','continue') NOT NULL DEFAULT 'continue',",
+      "  status ENUM('running','completed','failed','stopped') NOT NULL DEFAULT 'running',",
+      '  current_step VARCHAR(100),',
+      '  error_message TEXT,',
+      '  started_at DATETIME,',
+      '  completed_at DATETIME,',
+      '  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,',
+      '  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP',
+      ') ENGINE=InnoDB DEFAULT CHARSET=utf8mb4'
+    ].join('\n');
+    await conn.query(pipelineRunsSql);
+
+    const pipelineStepsSql = [
+      'CREATE TABLE IF NOT EXISTS pipeline_run_steps (',
+      '  id INT AUTO_INCREMENT PRIMARY KEY,',
+      '  pipeline_run_id INT NOT NULL,',
+      '  step_name VARCHAR(100) NOT NULL,',
+      '  order_index INT NOT NULL,',
+      "  status ENUM('pending','running','completed','failed') NOT NULL DEFAULT 'pending',",
+      '  migration_run_id INT,',
+      '  error_message TEXT,',
+      '  started_at DATETIME,',
+      '  completed_at DATETIME,',
+      '  UNIQUE KEY uk_run_step (pipeline_run_id, step_name),',
+      '  FOREIGN KEY (pipeline_run_id) REFERENCES pipeline_runs(id) ON DELETE CASCADE,',
+      '  FOREIGN KEY (migration_run_id) REFERENCES migration_runs(id) ON DELETE SET NULL',
+      ') ENGINE=InnoDB DEFAULT CHARSET=utf8mb4'
+    ].join('\n');
+    await conn.query(pipelineStepsSql);
+
+    logger.info('Tracker DB init complete - all 6 tables ensured');
   } finally {
     await conn.end();
   }
