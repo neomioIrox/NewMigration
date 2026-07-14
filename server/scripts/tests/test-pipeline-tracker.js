@@ -57,7 +57,9 @@ const FAKE_STEPS=[
 
     console.log("test-pipeline-tracker: ALL PASS");
   }finally{
+    // Cleanup only — process.exit here would swallow assertion failures
+    // (exit(0) in a finally preempts the pending exception and the .catch).
     await pt.deletePipelineRun(runId);
-    process.exit(0);
   }
+  process.exit(0); // success path only; failures propagate to .catch below
 })().catch(function(e){console.error(e);process.exit(1);});
