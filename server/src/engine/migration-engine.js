@@ -111,6 +111,11 @@ class MigrationEngine extends EventEmitter{
       // and lives ONLY in restartMigration (next to cleanupForRestart) — never here:
       // ordinary re-runs are gap-fills that would not re-insert deleted rows.
       if(m.legacyMapping){
+        // Fail fast: MappingName comes from m.filename. Without it the record hook would
+        // fall back to targetTable ("Project" for every product mapping) — the exact
+        // cross-mapping collision LegacyMapping must avoid — and restart cleanup would
+        // never find the rows. Better to abort the run than write orphaned rows.
+        if(!m.filename) throw new Error("legacyMapping requires the mapping JSON to set \"filename\" (used as LegacyMapping.MappingName)");
         await legacyMapping.ensureTable();
       }
 

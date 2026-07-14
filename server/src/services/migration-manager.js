@@ -163,7 +163,8 @@ async function restartMigration(runId,io){
   // (DonationMapping etc.) have no JSON to load — treated as no legacyMapping. A delete
   // failure aborts the restart: stale LegacyMapping rows must not survive silently.
   var restartMapping=null;
-  try{restartMapping=loadMapping(run.mapping_name);}catch(e){/* no mapping JSON — engine-coded */}
+  try{restartMapping=loadMapping(run.mapping_name);}
+  catch(e){if(!/^Mapping not found/.test(e.message)) throw e;/* no mapping JSON — engine-coded */}
   if(restartMapping&&restartMapping.legacyMapping){
     await legacyMapping.ensureTable();
     await legacyMapping.deleteForMapping(run.mapping_name);

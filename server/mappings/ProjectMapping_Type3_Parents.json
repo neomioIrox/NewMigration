@@ -10,7 +10,7 @@
     "targetTable": "Project",
     "sourcePrimaryKey": "productsid",
     "order": 4,
-    "note": "Case 3 — ProductGroup campaign PARENTS. One Project per active-campaign parent + hidden donation item + the parent's own item."
+    "note": "Case 3 — ProductGroup campaign PARENTS. One Project per active-campaign parent, with only the parent's own single item (certificate-derived); no hidden donation item."
   },
   "whereClause": "Terminal = 1",
   "preserveSourceId": true,
