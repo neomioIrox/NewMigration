@@ -6,6 +6,7 @@ const {insertRow,insertRowWithTracking,recordMapping,markRowProcessed,updateRow,
 const {preloadFKCache,resolveFK}=require("./fk-resolver");
 const {evaluateCondition,processGetDate}=require("./expression-eval");
 const tracker=require("../services/tracker");
+const legacyMapping=require("../services/legacy-mapping");
 const logger=require("../logger");
 
 class MigrationEngine extends EventEmitter{
@@ -102,6 +103,15 @@ class MigrationEngine extends EventEmitter{
           var preResult=await preRunner.run();
           logger.info("Pre-migration runner completed",{runner:preRunnerName,result:preResult});
         }
+      }
+
+      // LegacyMapping (app-facing legacy-id map on the TARGET DB): make sure the table
+      // exists before any ProjectItem insert. Population is opt-in per mapping via
+      // m.legacyMapping.sourceType (1=Product, 2=Prayer). Cleanup is delete-per-mapping
+      // and lives ONLY in restartMigration (next to cleanupForRestart) — never here:
+      // ordinary re-runs are gap-fills that would not re-insert deleted rows.
+      if(m.legacyMapping){
+        await legacyMapping.ensureTable();
       }
 
       // Preload condition sets (e.g. orders by language)
@@ -286,6 +296,15 @@ class MigrationEngine extends EventEmitter{
                 }
                 itemId=await insertRow("ProjectItem",itemRow);
                 await recordMapping("ProjectItem_"+itemKey,sourceId,itemId,this.runId);
+
+                // Also persist to LegacyMapping on the TARGET DB (app runtime lookup:
+                // legacy productsid/prayerId -> ProjectId+ItemId). MappingName is the
+                // mapping filename (== migration_runs.mapping_name) — NOT entityType,
+                // which is "Project" for every product mapping. A failure here fails the
+                // row like any other child insert — this table is app-critical.
+                if(m.legacyMapping){
+                  await legacyMapping.record(m.legacyMapping.sourceType,sourceId,newId,itemId,m.filename||targetTable);
+                }
 
                 // 5b. projectItemLocalizationMappings (with conditional FR/EN)
                 if(m.projectItemLocalizationMappings){
