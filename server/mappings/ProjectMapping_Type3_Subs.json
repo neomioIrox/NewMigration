@@ -9,14 +9,15 @@
     "targetTable": "Project",
     "sourcePrimaryKey": "productsid",
     "order": 5,
-    "note": "Case 3 — ProductGroup campaign SUBS. Collapse mode: each sub becomes a ProjectItem under its parent campaign Project (no own Project/ProjectLocalization)."
+    "note": "Case 3 — ProductGroup campaign SUBS. Collapse mode: each sub becomes ONE ProjectItem under ONE parent campaign Project (no own Project/ProjectLocalization). Per decisions 2026-07-14: a multi-campaign sub gets a single item under a deterministically chosen parent (type3-sub-parent.json, written by scripts/migration/extract-scope-type3.js); products that are BOTH parent and sub are excluded from the subs scope (they keep only their own Project, so ProjectItem_certificate id_mappings are never overwritten and donations route to their own item)."
   },
-  "sourceQuery": "SELECT p.*, pg.ParentProductId AS _ParentProductId FROM products p WITH (NOLOCK) JOIN ProductGroup pg WITH (NOLOCK) ON pg.SubProductId = p.productsid",
+  "preMigrationRunners": ["seed-project1"],
+  "sourceQuery": "SELECT p.* FROM products p WITH (NOLOCK) WHERE EXISTS (SELECT 1 FROM ProductGroup g WITH (NOLOCK) WHERE g.SubProductId = p.productsid)",
   "scopeFilter": {
     "column": "productsid",
     "file": "type3-subs.json"
   },
-  "parentProjectIdColumn": "_ParentProductId",
+  "parentProjectIdMapFile": "type3-sub-parent.json",
   "projectItemMappings": {
     "certificate": {
       "_comment": "Sub-product's own item under its parent campaign Project. ItemType by the sub's Certificate (1->2, 0->5). Recorded as ProjectItem_certificate keyed by the SUB productsid -> donation routing for sub orders.",

@@ -12,6 +12,7 @@
   },
   "whereClause": "Terminal = 1 AND NOT EXISTS (SELECT 1 FROM ProductGroup g WITH (NOLOCK) WHERE g.ParentProductId = products.productsid OR g.SubProductId = products.productsid)",
   "preserveSourceId": true,
+  "preMigrationRunners": ["seed-project1"],
   "scopeFilter": {
     "column": "productsid",
     "file": "scope-products.json"
@@ -243,66 +244,8 @@
     }
   },
   "projectItemMappings": {
-    "donation": {
-      "_comment": "Hidden catch-all donation item. Listed FIRST so it is created first (lowest ItemId); forced hidden via _localizationOverrides (DisplayInSite=0) in every language.",
-      "_localizationOverrides": {
-        "DisplayInSite": 0
-      },
-      "ItemName": {
-        "convertType": "expression",
-        "oldTable": "products",
-        "oldColumn": "Name",
-        "expression": "value ? value.substring(0, 150) : null"
-      },
-      "ItemType": {
-        "convertType": "const",
-        "value": "4"
-      },
-      "PriceType": {
-        "convertType": "const",
-        "value": "2"
-      },
-      "HasEngravingName": {
-        "convertType": "const",
-        "value": 0
-      },
-      "AllowFreeAddPrayerNames": {
-        "convertType": "expression",
-        "oldTable": "products",
-        "oldColumn": "ShowPrayerNames",
-        "expression": "value ? 1 : 0",
-        "defaultValue": 0
-      },
-      "RecordStatus": {
-        "convertType": "const",
-        "value": "2"
-      },
-      "StatusChangedAt": {
-        "convertType": "const",
-        "value": "GETDATE()"
-      },
-      "StatusChangedBy": {
-        "convertType": "const",
-        "value": "-1"
-      },
-      "CreatedAt": {
-        "convertType": "const",
-        "value": "GETDATE()"
-      },
-      "CreatedBy": {
-        "convertType": "const",
-        "value": "-1"
-      },
-      "UpdatedAt": {
-        "convertType": "const",
-        "value": "GETDATE()"
-      },
-      "UpdatedBy": {
-        "convertType": "const",
-        "value": "-1"
-      }
-    },
     "certificate": {
+      "_comment": "The collection's single donate item. Per decision 2026-07-14 the hidden catch-all 'donation' item (ItemType=4) was REMOVED from all campaigns; donation routing for the productsid resolves via ProjectItem_certificate. ItemType/PriceType/HasEngravingName/DeliveryMethod derive from Certificate (1->2 certificate/closed-price, else 5 fund-donation/free-price) — same convention as Type3_Parents/Subs.",
       "ItemName": {
         "convertType": "expression",
         "oldTable": "products",
@@ -310,16 +253,19 @@
         "expression": "value ? value.substring(0, 150) : null"
       },
       "ItemType": {
-        "convertType": "const",
-        "value": "2"
+        "convertType": "expression",
+        "oldColumn": "Certificate",
+        "expression": "row.Certificate == 1 ? 2 : 5"
       },
       "PriceType": {
-        "convertType": "const",
-        "value": "1"
+        "convertType": "expression",
+        "oldColumn": "Certificate",
+        "expression": "row.Certificate == 1 ? 1 : 2"
       },
       "HasEngravingName": {
-        "convertType": "const",
-        "value": 1
+        "convertType": "expression",
+        "oldColumn": "Certificate",
+        "expression": "row.Certificate == 1 ? 1 : 0"
       },
       "AllowFreeAddPrayerNames": {
         "convertType": "expression",
@@ -329,8 +275,9 @@
         "defaultValue": 0
       },
       "DeliveryMethod": {
-        "convertType": "const",
-        "value": "1"
+        "convertType": "expression",
+        "oldColumn": "Certificate",
+        "expression": "row.Certificate == 1 ? 1 : null"
       },
       "RecordStatus": {
         "convertType": "const",

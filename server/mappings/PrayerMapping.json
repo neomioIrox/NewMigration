@@ -12,6 +12,7 @@
     "order": 4
   },
   "fixedParentProjectId": 1,
+  "preMigrationRunners": ["seed-project1"],
   "_collapseNote": "Collapse mode: prayers are NOT created as a Project each. Every prayer becomes a single ProjectItem (ItemType=3) under the existing Project Id=1. The engine therefore SKIPS columnMappings (Project) and localizationMappings (ProjectLocalization) below - they are retained for reference only. All meaningful per-prayer data lives on the ProjectItem + ProjectItemLocalization. Donation linkage is unaffected (Donation.ItemId resolves via ProjectItem_prayerName, keyed by PrayersId). PRECONDITION: a Project with Id=1 must exist before this runs (FK_ProjectItem_PI_Project).",
   "whereClause": "1=1",
   "columnMappings": {

@@ -19,6 +19,7 @@ class MigrationEngine extends EventEmitter{
     this.isRunning=false;
     this.counters={processed:0,inserted:0,skipped:0,errors:0};
     this.conditionSets={};
+    this.parentMap=null; // lazy-loaded when mapping.parentProjectIdMapFile is set
   }
 
   requestPause(){this.pauseRequested=true;}
@@ -34,11 +35,26 @@ class MigrationEngine extends EventEmitter{
     return ids.map(Number).filter(function(x){return!isNaN(x)});
   }
 
-  // Hebrew media values (image > video > default media 1). Mirrored onto the main
+  // Collapse mode with a per-row parent chosen OFFLINE: parentProjectIdMapFile names a JSON
+  // snapshot in server/data ({map:{"<sourceId>":"<parentProjectId>"}}). Unlike
+  // parentProjectIdColumn (JOIN-based), the map guarantees exactly one row per source id and
+  // an ACTIVE parent (one that really has a Project), so no dup-row skips and no FK errors.
+  _loadParentMap(file){
+    var fs=require("fs");
+    var path=require("path");
+    var fp=path.join(__dirname,"../../data",file);
+    if(!fs.existsSync(fp)) throw new Error("parentProjectIdMapFile not found: "+fp+" (run scripts/migration/extract-scope-type3.js)");
+    var raw=JSON.parse(fs.readFileSync(fp,"utf8"));
+    return raw.map||raw;
+  }
+
+  // Hebrew media values (image > video > null). Mirrored onto the main
   // Project/ProjectItem tables so the Hebrew settings appear "doubled" (table + Hebrew loc).
+  // No numeric fallback: Media.Id=1 is a real (arbitrary) media row, not a placeholder —
+  // falling back to it contaminated 162 projects (see COLLECTIONS_MIGRATION_SUMMARY.md).
   _hebrewMediaValues(mediaIdMap){
-    var mainMedia=mediaIdMap["hebrew_projectImage"]||mediaIdMap["hebrew_projectVideo"]||1;
-    var imageForLists=mediaIdMap["hebrew_projectImage"]||1;
+    var mainMedia=mediaIdMap["hebrew_projectImage"]||mediaIdMap["hebrew_projectVideo"]||null;
+    var imageForLists=mediaIdMap["hebrew_projectImage"]||null;
     var banner=mediaIdMap["hebrew_donationBanner"]||null;
     return {mainMedia:mainMedia,imageForLists:imageForLists,banner:banner};
   }
@@ -71,6 +87,20 @@ class MigrationEngine extends EventEmitter{
           if(typeof fkVal==="string"){
             await preloadFKCache(fkVal.replace(".json",""));
           }
+        }
+      }
+
+      // Pre-migration runners (e.g. seed rows the mapping's inserts depend on, like the
+      // Project-1 general bucket). Unlike postMigrationRunners these are PRECONDITIONS:
+      // a failure aborts the run instead of being logged and swallowed. Runners must be
+      // idempotent — the same runner is attached to several mappings and whichever runs
+      // first does the work.
+      if(m.preMigrationRunners&&Array.isArray(m.preMigrationRunners)){
+        for(var preRunnerName of m.preMigrationRunners){
+          logger.info("Running pre-migration runner",{runner:preRunnerName,mapping:m.filename});
+          var preRunner=require("./pre-runners/"+preRunnerName);
+          var preResult=await preRunner.run();
+          logger.info("Pre-migration runner completed",{runner:preRunnerName,result:preResult});
         }
       }
 
@@ -176,13 +206,22 @@ class MigrationEngine extends EventEmitter{
             // parent ProjectId from a source column (e.g. ProductGroup.ParentProductId joined in via
             // sourceQuery), so each sub-product's items attach to its own campaign's Project instead
             // of a global constant. Project.Id == parent productsid (the parent ran with preserveSourceId).
-            var fixedParent=(m.fixedParentProjectId!==undefined&&m.fixedParentProjectId!==null)||!!m.parentProjectIdColumn;
+            // parentProjectIdMapFile resolves the parent from an offline snapshot map instead
+            // (one deterministic ACTIVE parent per sub — see _loadParentMap).
+            var fixedParent=(m.fixedParentProjectId!==undefined&&m.fixedParentProjectId!==null)||!!m.parentProjectIdColumn||!!m.parentProjectIdMapFile;
             var newId;
             if(fixedParent){
               // No main-table INSERT, no Project id_mapping. newId is the parent ProjectId —
-              // a constant (fixedParentProjectId) or resolved per row (parentProjectIdColumn).
-              newId=m.parentProjectIdColumn?row[m.parentProjectIdColumn]:m.fixedParentProjectId;
-              if(newId===undefined||newId===null) throw new Error("collapse mode: parent ProjectId unresolved (parentProjectIdColumn="+m.parentProjectIdColumn+")");
+              // a constant (fixedParentProjectId), a per-row column (parentProjectIdColumn),
+              // or an offline map lookup (parentProjectIdMapFile).
+              if(m.parentProjectIdMapFile){
+                if(!this.parentMap) this.parentMap=this._loadParentMap(m.parentProjectIdMapFile);
+                newId=this.parentMap[String(sourceId)];
+              }else{
+                newId=m.parentProjectIdColumn?row[m.parentProjectIdColumn]:m.fixedParentProjectId;
+              }
+              if(newId===undefined||newId===null) throw new Error("collapse mode: parent ProjectId unresolved (sourceId="+sourceId+", parentProjectIdColumn="+m.parentProjectIdColumn+", parentProjectIdMapFile="+m.parentProjectIdMapFile+")");
+              newId=Number(newId);
             }else{
               var targetRow=await processRow(m.columnMappings,row,m.fkMappings);
               var explicitId;
@@ -633,14 +672,18 @@ class MigrationEngine extends EventEmitter{
     // below (ProjectItemLocalization) are valid. Without this guard, a non-empty linkSettingIds
     // would overwrite the shared Project's localization (MainLinkButtonSettingId/MainMedia), and a
     // sub-product's media would overwrite the parent campaign Project's media.
-    // Covers BOTH collapse forms: a constant parent (fixedParentProjectId) and a per-row parent
-    // (parentProjectIdColumn) — must match the main loop's fixedParent definition.
-    var fixedParent=(m.fixedParentProjectId!==undefined&&m.fixedParentProjectId!==null)||!!m.parentProjectIdColumn;
+    // Covers ALL collapse forms: a constant parent (fixedParentProjectId), a per-row parent
+    // (parentProjectIdColumn) and an offline map (parentProjectIdMapFile) — must match the
+    // main loop's fixedParent definition.
+    var fixedParent=(m.fixedParentProjectId!==undefined&&m.fixedParentProjectId!==null)||!!m.parentProjectIdColumn||!!m.parentProjectIdMapFile;
 
     // Hebrew media settings also live on the main Project table ("doubled" — always Hebrew)
     if(m.mediaMappings&&!fixedParent){
       var projHebMedia=this._hebrewMediaValues(mediaIdMap);
-      await updateRow(m.targetTable,{MainMedia:projHebMedia.mainMedia,ImageForListsView:projHebMedia.imageForLists},{Id:newId});
+      var projMediaSet={};
+      if(projHebMedia.mainMedia) projMediaSet.MainMedia=projHebMedia.mainMedia;
+      if(projHebMedia.imageForLists) projMediaSet.ImageForListsView=projHebMedia.imageForLists;
+      if(Object.keys(projMediaSet).length>0) await updateRow(m.targetTable,projMediaSet,{Id:newId});
     }
 
     // ProjectLocalization updates
@@ -649,23 +692,22 @@ class MigrationEngine extends EventEmitter{
         var langId=LANG_IDS[lang]||1;
         var setData={};
 
-        // MainMedia: image > video > hebrew fallback > default(1)
+        // MainMedia: image > video > hebrew fallback > (none). No Media#1 default —
+        // a missing image must stay NULL, not point at an arbitrary media row.
         var imgKey=lang+"_projectImage";
         var vidKey=lang+"_projectVideo";
         var mainMedia=mediaIdMap[imgKey]||mediaIdMap[vidKey];
         if(!mainMedia&&lang!=="hebrew"){
           mainMedia=mediaIdMap["hebrew_projectImage"]||mediaIdMap["hebrew_projectVideo"];
         }
-        if(!mainMedia) mainMedia=1;
-        setData.MainMedia=mainMedia;
+        if(mainMedia) setData.MainMedia=mainMedia;
 
         // ImageForListsView: only images, not video
         var imageForLists=mediaIdMap[imgKey];
         if(!imageForLists&&lang!=="hebrew"){
           imageForLists=mediaIdMap["hebrew_projectImage"];
         }
-        if(!imageForLists) imageForLists=1;
-        setData.ImageForListsView=imageForLists;
+        if(imageForLists) setData.ImageForListsView=imageForLists;
 
         // MainLinkButtonSettingId
         var mainLinkId=linkSettingIds["mainButton_"+lang];

@@ -5,6 +5,8 @@ const DonationEngine=require("../engine/donation-engine");
 const PrayNameEngine=require("../engine/prayname-engine");
 const AsakimDonationEngine=require("../engine/asakim-donation-engine");
 const VideoGalleryEngine=require("../engine/videogallery-engine");
+const RecruiterEngine=require("../engine/recruiter-engine");
+const RecruitersGroupEngine=require("../engine/recruitersgroup-engine");
 const tracker=require("./tracker");
 const logger=require("../logger");
 
@@ -24,11 +26,20 @@ function listMappings(){
 }
 
 function startMigration(mappingName,options,io){
-  var mapping=loadMapping(mappingName);
-  // VideoGalleryMediaMapping runs via its dedicated engine (Videos -> VideoGalleryMedia + Media + LinkSetting)
-  var engine=mappingName==="VideoGalleryMediaMapping"
-    ?new VideoGalleryEngine(options)
-    :new MigrationEngine(mapping,options);
+  // Dedicated bulk-insert engines for tables that were slow under the generic row-by-row path.
+  // These don't need the mapping JSON (transforms are coded in the engine), but loadMapping is
+  // still validated below for the generic path.
+  var engine;
+  if(mappingName==="VideoGalleryMediaMapping"){
+    engine=new VideoGalleryEngine(options);
+  }else if(mappingName==="RecruiterMapping"){
+    engine=new RecruiterEngine(options);
+  }else if(mappingName==="RecruitersGroupMapping"){
+    engine=new RecruitersGroupEngine(options);
+  }else{
+    var mapping=loadMapping(mappingName);
+    engine=new MigrationEngine(mapping,options);
+  }
   // Wire up WebSocket events
   engine.on("started",function(data){if(io) io.emit("migration:started",data);});
   engine.on("progress",function(data){if(io) io.emit("migration:progress",data);});
@@ -88,6 +99,30 @@ async function resumeMigration(runId,io){
     activeEngines.set(runId,vEngine);
     vEngine.run(runId).catch(function(e){logger.error("VideoGallery resume failed: "+e.message);});
     return vEngine;
+  }
+  // Use RecruiterEngine for recruiter runs
+  if(run.mapping_name==="RecruiterMapping"){
+    var rEngine=new RecruiterEngine({batchSize:run.batch_size});
+    rEngine.on("started",function(d){if(io) io.emit("migration:started",d);});
+    rEngine.on("progress",function(d){if(io) io.emit("migration:progress",d);});
+    rEngine.on("paused",function(d){if(io) io.emit("migration:paused",d);});
+    rEngine.on("completed",function(d){if(io) io.emit("migration:completed",d);activeEngines.delete(d.runId);});
+    rEngine.on("error",function(d){if(io) io.emit("migration:error",d);activeEngines.delete(d.runId);});
+    activeEngines.set(runId,rEngine);
+    rEngine.run(runId).catch(function(e){logger.error("Recruiter resume failed: "+e.message);});
+    return rEngine;
+  }
+  // Use RecruitersGroupEngine for recruiters-group runs
+  if(run.mapping_name==="RecruitersGroupMapping"){
+    var rgEngine=new RecruitersGroupEngine({batchSize:run.batch_size});
+    rgEngine.on("started",function(d){if(io) io.emit("migration:started",d);});
+    rgEngine.on("progress",function(d){if(io) io.emit("migration:progress",d);});
+    rgEngine.on("paused",function(d){if(io) io.emit("migration:paused",d);});
+    rgEngine.on("completed",function(d){if(io) io.emit("migration:completed",d);activeEngines.delete(d.runId);});
+    rgEngine.on("error",function(d){if(io) io.emit("migration:error",d);activeEngines.delete(d.runId);});
+    activeEngines.set(runId,rgEngine);
+    rgEngine.run(runId).catch(function(e){logger.error("RecruitersGroup resume failed: "+e.message);});
+    return rgEngine;
   }
   // Use PrayNameEngine for prayname runs
   if(run.mapping_name==="PrayNameMapping"){

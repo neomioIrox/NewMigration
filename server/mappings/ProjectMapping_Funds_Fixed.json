@@ -12,6 +12,7 @@
   },
   "whereClause": "Terminal = 4",
   "preserveSourceId": true,
+  "preMigrationRunners": ["seed-project1"],
   "scopeFilter": { "column": "productsid", "file": "scope-products.json" },
   "columnMappings": {
     "Name": {

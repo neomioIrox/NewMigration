@@ -13,6 +13,7 @@
   },
   "whereClause": "Terminal = 1",
   "preserveSourceId": true,
+  "preMigrationRunners": ["seed-project1"],
   "scopeFilter": {
     "column": "productsid",
     "file": "type3-parents.json"
@@ -244,67 +245,8 @@
     }
   },
   "projectItemMappings": {
-    "donation": {
-      "_comment": "Hidden catch-all donation item. Listed FIRST so it is created first (lowest ItemId); forced hidden via _localizationOverrides (DisplayInSite=0) in every language.",
-      "_localizationOverrides": {
-        "DisplayInSite": 0
-      },
-      "ItemName": {
-        "convertType": "expression",
-        "oldTable": "products",
-        "oldColumn": "Name",
-        "expression": "value ? value.substring(0, 150) : null"
-      },
-      "ItemType": {
-        "convertType": "const",
-        "value": "4"
-      },
-      "PriceType": {
-        "convertType": "const",
-        "value": "2"
-      },
-      "HasEngravingName": {
-        "convertType": "const",
-        "value": 0
-      },
-      "AllowFreeAddPrayerNames": {
-        "convertType": "expression",
-        "oldTable": "products",
-        "oldColumn": "ShowPrayerNames",
-        "expression": "value ? 1 : 0",
-        "defaultValue": 0
-      },
-      "RecordStatus": {
-        "convertType": "const",
-        "value": "2"
-      },
-      "StatusChangedAt": {
-        "convertType": "const",
-        "value": "GETDATE()"
-      },
-      "StatusChangedBy": {
-        "convertType": "const",
-        "value": "-1"
-      },
-      "CreatedAt": {
-        "convertType": "const",
-        "value": "GETDATE()"
-      },
-      "CreatedBy": {
-        "convertType": "const",
-        "value": "-1"
-      },
-      "UpdatedAt": {
-        "convertType": "const",
-        "value": "GETDATE()"
-      },
-      "UpdatedBy": {
-        "convertType": "const",
-        "value": "-1"
-      }
-    },
     "certificate": {
-      "_comment": "Parent product's own item. ItemType/PriceType/HasEngravingName/DeliveryMethod derived from the parent's Certificate (1->2 certificate, 0->5 fund-donation). Keyed 'certificate' so it records ProjectItem_certificate by the parent productsid -> donation routing for parent orders.",
+      "_comment": "Parent product's own item — the campaign's only parent-level item. Per decision 2026-07-14 the hidden catch-all 'donation' item (ItemType=4) was REMOVED from all campaigns. ItemType/PriceType/HasEngravingName/DeliveryMethod derived from the parent's Certificate (1->2 certificate, 0->5 fund-donation). Keyed 'certificate' so it records ProjectItem_certificate by the parent productsid -> donation routing for parent orders.",
       "ItemName": {
         "convertType": "expression",
         "oldTable": "products",

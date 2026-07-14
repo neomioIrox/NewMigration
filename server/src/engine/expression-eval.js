@@ -23,11 +23,10 @@ function evaluateCondition(condition,row){
   }
 }
 
+// "Now" for target-DB writes. The target convention is UTC (see ./tz.js) — this used to
+// return Israel-local time, which shifted every GETDATE() const by the IL offset.
 function processGetDate(offsetYears){
-  var n=new Date();
-  if(offsetYears){n.setFullYear(n.getFullYear()-offsetYears);}
-  var pad=function(x){return String(x).padStart(2,'0');};
-  return n.getFullYear()+'-'+pad(n.getMonth()+1)+'-'+pad(n.getDate())+' '+pad(n.getHours())+':'+pad(n.getMinutes())+':'+pad(n.getSeconds());
+  return require('./tz').utcNowString(offsetYears);
 }
 
 // Resolve date placeholder tokens used in mapping const/default values.
