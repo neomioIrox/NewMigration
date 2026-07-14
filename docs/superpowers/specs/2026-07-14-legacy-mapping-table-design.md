@@ -21,7 +21,7 @@ Rows are written for **both key spaces**:
 | SourceType | Meaning | Source key | Produced by |
 |---|---|---|---|
 | 1 | Product | `products.productsid` | ProjectMapping_Collections_Fixed, ProjectMapping_Funds_Fixed, ProjectMapping_Type3_Parents, ProjectMapping_Type3_Subs |
-| 2 | Prayer | `PrayerNames` id | PrayerMapping (collapse mode under Project 1) |
+| 2 | Prayer | `Prayers.PrayersId` | PrayerMapping (collapse mode under Project 1) |
 
 Out of scope: backfill of the currently-migrated (dirty) data — the table fills
 on the next clean run (engine-only, consistent with the standing "engine-only,
@@ -34,7 +34,7 @@ they continue to resolve via the local tracker.
 CREATE TABLE IF NOT EXISTS LegacyMapping (
   Id          INT AUTO_INCREMENT PRIMARY KEY,
   SourceType  TINYINT NOT NULL,          -- 1=Product, 2=Prayer
-  SourceId    INT NOT NULL,              -- legacy id (productsid / PrayerNames id)
+  SourceId    INT NOT NULL,              -- legacy id (productsid / PrayersId)
   ProjectId   INT NOT NULL,              -- new Project.Id
   ItemId      INT NOT NULL,              -- new ProjectItem.Id
   MappingName VARCHAR(100) NOT NULL,     -- mapping filename (== migration_runs.mapping_name)

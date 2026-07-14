@@ -3,7 +3,7 @@ const logger=require("../logger");
 
 // LegacyMapping — app-facing lookup table ON THE TARGET DB: legacy id -> new Project/Item.
 // The new application resolves old product/prayer URLs through it at runtime.
-// SourceType: 1=Product (products.productsid), 2=Prayer (PrayerNames id).
+// SourceType: 1=Product (products.productsid), 2=Prayer (Prayers.PrayersId).
 // MappingName is the mapping JSON "filename" (== migration_runs.mapping_name) — NOT the
 // engine's entityType, which is "Project" for every product mapping and would collide.
 // UNIQUE(SourceType,SourceId) assumes one ProjectItem per source row (true since the
