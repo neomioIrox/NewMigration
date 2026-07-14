@@ -8,6 +8,7 @@ const VideoGalleryEngine=require("../engine/videogallery-engine");
 const RecruiterEngine=require("../engine/recruiter-engine");
 const RecruitersGroupEngine=require("../engine/recruitersgroup-engine");
 const tracker=require("./tracker");
+const legacyMapping=require("./legacy-mapping");
 const logger=require("../logger");
 
 const MAPPINGS_DIR=path.join(__dirname,"../../mappings");
@@ -156,6 +157,17 @@ async function restartMigration(runId,io){
   activeEngines.delete(runId);
   var entityType=run.mapping_name;
   await tracker.cleanupForRestart(runId,entityType);
+  // LegacyMapping cleanup — tied to restart ONLY: cleanupForRestart just wiped row_status,
+  // so the fresh run below re-records every row. Never delete on an ordinary run start
+  // (gap-fill runs skip existing rows and would not re-insert). Engine-coded mappings
+  // (DonationMapping etc.) have no JSON to load — treated as no legacyMapping. A delete
+  // failure aborts the restart: stale LegacyMapping rows must not survive silently.
+  var restartMapping=null;
+  try{restartMapping=loadMapping(run.mapping_name);}catch(e){/* no mapping JSON — engine-coded */}
+  if(restartMapping&&restartMapping.legacyMapping){
+    await legacyMapping.ensureTable();
+    await legacyMapping.deleteForMapping(run.mapping_name);
+  }
   return startMigration(run.mapping_name,{batchSize:run.batch_size},io);
 }
 
