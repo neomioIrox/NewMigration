@@ -1,5 +1,6 @@
 {
   "filename": "PrayerMapping",
+  "legacyMapping": { "sourceType": 2 },
   "description": "Mapping for Prayers table to project (ProjectType=2) with PrayerName items (ItemType=3)",
   "sourceTable": "Prayers",
   "targetTable": "Project",

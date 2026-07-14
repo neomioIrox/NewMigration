@@ -1,5 +1,6 @@
 {
   "filename": "ProjectMapping_Type3_Subs",
+  "legacyMapping": { "sourceType": 1 },
   "sourceTable": "products",
   "sourceIdColumn": "productsid",
   "targetTable": "Project",

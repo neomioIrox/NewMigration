@@ -1,5 +1,6 @@
 {
   "filename": "ProjectMapping_Collections_Fixed",
+  "legacyMapping": { "sourceType": 1 },
   "sourceTable": "products",
   "targetTable": "Project",
   "sourceIdColumn": "productsid",
