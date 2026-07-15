@@ -28,4 +28,8 @@ export const api={
   startPrayNameMigration:(batchSize,dryRun)=>fetchJson("/migrations/start-praynames",{method:"POST",body:JSON.stringify({batchSize,dryRun})}),
   startAsakimDonationMigration:(batchSize,dryRun)=>fetchJson("/migrations/start-asakim-donations",{method:"POST",body:JSON.stringify({batchSize,dryRun})}),
   startGalleryMigration:(batchSize)=>fetchJson("/migrations/start-gallery",{method:"POST",body:JSON.stringify({batchSize})}),
+  startPipeline:(mode)=>fetchJson("/pipeline/start",{method:"POST",body:JSON.stringify({mode})}),
+  stopPipeline:()=>fetchJson("/pipeline/stop",{method:"POST"}),
+  getPipelineCurrent:()=>fetchJson("/pipeline/current"),
+  getPipelineRuns:()=>fetchJson("/pipeline/runs"),
 };
