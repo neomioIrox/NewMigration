@@ -31,7 +31,7 @@ export default function ConnectionStatus(){
             <button onClick={()=>setEditing(editing===c.key?null:c.key)} className="mt-3 text-sm text-blue-600 underline">
               {editing===c.key?"Close":"Edit"}
             </button>
-            {editing===c.key&&cfg&&<ConnectionEditForm connKey={c.key} initial={cfg[c.key]} onApplied={onApplied}/>}
+            {editing===c.key&&cfg&&cfg[c.key]&&<ConnectionEditForm connKey={c.key} initial={cfg[c.key]} onApplied={onApplied}/>}
           </div>;
         })}
       </div>

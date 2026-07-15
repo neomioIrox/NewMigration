@@ -33,7 +33,7 @@ export default function ConnectionEditForm({connKey,initial,onApplied}){
   const[busy,setBusy]=useState(false);
   const[error,setError]=useState(null);
 
-  function setField(name,val){setValues({...values,[name]:val});setTest(null);setError(null);}
+  function setField(name,val){setValues(function(v){return {...v,[name]:val};});setTest(null);setError(null);}
 
   async function runTest(){
     setBusy(true);setError(null);
@@ -55,8 +55,8 @@ export default function ConnectionEditForm({connKey,initial,onApplied}){
         <div key={f.name}>
           <label className="block text-xs text-gray-500 mb-1">{f.label}</label>
           {f.type==="textarea"
-            ?<textarea className="w-full border rounded p-2 text-sm font-mono" rows={3} value={values[f.name]} onChange={e=>setField(f.name,e.target.value)}/>
-            :<input className="w-full border rounded p-2 text-sm" type={f.type} placeholder={f.placeholder||""} value={values[f.name]} onChange={e=>setField(f.name,e.target.value)}/>}
+            ?<textarea className="w-full border rounded p-2 text-sm font-mono" rows={3} disabled={busy} value={values[f.name]} onChange={e=>setField(f.name,e.target.value)}/>
+            :<input className="w-full border rounded p-2 text-sm" type={f.type} disabled={busy} autoComplete={f.type==="password"?"new-password":undefined} placeholder={f.placeholder||""} value={values[f.name]} onChange={e=>setField(f.name,e.target.value)}/>}
         </div>
       ))}
       {connKey!=="mssql"&&initial.hasPassword&&<div className="text-xs text-gray-400">A password is currently set.</div>}
