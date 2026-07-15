@@ -4,6 +4,7 @@ import{useWebSocket}from"../hooks/useWebSocket";
 const navItems=[
   {to:"/",label:"Dashboard"},
   {to:"/migrate",label:"Migration Runner"},
+  {to:"/pipeline",label:"הרצה מלאה"},
   {to:"/id-mappings",label:"ID Mappings"},
   {to:"/errors",label:"Errors"},
   {to:"/connections",label:"Connections"},
