@@ -1075,6 +1075,12 @@ Per project rule ("build vs execute"), an actual `POST /api/pipeline/start` agai
 
 ---
 
+## Execution amendments (review findings fixed during implementation)
+
+- Task 2/3 test scripts: `process.exit(0)` moved out of `finally` (was swallowing assertion failures); success-path exit only.
+- Task 3 `startPipeline`: `running=true` is claimed synchronously before any `await` (TOCTOU fix — the plan's original code allowed two concurrent starts), rolled back in a pre-launch catch; the code blocks above reflect the original, commit `61dc02e` the fixed shape.
+- Task 3 test: two scenarios added — manual stop via `stopPipeline()` (stoppable fake engine, DB-state + event assertions, `getCurrentRun`/`getAllRuns` coverage) and genuine concurrent entry (two un-awaited starts → exactly one 409).
+
 ## Self-review notes (already applied)
 
 - Spec coverage: config+order (Task 1), tables (Task 2), orchestrator incl. 409/stop/stale-recovery (Task 3), API (Task 4), socket plumbing kept additive via separate `lastPipelineEvent` (Task 5), UI incl. fresh-confirm dialog and browser-refresh-safe state (Task 6), testing scenarios from spec §7 (Tasks 1/3/7).
