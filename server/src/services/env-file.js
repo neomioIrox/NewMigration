@@ -32,7 +32,9 @@ function updateEnvText(text,updates){
 
 function updateEnvFile(filePath,updates){
   var text=fs.existsSync(filePath)?fs.readFileSync(filePath,"utf8"):"";
-  fs.writeFileSync(filePath,updateEnvText(text,updates),"utf8");
+  var tmp=filePath+".tmp";
+  fs.writeFileSync(tmp,updateEnvText(text,updates),"utf8");
+  fs.renameSync(tmp,filePath);
 }
 
 module.exports={updateEnvText,updateEnvFile,formatValue};

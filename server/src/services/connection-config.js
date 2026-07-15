@@ -23,7 +23,7 @@ var applying=false;
 
 function maskConnectionString(cs){
   if(!cs) return cs;
-  return cs.replace(/(pwd|password)(\s*=\s*)[^;]*/gi,function(_,k,eq){return k+eq+MASK;});
+  return cs.replace(/(pwd|password)(\s*=\s*)(\{[^}]*\}|[^;]*)/gi,function(_,k,eq){return k+eq+MASK;});
 }
 
 function getRedactedConfig(){
@@ -52,6 +52,7 @@ function validate(connection,values){
     if(!values.host||!String(values.host).trim()) return "host is required";
     if(!values.user||!String(values.user).trim()) return "user is required";
     if(!values.database||!String(values.database).trim()) return "database is required";
+    if(values.password===MASK) return "Password equals the mask "+MASK+" — re-enter the real password";
     return null;
   }
   return "Unknown connection: "+connection;
@@ -119,6 +120,10 @@ async function applyConfig(connection,values){
   try{
     var test=await testCandidate(connection,values);
     if(!test.success){var bad=new Error(test.message);bad.code=400;throw bad;}
+    if(manager.hasActiveMigration()||orchestrator.isPipelineRunning()){
+      var raced=new Error("A migration started during the connection test — settings not applied");
+      raced.code=409;throw raced;
+    }
     var candidate=buildCandidate(connection,values);
     var envUpdates=ENV_KEYS[connection](candidate);
     envFile.updateEnvFile(ENV_PATH,envUpdates);

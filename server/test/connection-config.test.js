@@ -16,6 +16,9 @@ test("maskConnectionString masks Pwd and Password values, case-insensitive",func
   assert.equal(
     svc.maskConnectionString("Server=h;Trusted_Connection=yes;"),
     "Server=h;Trusted_Connection=yes;");
+  assert.equal(
+    svc.maskConnectionString("Server=h;Pwd={pa;ss};Database=d"),
+    "Server=h;Pwd=******;Database=d");
 });
 
 test("getRedactedConfig never exposes a password field",function(){
@@ -41,6 +44,7 @@ test("validate: mysql requires host/user/database, password optional",function()
   assert.match(svc.validate("mysqlTracker",{host:"h",database:"d"}),/user/);
   assert.match(svc.validate("mysqlTracker",{host:"h",user:"u"}),/database/);
   assert.match(svc.validate("nope",{}),/Unknown connection/);
+  assert.match(svc.validate("mysqlTarget",{host:"h",user:"u",database:"d",password:svc.MASK}),/re-enter/);
 });
 
 test("buildCandidate: empty password keeps the stored one",function(){
