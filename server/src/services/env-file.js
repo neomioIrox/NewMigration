@@ -23,8 +23,7 @@ function updateEnvText(text,updates){
     if(m&&pending.has(m[1])){lines[i]=m[1]+"="+formatValue(updates[m[1]]);pending.delete(m[1]);}
   }
   if(pending.size>0){
-    var trailing=[];
-    while(lines.length&&lines[lines.length-1]==="") trailing.push(lines.pop());
+    if(lines.length&&lines[lines.length-1]==="") lines.pop();
     pending.forEach(function(k){lines.push(k+"="+formatValue(updates[k]));});
     lines.push("");
   }

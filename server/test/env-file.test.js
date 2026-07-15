@@ -55,3 +55,11 @@ test("updating an empty file produces just the keys",function(){
   var out=updateEnvText("",{A:"1"});
   assert.equal(out,"A=1\n");
 });
+
+test("append preserves genuine trailing blank lines",function(){
+  assert.equal(updateEnvText("A=1\n\n",{NEW_KEY:"val"}),"A=1\n\nNEW_KEY=val\n");
+});
+
+test("append to file without trailing newline adds one",function(){
+  assert.equal(updateEnvText("A=1",{NEW_KEY:"val"}),"A=1\nNEW_KEY=val\n");
+});
