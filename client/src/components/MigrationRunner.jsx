@@ -52,12 +52,31 @@ function formatETA(seconds){
   return"< 1m";
 }
 
+const START_MODES=[
+  {value:"continue",label:"המשך מהנקודה האחרונה"},
+  {value:"fresh",label:"התחל מאפס (איפוס נקודת ההמשך)"},
+  {value:"gapfill",label:"השלמת חורים (gap-fill)"}
+];
+
+function StartModeSelect({value,onChange,disabled,allowGapfill}){
+  const modes=allowGapfill?START_MODES:START_MODES.filter(m=>m.value!=="gapfill");
+  return(
+    <div>
+      <label className="block text-sm font-medium mb-1">מצב התחלה</label>
+      <select value={value} onChange={e=>onChange(e.target.value)} disabled={disabled} className="border rounded p-2">
+        {modes.map(m=><option key={m.value} value={m.value}>{m.label}</option>)}
+      </select>
+    </div>
+  );
+}
+
 function DonationRunner({migrationState,runId,setRunId,lastEvent,pauseMut,resumeMut}){
   const[batchSize,setBatchSize]=useState(1000);
+  const[startMode,setStartMode]=useState("continue");
   const[donationResult,setDonationResult]=useState(null);
   const[startTime,setStartTime]=useState(null);
 
-  const startMut=useMutation({mutationFn:(dryRun)=>api.startDonationMigration(batchSize,dryRun),
+  const startMut=useMutation({mutationFn:(dryRun)=>api.startDonationMigration(batchSize,dryRun,startMode),
     onSuccess:(data)=>{setDonationResult(data);setStartTime(Date.now());}});
 
   // Check if current run is a donation run
@@ -87,6 +106,7 @@ function DonationRunner({migrationState,runId,setRunId,lastEvent,pauseMut,resume
             min={100} max={5000} step={100} className="border rounded p-2 w-32"
             disabled={isDonationRunning}/>
         </div>
+        <StartModeSelect value={startMode} onChange={setStartMode} disabled={isDonationRunning} allowGapfill={false}/>
         <button onClick={()=>startMut.mutate(true)} disabled={startMut.isPending||isDonationRunning}
           className="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700 disabled:opacity-50 text-sm">
           {startMut.isPending?"...":"Dry Run"}
@@ -182,10 +202,11 @@ function DonationRunner({migrationState,runId,setRunId,lastEvent,pauseMut,resume
 
 function PrayNameRunner({migrationState,runId,setRunId,lastEvent,pauseMut,resumeMut}){
   const[batchSize,setBatchSize]=useState(2000);
+  const[startMode,setStartMode]=useState("continue");
   const[prayResult,setPrayResult]=useState(null);
   const[startTime,setStartTime]=useState(null);
 
-  const startMut=useMutation({mutationFn:(dryRun)=>api.startPrayNameMigration(batchSize,dryRun),
+  const startMut=useMutation({mutationFn:(dryRun)=>api.startPrayNameMigration(batchSize,dryRun,startMode),
     onSuccess:(data)=>{setPrayResult(data);setStartTime(Date.now());}});
 
   const isPrayRunning=migrationState==="running"&&lastEvent&&lastEvent.mapping==="PrayNameMapping";
@@ -213,6 +234,7 @@ function PrayNameRunner({migrationState,runId,setRunId,lastEvent,pauseMut,resume
             min={500} max={5000} step={500} className="border rounded p-2 w-32"
             disabled={isPrayRunning}/>
         </div>
+        <StartModeSelect value={startMode} onChange={setStartMode} disabled={isPrayRunning} allowGapfill={false}/>
         <button onClick={()=>startMut.mutate(true)} disabled={startMut.isPending||isPrayRunning}
           className="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700 disabled:opacity-50 text-sm">
           {startMut.isPending?"...":"Dry Run"}
@@ -424,10 +446,11 @@ function GalleryRunner({migrationState,runId,lastEvent,pauseMut,resumeMut}){
 
 function AsakimDonationRunner({migrationState,runId,setRunId,lastEvent,pauseMut,resumeMut}){
   const[batchSize,setBatchSize]=useState(2000);
+  const[startMode,setStartMode]=useState("continue");
   const[asakimResult,setAsakimResult]=useState(null);
   const[startTime,setStartTime]=useState(null);
 
-  const startMut=useMutation({mutationFn:(dryRun)=>api.startAsakimDonationMigration(batchSize,dryRun),
+  const startMut=useMutation({mutationFn:(dryRun)=>api.startAsakimDonationMigration(batchSize,dryRun,startMode),
     onSuccess:(data)=>{setAsakimResult(data);setStartTime(Date.now());}});
 
   const isRunning=migrationState==="running"&&lastEvent&&lastEvent.mapping==="AsakimDonationMapping";
@@ -454,6 +477,7 @@ function AsakimDonationRunner({migrationState,runId,setRunId,lastEvent,pauseMut,
             min={500} max={5000} step={500} className="border rounded p-2 w-32"
             disabled={isRunning}/>
         </div>
+        <StartModeSelect value={startMode} onChange={setStartMode} disabled={isRunning} allowGapfill={false}/>
         <button onClick={()=>startMut.mutate(true)} disabled={startMut.isPending||isRunning}
           className="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700 disabled:opacity-50 text-sm">
           {startMut.isPending?"...":"Dry Run"}
@@ -535,6 +559,7 @@ function AsakimDonationRunner({migrationState,runId,setRunId,lastEvent,pauseMut,
 export default function MigrationRunner(){
   const[selected,setSelected]=useState("");
   const[batchSize,setBatchSize]=useState(500);
+  const[startMode,setStartMode]=useState("continue");
   const[runId,setRunId]=useState(null);
   const{data:mappingsData}=useQuery({queryKey:["mappings"],queryFn:api.getMappings});
   const{data:runsData}=useQuery({queryKey:["runs"],queryFn:api.getRuns,refetchInterval:10000});
@@ -626,7 +651,7 @@ export default function MigrationRunner(){
       )}
 
       <div className="bg-white rounded-lg shadow p-6 mb-6">
-        <div className="grid grid-cols-2 gap-4 mb-4">
+        <div className="grid grid-cols-3 gap-4 mb-4">
           <div>
             <label className="block text-sm font-medium mb-1">Select Mapping</label>
             <select value={selected} onChange={e=>setSelected(e.target.value)} className="w-full border rounded p-2">
@@ -638,9 +663,10 @@ export default function MigrationRunner(){
             <label className="block text-sm font-medium mb-1">Batch Size</label>
             <input type="number" value={batchSize} onChange={e=>setBatchSize(Number(e.target.value))} min={50} max={2000} step={50} className="w-full border rounded p-2"/>
           </div>
+          <StartModeSelect value={startMode} onChange={setStartMode} disabled={migrationState==="running"} allowGapfill={true}/>
         </div>
         <div className="flex gap-3">
-          <button onClick={()=>startMut.mutate({})} disabled={!selected||startMut.isPending||migrationState==="running"}
+          <button onClick={()=>startMut.mutate({extra:{startMode}})} disabled={!selected||startMut.isPending||migrationState==="running"}
             className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 disabled:opacity-50">
             {startMut.isPending?"מתחיל...":"התחל מיגרציה"}
           </button>
