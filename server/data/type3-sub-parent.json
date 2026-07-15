@@ -1,8 +1,8 @@
 {
   "description": "Frozen Case-3 sub→parent Project map (parent Project.Id == parent productsid, preserveSourceId)",
   "definition": "Case 3 (ProductGroup campaigns). Parents: Terminal=1, active (parent or any sub in scope-products.json). Subs: all subs of those parents PLUS Terminal=1 subs of an in-scope Terminal=4 fund-parent, EXCLUDING subs that are themselves active parents and EXCLUDING in-scope Terminal=4 subs (standalone funds). Each sub maps to ONE deterministic parent (lowest active-parent id) in type3-sub-parent.json.",
-  "generatedAt": "2026-07-14T18:27:51.247Z",
-  "count": 231,
+  "generatedAt": "2026-07-15T19:43:34.740Z",
+  "count": 238,
   "map": {
     "1049": 1048,
     "1056": 1055,
@@ -45,6 +45,7 @@
     "1522": 1505,
     "1523": 1505,
     "1536": 1535,
+    "1540": 1539,
     "1544": 1543,
     "1567": 1566,
     "1591": 1590,
@@ -234,6 +235,12 @@
     "2399": 2398,
     "2403": 2402,
     "2421": 2420,
-    "2427": 2426
+    "2427": 2426,
+    "2433": 2432,
+    "2436": 2435,
+    "2445": 2444,
+    "2447": 2446,
+    "2451": 2450,
+    "2455": 2454
   }
 }

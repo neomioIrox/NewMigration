@@ -29,12 +29,15 @@ const APPLY = process.argv.includes("--apply");
 const MUST_BE_EMPTY = [
   "Affiliate", "AffiliateUser", "Source", "CustomerUser", "LutFundCategory",
   "Project", "ProjectLocalization", "ProjectItem", "ProjectItemLocalization",
-  "EntityContent", "EntityContentItem", "Media", "LinkSetting",
+  "Media", "LinkSetting",
   "RecruitersGroup", "RecruitersGroupLanguage", "Recruiter", "RecruiterLocalization",
   "Gallery", "GalleryMedia", "VideoGalleryMedia", "FundCategory",
   "Donation", "DonationActionLog", "DonationCurrencyValue",
   "PrayName", "AsakimDonation", "LegacyMapping"
 ];
+// EntityContent/EntityContentItem are checked separately: the app seeds email TEMPLATES
+// (IsTemplate=1: EmailVerification/PasswordReset...) that must survive the wipe — only
+// non-template content (project descriptions, i.e. migration output) blocks the run.
 
 // App-shared tables: migration inserts rows here but the live app may own rows too.
 // Reported as warnings only — the user decides.
@@ -88,6 +91,17 @@ async function main() {
     const c = await targetCount(t);
     if (c) { console.log("  " + t + ": " + c + " rows (warning — app-shared table)"); warnings.push("target." + t + " has " + c + " rows (migration also writes here; verify they are app-owned)"); }
   }
+  // EntityContent: templates allowed, anything else blocks
+  try {
+    const [ecNon] = await targetDb.query("SELECT COUNT(*) AS c FROM EntityContent WHERE COALESCE(IsTemplate,0)=0");
+    const [ecTpl] = await targetDb.query("SELECT COUNT(*) AS c FROM EntityContent WHERE IsTemplate=1");
+    const [eciNon] = await targetDb.query(
+      "SELECT COUNT(*) AS c FROM EntityContentItem eci LEFT JOIN EntityContent ec ON ec.Id=eci.ContentId WHERE COALESCE(ec.IsTemplate,0)=0");
+    if (ecNon[0].c) { console.log("  EntityContent: " + ecNon[0].c + " non-template rows  <-- BLOCKER"); blockers.push("target.EntityContent has " + ecNon[0].c + " non-template rows — wipe incomplete"); }
+    else console.log("  EntityContent: only templates (" + ecTpl[0].c + " app email templates — kept)");
+    if (eciNon[0].c) { console.log("  EntityContentItem: " + eciNon[0].c + " non-template rows  <-- BLOCKER"); blockers.push("target.EntityContentItem has " + eciNon[0].c + " non-template rows — wipe incomplete"); }
+    else console.log("  EntityContentItem: only template bodies (kept)");
+  } catch (e) { if (/doesn't exist/.test(e.message)) console.log("  EntityContent/Item: missing (ok)"); else throw e; }
   for (const t of MUST_BE_NONEMPTY) {
     const c = await targetCount(t);
     if (!c) { blockers.push("pre-populated LUT target." + t + " is empty/missing — target wipe went too far, app needs it"); console.log("  " + t + ": EMPTY  <-- BLOCKER (must stay populated)"); }
@@ -112,7 +126,10 @@ async function main() {
     const fp = path.join(__dirname, "../data", f);
     if (!fs.existsSync(fp)) { blockers.push("scope file missing: server/data/" + f); console.log("  " + f + ": MISSING  <-- BLOCKER"); continue; }
     const j = JSON.parse(fs.readFileSync(fp, "utf8"));
-    const n = Array.isArray(j) ? j.length : (j.productIds ? j.productIds.length : Object.keys(j).length);
+    const n = Array.isArray(j) ? j.length
+      : j.productIds ? j.productIds.length
+      : j.map ? Object.keys(j.map).length
+      : Object.keys(j).length;
     console.log("  " + f + ": " + n + " entries");
   }
 
