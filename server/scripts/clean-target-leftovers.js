@@ -56,12 +56,22 @@ async function q(sql, params) { const [rows] = await targetDb.query(sql, params 
   if (orphans.length) {
     console.log("orphan LinkSettings (ProjectId has no Project): " + orphans.map(o => o.Id + "->" + o.ProjectId).join(", "));
     const orphanIds = orphans.map(o => Number(o.Id)).join(",");
-    // Banner FKs LinkSetting (FK_Banner_LinkSetting) — the demo banners must go first
+    // FK chain: BannerLocalization -> Banner -> LinkSetting. Delete deepest-first,
+    // always scoped to banners whose LinkSetting points at a nonexistent project.
     const banners = await q("SELECT Id, Name, LinkSettingId FROM Banner WHERE LinkSettingId IN (" + orphanIds + ")");
     if (banners.length) {
       console.log("demo Banners referencing them: " + banners.map(b => b.Id + " '" + b.Name + "'->" + b.LinkSettingId).join(", "));
+      const bannerIds = banners.map(b => Number(b.Id)).join(",");
+      const [locCount] = await q("SELECT COUNT(*) AS c FROM BannerLocalization WHERE BannerId IN (" + bannerIds + ")").then(r => [r[0]]);
+      if (locCount.c) {
+        console.log("BannerLocalization rows for those banners: " + locCount.c);
+        actions.push({
+          sql: "DELETE FROM BannerLocalization WHERE BannerId IN (" + bannerIds + ")",
+          why: "localizations of the demo banners"
+        });
+      }
       actions.push({
-        sql: "DELETE FROM Banner WHERE LinkSettingId IN (" + orphanIds + ")",
+        sql: "DELETE FROM Banner WHERE Id IN (" + bannerIds + ")",
         why: "demo banners whose link points at a nonexistent project"
       });
     }
