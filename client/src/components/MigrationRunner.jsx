@@ -77,7 +77,7 @@ function DonationRunner({migrationState,runId,setRunId,lastEvent,pauseMut,resume
   const[startTime,setStartTime]=useState(null);
 
   const startMut=useMutation({mutationFn:(dryRun)=>api.startDonationMigration(batchSize,dryRun,startMode),
-    onSuccess:(data)=>{setDonationResult(data);setStartTime(Date.now());}});
+    onSuccess:(data)=>{setDonationResult(data);setStartTime(Date.now());setStartMode("continue");}});
 
   // Check if current run is a donation run
   const isDonationRunning=migrationState==="running"&&lastEvent&&lastEvent.mapping==="DonationMapping";
@@ -207,7 +207,7 @@ function PrayNameRunner({migrationState,runId,setRunId,lastEvent,pauseMut,resume
   const[startTime,setStartTime]=useState(null);
 
   const startMut=useMutation({mutationFn:(dryRun)=>api.startPrayNameMigration(batchSize,dryRun,startMode),
-    onSuccess:(data)=>{setPrayResult(data);setStartTime(Date.now());}});
+    onSuccess:(data)=>{setPrayResult(data);setStartTime(Date.now());setStartMode("continue");}});
 
   const isPrayRunning=migrationState==="running"&&lastEvent&&lastEvent.mapping==="PrayNameMapping";
   const isPrayPaused=migrationState==="paused"&&lastEvent&&lastEvent.mapping==="PrayNameMapping";
@@ -451,7 +451,7 @@ function AsakimDonationRunner({migrationState,runId,setRunId,lastEvent,pauseMut,
   const[startTime,setStartTime]=useState(null);
 
   const startMut=useMutation({mutationFn:(dryRun)=>api.startAsakimDonationMigration(batchSize,dryRun,startMode),
-    onSuccess:(data)=>{setAsakimResult(data);setStartTime(Date.now());}});
+    onSuccess:(data)=>{setAsakimResult(data);setStartTime(Date.now());setStartMode("continue");}});
 
   const isRunning=migrationState==="running"&&lastEvent&&lastEvent.mapping==="AsakimDonationMapping";
   const isPaused=migrationState==="paused"&&lastEvent&&lastEvent.mapping==="AsakimDonationMapping";
@@ -564,7 +564,8 @@ export default function MigrationRunner(){
   const{data:mappingsData}=useQuery({queryKey:["mappings"],queryFn:api.getMappings});
   const{data:runsData}=useQuery({queryKey:["runs"],queryFn:api.getRuns,refetchInterval:10000});
   const{lastEvent}=useWebSocket();
-  const startMut=useMutation({mutationFn:(options)=>api.startMigration(options?.mappingName||selected,options?.batchSize||batchSize,options?.extra)});
+  const startMut=useMutation({mutationFn:(options)=>api.startMigration(options?.mappingName||selected,options?.batchSize||batchSize,options?.extra),
+    onSuccess:()=>setStartMode("continue")});
   const pauseMut=useMutation({mutationFn:(id)=>api.pauseMigration(id)});
   const resumeMut=useMutation({mutationFn:(id)=>api.resumeMigration(id)});
 

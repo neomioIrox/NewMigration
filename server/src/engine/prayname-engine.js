@@ -35,6 +35,7 @@ class PrayNameEngine extends EventEmitter{
     this.dryRun=(options&&options.dryRun)||false;
     this.startMode=(options&&options.startMode)||"continue";
     if(this.startMode==="gapfill"){logger.warn("startMode gapfill not supported by PrayNameEngine - running as continue");this.startMode="continue";}
+    else if(this.startMode!=="continue"&&this.startMode!=="fresh"){logger.warn("unknown startMode '"+this.startMode+"' - running as continue");this.startMode="continue";}
     this.checkpointReporter=migrationCheckpoint.createReporter("PrayNameMapping");
     this.runId=null;
     this.pauseRequested=false;
@@ -85,7 +86,14 @@ class PrayNameEngine extends EventEmitter{
         }else if(this.startMode==="continue"){
           await migrationCheckpoint.ensureTable();
           var cpRow=await migrationCheckpoint.get("PrayNameMapping");
-          if(cpRow&&cpRow.LastSourceId!=null){lastId=cpRow.LastSourceId;logger.info("continue mode: seeding from checkpoint",{mapping:"PrayNameMapping",lastSourceId:lastId});}
+          if(cpRow&&cpRow.LastSourceId!=null){
+            // The VARCHAR cursor is interpolated into keyset SQL — abort on garbage instead
+            // of injecting it (matches the "checkpoint READ failure aborts the run" rule).
+            var seeded=Number(cpRow.LastSourceId);
+            if(isNaN(seeded)) throw new Error("MigrationCheckpoint.LastSourceId is not numeric: "+cpRow.LastSourceId);
+            lastId=seeded;
+            logger.info("continue mode: seeding from checkpoint",{mapping:"PrayNameMapping",lastSourceId:lastId});
+          }
         }
         this.runId=await tracker.createRun("PrayNameMapping",sourceTable,targetTable,totalRows,this.batchSize);
       }

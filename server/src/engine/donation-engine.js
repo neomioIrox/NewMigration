@@ -31,6 +31,7 @@ class DonationEngine extends EventEmitter{
     this.dryRun=(options&&options.dryRun)||false;
     this.startMode=(options&&options.startMode)||"continue";
     if(this.startMode==="gapfill"){logger.warn("startMode gapfill not supported by DonationEngine - running as continue (built-in target skip covers gaps)");this.startMode="continue";}
+    else if(this.startMode!=="continue"&&this.startMode!=="fresh"){logger.warn("unknown startMode '"+this.startMode+"' - running as continue");this.startMode="continue";}
     this.checkpointReporter=migrationCheckpoint.createReporter("DonationMapping");
     this.runId=null;
     this.pauseRequested=false;
@@ -176,7 +177,14 @@ class DonationEngine extends EventEmitter{
         }else if(this.startMode==="continue"){
           await migrationCheckpoint.ensureTable();
           var cpRow=await migrationCheckpoint.get("DonationMapping");
-          if(cpRow&&cpRow.LastSourceId!=null){lastId=cpRow.LastSourceId;logger.info("continue mode: seeding from checkpoint",{mapping:"DonationMapping",lastSourceId:lastId});}
+          if(cpRow&&cpRow.LastSourceId!=null){
+            // The VARCHAR cursor is interpolated into keyset SQL — abort on garbage instead
+            // of injecting it (matches the "checkpoint READ failure aborts the run" rule).
+            var seeded=Number(cpRow.LastSourceId);
+            if(isNaN(seeded)) throw new Error("MigrationCheckpoint.LastSourceId is not numeric: "+cpRow.LastSourceId);
+            lastId=seeded;
+            logger.info("continue mode: seeding from checkpoint",{mapping:"DonationMapping",lastSourceId:lastId});
+          }
         }
         this.runId=await tracker.createRun("DonationMapping",sourceTable,targetTable,totalRows,this.batchSize);
       }

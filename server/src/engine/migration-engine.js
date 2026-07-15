@@ -17,6 +17,7 @@ class MigrationEngine extends EventEmitter{
     this.batchSize=(options&&options.batchSize)||500;
     this.totalLimit=(options&&options.totalLimit)||0;
     this.startMode=(options&&options.startMode)||"continue"; // continue | fresh | gapfill
+    if(["continue","fresh","gapfill"].indexOf(this.startMode)===-1){logger.warn("unknown startMode '"+this.startMode+"' - running as continue",{mapping:mapping.filename||mapping.targetTable});this.startMode="continue";}
     this.checkpointReporter=migrationCheckpoint.createReporter(mapping.filename||mapping.targetTable);
     this.gapfillExistingIds=null; // Set<number> of source ids already in the target (gapfill mode)
     this.runId=null;
@@ -47,6 +48,11 @@ class MigrationEngine extends EventEmitter{
   //    in the same row try/catch, so a partial row has no LegacyMapping entry.
   // 2. preserveSourceId: the target table's own ids (Id==sourceId).
   // 3. id_mappings by entityType (tracker approximation, survives for non-preserve mappings).
+  // GUARD: the id_mappings fallback is only correct for mappings that record a MAIN-ENTITY
+  // id_mapping. Collapse mappings (fixedParentProjectId/parentProjectIdColumn/
+  // parentProjectIdMapFile) skip the main-table insert and never record one, so they MUST
+  // carry legacyMapping (all current ones do) — a future collapse mapping without it would
+  // gapfill against an empty set and duplicate every row.
   _gapfillSourceQuery(m){
     if(m.legacyMapping){
       return {db:"target",sql:"SELECT SourceId AS id FROM LegacyMapping WHERE MappingName=?",params:[m.filename||m.targetTable]};
@@ -207,7 +213,13 @@ class MigrationEngine extends EventEmitter{
         }else if(this.startMode==="continue"){
           await migrationCheckpoint.ensureTable();
           var cp=await migrationCheckpoint.get(m.filename||targetTable);
-          if(cp&&cp.LastSourceId!=null) lastId=cp.LastSourceId;
+          if(cp&&cp.LastSourceId!=null){
+            // The VARCHAR cursor is interpolated into keyset SQL — abort on garbage instead
+            // of injecting it (matches the "checkpoint READ failure aborts the run" rule).
+            var seeded=Number(cp.LastSourceId);
+            if(isNaN(seeded)) throw new Error("MigrationCheckpoint.LastSourceId is not numeric: "+cp.LastSourceId);
+            lastId=seeded;
+          }
           if(lastId!=null) logger.info("continue mode: seeding from checkpoint",{mapping:m.filename||targetTable,lastSourceId:lastId});
         }else if(this.startMode==="gapfill"){
           this.gapfillExistingIds=await this._loadGapfillSet(m);
@@ -223,9 +235,19 @@ class MigrationEngine extends EventEmitter{
       var hasMore=true;
       while(hasMore){
         if(this.pauseRequested){
+          // An interrupted gapfill is NOT resumable: resuming would re-process rows above
+          // the pause point WITHOUT the skip set (mass duplicates on non-preserveSourceId
+          // mappings). Mark it failed; a fresh gapfill run is the safe re-entry
+          // (idempotent from 0 — it rebuilds the skip set and skips existing rows).
+          if(this.startMode==="gapfill"){
+            await tracker.updateRunStatus(this.runId,"failed");
+            this.emit("error",{runId:this.runId,mapping:m.filename,error:"ריצת gapfill נעצרה — אינה ניתנת להמשכה; יש להריץ gapfill מחדש (סריקה חוזרת בטוחה ומדלגת על קיימים)"});
+            this.isRunning=false;
+            return {status:"failed",runId:this.runId,counters:this.counters};
+          }
           await tracker.updateRunStatus(this.runId,"paused",{last_processed_source_id:lastId});
           await tracker.updateRunCounters(this.runId,this.counters.processed,this.counters.inserted,this.counters.skipped,this.counters.errors,lastId);
-          await this.checkpointReporter.batch(lastId,this.counters.inserted);
+          await this.checkpointReporter.batch(this.startMode==="gapfill"?null:lastId,this.counters.inserted);
           this.emit("paused",{runId:this.runId,counters:this.counters,mapping:m.filename});
           this.isRunning=false;
           return {status:"paused",runId:this.runId,counters:this.counters};
@@ -449,9 +471,11 @@ class MigrationEngine extends EventEmitter{
           }
         }
 
-        // Update counters after each batch
+        // Update counters after each batch. gapfill passes a null cursor: a gapfill scan
+        // starts from 0, so its per-batch lastId may be BELOW the stored cursor and must
+        // never move it backward (null = "don't move the cursor" in the upsert).
         await tracker.updateRunCounters(this.runId,this.counters.processed,this.counters.inserted,this.counters.skipped,this.counters.errors,lastId);
-        await this.checkpointReporter.batch(lastId,this.counters.inserted);
+        await this.checkpointReporter.batch(this.startMode==="gapfill"?null:lastId,this.counters.inserted);
         if(rows.length<this.batchSize) hasMore=false;
       }
 
@@ -488,6 +512,10 @@ class MigrationEngine extends EventEmitter{
       // Completed
       await tracker.updateRunStatus(this.runId,"completed");
       await tracker.updateRunCounters(this.runId,this.counters.processed,this.counters.inserted,this.counters.skipped,this.counters.errors,lastId);
+      // A COMPLETED gapfill scanned the full source range, so its final cursor (the max
+      // source id) may be written; an interrupted gapfill must not regress the cursor
+      // (per-batch calls above pass null for exactly that reason).
+      if(this.startMode==="gapfill") await this.checkpointReporter.batch(lastId,this.counters.inserted);
       await this.checkpointReporter.complete();
       this.emit("completed",{runId:this.runId,counters:this.counters,mapping:m.filename});
       logger.info("Migration completed",{runId:this.runId,counters:this.counters});

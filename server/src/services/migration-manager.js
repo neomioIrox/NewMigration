@@ -280,7 +280,7 @@ function startGalleryMigrationChain(options,io){
           continue;
         }
         logger.info("Gallery chain — starting stage",{stage:stageName});
-        var engine=startMigration(stageName,{batchSize:(options&&options.batchSize)||500},io);
+        var engine=startMigration(stageName,{batchSize:(options&&options.batchSize)||500,startMode:(options&&options.startMode)||"continue"},io);
         var result=await _awaitEngine(engine);
         if(result.status!=="completed"){
           logger.warn("Gallery chain stopped",{stage:stageName,status:result.status});

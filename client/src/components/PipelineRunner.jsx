@@ -64,7 +64,7 @@ function StepRow({step,liveProgress}){
 }
 
 function CheckpointMap({refreshKey}){
-  const{data,isLoading,refetch}=useQuery({
+  const{data,isLoading,isError,refetch}=useQuery({
     queryKey:["checkpoints"],
     queryFn:api.getCheckpoints,
     refetchInterval:15000
@@ -76,7 +76,8 @@ function CheckpointMap({refreshKey}){
     <div className="bg-white rounded-lg shadow p-6 mt-6">
       <h3 className="font-semibold mb-3">מפת נקודות המשך (MigrationCheckpoint)</h3>
       {isLoading&&<p className="text-gray-500 text-sm">טוען...</p>}
-      {!isLoading&&rows.length===0&&<p className="text-gray-500 text-sm">אין עדיין נקודות המשך — ירשמו אוטומטית בריצה הבאה.</p>}
+      {!isLoading&&isError&&<p className="text-red-600 text-sm">שגיאה בטעינת נקודות ההמשך</p>}
+      {!isLoading&&!isError&&rows.length===0&&<p className="text-gray-500 text-sm">אין עדיין נקודות המשך — ירשמו אוטומטית בריצה הבאה.</p>}
       {rows.length>0&&(
         <div className="overflow-x-auto">
           <table className="w-full text-sm">

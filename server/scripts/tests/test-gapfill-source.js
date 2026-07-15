@@ -25,8 +25,21 @@ assert.strictEqual(r.db,"tracker");
 assert.ok(/FROM id_mappings WHERE entity_type=\?/.test(r.sql),r.sql);
 assert.deepStrictEqual(r.params,["Gallery_Images"]);
 
-// startMode default + validation
+// 3b. neither legacyMapping nor preserveSourceId, no _meta -> entityType falls back to filename
+r=q({filename:"SomeMapping",targetTable:"SomeTable"});
+assert.strictEqual(r.db,"tracker");
+assert.ok(/FROM id_mappings WHERE entity_type=\?/.test(r.sql),r.sql);
+assert.deepStrictEqual(r.params,["SomeMapping"]);
+
+// 3c. only targetTable (no filename, no _meta) -> entityType falls back to targetTable
+r=q({targetTable:"OnlyTable"});
+assert.strictEqual(r.db,"tracker");
+assert.ok(/FROM id_mappings WHERE entity_type=\?/.test(r.sql),r.sql);
+assert.deepStrictEqual(r.params,["OnlyTable"]);
+
+// startMode default + validation (unknown values normalize to continue)
 assert.strictEqual(new MigrationEngine({targetTable:"T"},{}).startMode,"continue");
 assert.strictEqual(new MigrationEngine({targetTable:"T"},{startMode:"gapfill"}).startMode,"gapfill");
+assert.strictEqual(new MigrationEngine({targetTable:"T"},{startMode:"bogus"}).startMode,"continue");
 
 console.log("test-gapfill-source: ALL PASS");

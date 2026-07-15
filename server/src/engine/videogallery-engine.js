@@ -34,6 +34,7 @@ class VideoGalleryEngine extends EventEmitter{
     this.dryRun=(options&&options.dryRun)||false;
     this.startMode=(options&&options.startMode)||"continue";
     if(this.startMode==="gapfill"){logger.warn("startMode gapfill not supported by VideoGalleryEngine - running as continue (engine is internally idempotent)");this.startMode="continue";}
+    else if(this.startMode!=="continue"&&this.startMode!=="fresh"){logger.warn("unknown startMode '"+this.startMode+"' - running as continue");this.startMode="continue";}
     this.checkpointReporter=migrationCheckpoint.createReporter("VideoGalleryMediaMapping");
     this.runId=null;
     this.pauseRequested=false;
@@ -82,7 +83,14 @@ class VideoGalleryEngine extends EventEmitter{
         }else if(this.startMode==="continue"){
           await migrationCheckpoint.ensureTable();
           var cpRow=await migrationCheckpoint.get("VideoGalleryMediaMapping");
-          if(cpRow&&cpRow.LastSourceId!=null){lastId=cpRow.LastSourceId;logger.info("continue mode: seeding from checkpoint",{mapping:"VideoGalleryMediaMapping",lastSourceId:lastId});}
+          if(cpRow&&cpRow.LastSourceId!=null){
+            // The VARCHAR cursor is interpolated into keyset SQL — abort on garbage instead
+            // of injecting it (matches the "checkpoint READ failure aborts the run" rule).
+            var seeded=Number(cpRow.LastSourceId);
+            if(isNaN(seeded)) throw new Error("MigrationCheckpoint.LastSourceId is not numeric: "+cpRow.LastSourceId);
+            lastId=seeded;
+            logger.info("continue mode: seeding from checkpoint",{mapping:"VideoGalleryMediaMapping",lastSourceId:lastId});
+          }
         }
         this.runId=await tracker.createRun(MAPPING,"Videos","VideoGalleryMedia",totalRows,this.batchSize);
       }

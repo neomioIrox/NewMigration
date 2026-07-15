@@ -12,7 +12,7 @@ router.post("/start",async function(req,res){
     var {mappingName,batchSize,totalLimit,startMode}=req.body;
     if(!mappingName) return res.status(400).json({error:"mappingName required"});
     var engine=manager.startMigration(mappingName,{batchSize:batchSize||500,totalLimit:totalLimit||0,startMode:startMode||"continue"},req.app.get("io"));
-    res.json({message:"Migration started",mappingName:mappingName});
+    res.json({message:"Migration started",mappingName:mappingName,startMode:startMode||"continue"});
   }catch(err){res.status(500).json({error:err.message});}
 });
 
@@ -75,9 +75,9 @@ router.post("/start-asakim-donations",async function(req,res){
 // Idempotent — completed stages are skipped, so the button also acts as "continue".
 router.post("/start-gallery",async function(req,res){
   try{
-    var {batchSize}=req.body;
-    manager.startGalleryMigrationChain({batchSize:batchSize||500},req.app.get("io"));
-    res.json({message:"Gallery migration chain started",batchSize:batchSize||500});
+    var {batchSize,startMode}=req.body;
+    manager.startGalleryMigrationChain({batchSize:batchSize||500,startMode:startMode||"continue"},req.app.get("io"));
+    res.json({message:"Gallery migration chain started",batchSize:batchSize||500,startMode:startMode||"continue"});
   }catch(err){res.status(500).json({error:err.message});}
 });
 

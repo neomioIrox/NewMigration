@@ -25,12 +25,19 @@ const NAME="TEST_CP_Alpha";
     assert.strictEqual(row.LastSourceId,"250");
     assert.strictEqual(row.RowsMigrated,15);
 
+    // null cursor param = "don't move the cursor" (gapfill contract): the delta still
+    // accumulates but LastSourceId stays where it was
+    await cp.upsert(NAME,null,2);
+    row=await cp.get(NAME);
+    assert.strictEqual(row.LastSourceId,"250","null cursor param must not move the cursor");
+    assert.strictEqual(row.RowsMigrated,17);
+
     // markCompleted keeps cursor + counter, flips status, stamps CompletedAt
     await cp.markCompleted(NAME);
     row=await cp.get(NAME);
     assert.strictEqual(row.Status,"completed");
     assert.strictEqual(row.LastSourceId,"250");
-    assert.strictEqual(row.RowsMigrated,15);
+    assert.strictEqual(row.RowsMigrated,17);
     assert.ok(row.CompletedAt,"CompletedAt set");
 
     // markCompleted on a mapping with no row creates one (zero-batch completed run)

@@ -31,11 +31,16 @@ async function get(mappingName){
   return rows[0]||null;
 }
 
+// lastSourceId==null means "don't move the cursor" (used by gapfill on an interrupted
+// run, where the scanned range is incomplete and advancing LastSourceId would let a
+// future gapfill re-scan a shorter range and miss holes). COALESCE keeps the existing
+// LastSourceId in that case; the INSERT branch is unchanged — a brand-new row still gets
+// NULL when there is nothing to seed yet.
 async function upsert(mappingName,lastSourceId,insertedDelta){
   await targetDb.query(
     "INSERT INTO MigrationCheckpoint (MappingName,LastSourceId,Status,LastRunAt,RowsMigrated) "+
     "VALUES (?,?,'in_progress',UTC_TIMESTAMP(),?) "+
-    "ON DUPLICATE KEY UPDATE LastSourceId=VALUES(LastSourceId),Status='in_progress',"+
+    "ON DUPLICATE KEY UPDATE LastSourceId=COALESCE(VALUES(LastSourceId),LastSourceId),Status='in_progress',"+
     "LastRunAt=UTC_TIMESTAMP(),RowsMigrated=RowsMigrated+VALUES(RowsMigrated)",
     [mappingName,lastSourceId==null?null:String(lastSourceId),insertedDelta||0]);
 }
@@ -72,11 +77,16 @@ async function list(){
 // Per-run reporter: one instance per engine run. Tracks how much of counters.inserted was
 // already added to RowsMigrated, so per-batch calls write only the delta. A failed upsert
 // does NOT advance `reported` — the delta is retried on the next batch and RowsMigrated
-// stays accurate. Write failures never fail the run (the cursor just lags — always safe:
-// re-processing, never skipping).
+// stays accurate. Write failures never fail the run, but a lagging cursor is NOT free:
+// the next continue run re-processes the lagged span. That is harmless for engines with
+// built-in skip-existing / preserveSourceId (the re-processed rows hit duplicate-key or
+// the skip set), but can duplicate rows on non-idempotent mappings (PrayName and generic
+// non-preserveSourceId mappings have no skip-existing) — which is why persistent write
+// failures escalate to logger.error below.
 function createReporter(mappingName){
   var reported=0;
   var disabled=false;
+  var consecutiveFailures=0;
   return {
     init:async function(insertedSoFar){
       reported=insertedSoFar||0;
@@ -93,8 +103,13 @@ function createReporter(mappingName){
       try{
         await upsert(mappingName,lastSourceId,delta);
         reported=insertedTotal;
+        consecutiveFailures=0;
       }catch(err){
-        logger.warn("MigrationCheckpoint upsert failed - run continues, checkpoint lags",{mappingName:mappingName,error:err.message});
+        consecutiveFailures++;
+        // 3+ consecutive failures = the checkpoint is persistently unwritable (not a blip):
+        // escalate to error so a widening re-process window is visible before it bites.
+        var logFn=consecutiveFailures>=3?logger.error:logger.warn;
+        logFn("MigrationCheckpoint upsert failed - run continues, checkpoint lags",{mappingName:mappingName,error:err.message,consecutiveFailures:consecutiveFailures});
       }
     },
     complete:async function(){

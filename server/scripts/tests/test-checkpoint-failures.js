@@ -45,6 +45,22 @@ const cp=require("../../src/services/migration-checkpoint");
     assert.strictEqual(written.length,1,"exactly one successful upsert");
     assert.strictEqual(written[0][2],12,"missed delta must be re-reported (7+5)");
 
+    // 4. gapfill don't-move-cursor contract at the reporter boundary: after a healthy
+    //    init, batch(null, 5) must pass null through as the LastSourceId SQL param
+    //    (the upsert's COALESCE then leaves the stored cursor untouched)
+    var captured=null;
+    targetDb.query=async function(sql,params){
+      if(/CREATE TABLE/.test(sql)) return [[]];
+      if(/INSERT INTO MigrationCheckpoint/.test(sql)){captured=params;return [{}];}
+      return [{}];
+    };
+    var rep4=cp.createReporter("TEST_NULL_CURSOR");
+    await rep4.init(0);
+    await rep4.batch(null,5);
+    assert.ok(captured,"upsert must have been attempted");
+    assert.strictEqual(captured[1],null,"null cursor must reach the upsert as SQL NULL (don't-move-cursor)");
+    assert.strictEqual(captured[2],5,"delta still reported alongside the null cursor");
+
     console.log("test-checkpoint-failures: ALL PASS");
   }finally{
     targetDb.query=realQuery;
