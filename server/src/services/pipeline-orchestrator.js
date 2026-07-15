@@ -8,13 +8,15 @@ var running=false;
 var currentEngine=null;
 var stopRequested=false;
 
-// kind -> function(step, io) returning an engine EventEmitter.
-// Exported (as _dispatchers) so tests can substitute fake engines.
+// kind -> function(step, io, startMode) returning an engine EventEmitter.
+// startMode ("fresh"|"continue") comes from the pipeline run's stored mode; the ENGINES
+// own the checkpoint semantics (fresh deletes the row, continue seeds from it) — the
+// orchestrator only forwards the mode. Exported (as _dispatchers) so tests can substitute.
 var dispatchers={
-  standard:function(step,io){return manager.startMigration(step.name,{batchSize:step.batchSize||500},io);},
-  donation:function(step,io){return manager.startDonationMigration({batchSize:step.batchSize||1000},io);},
-  prayname:function(step,io){return manager.startPrayNameMigration({batchSize:step.batchSize||2000},io);},
-  asakim:function(step,io){return manager.startAsakimDonationMigration({batchSize:step.batchSize||2000},io);},
+  standard:function(step,io,startMode){return manager.startMigration(step.name,{batchSize:step.batchSize||500,startMode:startMode},io);},
+  donation:function(step,io,startMode){return manager.startDonationMigration({batchSize:step.batchSize||1000,startMode:startMode},io);},
+  prayname:function(step,io,startMode){return manager.startPrayNameMigration({batchSize:step.batchSize||2000,startMode:startMode},io);},
+  asakim:function(step,io,startMode){return manager.startAsakimDonationMigration({batchSize:step.batchSize||2000,startMode:startMode},io);},
   resume:function(migrationRunId,io){return manager.resumeMigration(migrationRunId,io);}
 };
 
@@ -56,6 +58,7 @@ async function _runLoop(runId,steps,io){
     steps.forEach(function(s){stepByName[s.name]=s;});
     if(io) io.emit("pipeline:started",{pipelineRunId:runId});
     var data=await pipelineTracker.getRunWithSteps(runId);
+    var startMode=data.run&&data.run.mode==="fresh"?"fresh":"continue";
     for(var row of data.steps){
       if(row.status==="completed") continue;
       if(stopRequested){await _markStopped(runId,io);return;}
@@ -96,7 +99,7 @@ async function _runLoop(runId,steps,io){
         currentStepName=null;
         return;
       }else{
-        engine=dispatchers[def.kind](def,io);
+        engine=dispatchers[def.kind](def,io,startMode);
       }
 
       currentEngine=engine;
