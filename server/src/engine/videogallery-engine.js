@@ -5,6 +5,7 @@ const trackerDb=require("../db/mysql-tracker");
 const {recordError}=require("./batch-runner");
 const tracker=require("../services/tracker");
 const logger=require("../logger");
+const migrationCheckpoint=require("../services/migration-checkpoint");
 
 /**
  * Video Gallery Migration Engine
@@ -31,6 +32,9 @@ class VideoGalleryEngine extends EventEmitter{
     super();
     this.batchSize=(options&&options.batchSize)||500;
     this.dryRun=(options&&options.dryRun)||false;
+    this.startMode=(options&&options.startMode)||"continue";
+    if(this.startMode==="gapfill"){logger.warn("startMode gapfill not supported by VideoGalleryEngine - running as continue (engine is internally idempotent)");this.startMode="continue";}
+    this.checkpointReporter=migrationCheckpoint.createReporter("VideoGalleryMediaMapping");
     this.runId=null;
     this.pauseRequested=false;
     this.isRunning=false;
@@ -72,8 +76,17 @@ class VideoGalleryEngine extends EventEmitter{
         }
         await tracker.updateRunStatus(resumeRunId,"running");
       }else{
+        if(!this.dryRun&&this.startMode==="fresh"){
+          await migrationCheckpoint.ensureTable();
+          await migrationCheckpoint.resetForMapping("VideoGalleryMediaMapping");
+        }else if(this.startMode==="continue"){
+          await migrationCheckpoint.ensureTable();
+          var cpRow=await migrationCheckpoint.get("VideoGalleryMediaMapping");
+          if(cpRow&&cpRow.LastSourceId!=null){lastId=cpRow.LastSourceId;logger.info("continue mode: seeding from checkpoint",{mapping:"VideoGalleryMediaMapping",lastSourceId:lastId});}
+        }
         this.runId=await tracker.createRun(MAPPING,"Videos","VideoGalleryMedia",totalRows,this.batchSize);
       }
+      if(!this.dryRun) await this.checkpointReporter.init(this.counters.inserted);
 
       this.emit("started",{runId:this.runId,totalRows:totalRows,mapping:MAPPING});
       logger.info("VideoGallery migration started",{runId:this.runId,total:totalRows,dryRun:this.dryRun,alreadyDone:doneSet.size});
@@ -83,6 +96,7 @@ class VideoGalleryEngine extends EventEmitter{
         if(this.pauseRequested){
           await tracker.updateRunStatus(this.runId,"paused",{last_processed_source_id:lastId});
           await tracker.updateRunCounters(this.runId,this.counters.processed,this.counters.inserted,this.counters.skipped,this.counters.errors,lastId);
+          if(!this.dryRun) await this.checkpointReporter.batch(lastId,this.counters.inserted);
           this.emit("paused",{runId:this.runId,counters:this.counters,totalRows:totalRows,stats:this.stats,mapping:MAPPING});
           this.isRunning=false;
           return {status:"paused",runId:this.runId,counters:this.counters,stats:this.stats};
@@ -105,6 +119,7 @@ class VideoGalleryEngine extends EventEmitter{
         }
 
         await tracker.updateRunCounters(this.runId,this.counters.processed,this.counters.inserted,this.counters.skipped,this.counters.errors,lastId);
+        if(!this.dryRun) await this.checkpointReporter.batch(lastId,this.counters.inserted);
         this.emit("progress",{runId:this.runId,counters:this.counters,totalRows:totalRows,stats:this.stats,mapping:MAPPING});
 
         if(rows.length<this.batchSize) hasMore=false;
@@ -112,6 +127,7 @@ class VideoGalleryEngine extends EventEmitter{
 
       await tracker.updateRunStatus(this.runId,"completed");
       await tracker.updateRunCounters(this.runId,this.counters.processed,this.counters.inserted,this.counters.skipped,this.counters.errors,lastId);
+      if(!this.dryRun) await this.checkpointReporter.complete();
       this.emit("completed",{runId:this.runId,counters:this.counters,totalRows:totalRows,stats:this.stats,mapping:MAPPING});
       logger.info("VideoGallery migration completed",{runId:this.runId,counters:this.counters,stats:this.stats});
       this.isRunning=false;

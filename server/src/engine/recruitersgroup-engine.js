@@ -6,6 +6,7 @@ const {bulkInsert,recordError}=require("./batch-runner");
 const {processGetDate}=require("./expression-eval");
 const tracker=require("../services/tracker");
 const logger=require("../logger");
+const migrationCheckpoint=require("../services/migration-checkpoint");
 
 /**
  * RecruitersGroup Migration Engine (Bulk INSERT)
@@ -31,6 +32,9 @@ class RecruitersGroupEngine extends EventEmitter{
     super();
     this.batchSize=(options&&options.batchSize)||1000;
     this.dryRun=(options&&options.dryRun)||false;
+    this.startMode=(options&&options.startMode)||"continue";
+    if(this.startMode==="gapfill"){logger.warn("startMode gapfill not supported by RecruitersGroupEngine - running as continue (built-in alreadyExists skip covers gaps)");this.startMode="continue";}
+    this.checkpointReporter=migrationCheckpoint.createReporter("RecruitersGroupMapping");
     this.runId=null;
     this.pauseRequested=false;
     this.isRunning=false;
@@ -85,8 +89,17 @@ class RecruitersGroupEngine extends EventEmitter{
         }
         await tracker.updateRunStatus(resumeRunId,"running");
       }else{
+        if(!this.dryRun&&this.startMode==="fresh"){
+          await migrationCheckpoint.ensureTable();
+          await migrationCheckpoint.resetForMapping("RecruitersGroupMapping");
+        }else if(this.startMode==="continue"){
+          await migrationCheckpoint.ensureTable();
+          var cpRow=await migrationCheckpoint.get("RecruitersGroupMapping");
+          if(cpRow&&cpRow.LastSourceId!=null){lastId=cpRow.LastSourceId;logger.info("continue mode: seeding from checkpoint",{mapping:"RecruitersGroupMapping",lastSourceId:lastId});}
+        }
         this.runId=await tracker.createRun("RecruitersGroupMapping",sourceTable,targetTable,totalRows,this.batchSize);
       }
+      if(!this.dryRun) await this.checkpointReporter.init(this.counters.inserted);
 
       this.emit("started",{runId:this.runId,totalRows:totalRows,mapping:"RecruitersGroupMapping"});
       logger.info("RecruitersGroup migration started",{runId:this.runId,total:totalRows,resumeFrom:lastId});
@@ -97,6 +110,7 @@ class RecruitersGroupEngine extends EventEmitter{
         if(this.pauseRequested){
           await tracker.updateRunStatus(this.runId,"paused",{last_processed_source_id:lastId});
           await tracker.updateRunCounters(this.runId,this.counters.processed,this.counters.inserted,this.counters.skipped,this.counters.errors,lastId);
+          if(!this.dryRun) await this.checkpointReporter.batch(lastId,this.counters.inserted);
           this.emit("paused",{runId:this.runId,counters:this.counters,totalRows:totalRows,stats:this.stats,mapping:"RecruitersGroupMapping"});
           this.isRunning=false;
           return {status:"paused",runId:this.runId,counters:this.counters,stats:this.stats};
@@ -114,6 +128,7 @@ class RecruitersGroupEngine extends EventEmitter{
 
         lastId=rows[rows.length-1][sourceIdCol];
         await tracker.updateRunCounters(this.runId,this.counters.processed,this.counters.inserted,this.counters.skipped,this.counters.errors,lastId);
+        if(!this.dryRun) await this.checkpointReporter.batch(lastId,this.counters.inserted);
         this.emit("progress",{runId:this.runId,counters:this.counters,totalRows:totalRows,stats:this.stats,mapping:"RecruitersGroupMapping"});
 
         if(rows.length<this.batchSize) hasMore=false;
@@ -125,6 +140,7 @@ class RecruitersGroupEngine extends EventEmitter{
       // Completed
       await tracker.updateRunStatus(this.runId,"completed");
       await tracker.updateRunCounters(this.runId,this.counters.processed,this.counters.inserted,this.counters.skipped,this.counters.errors,lastId);
+      if(!this.dryRun) await this.checkpointReporter.complete();
       this.emit("completed",{runId:this.runId,counters:this.counters,totalRows:totalRows,stats:this.stats,mapping:"RecruitersGroupMapping"});
       logger.info("RecruitersGroup migration completed",{runId:this.runId,counters:this.counters,stats:this.stats});
       this.isRunning=false;
