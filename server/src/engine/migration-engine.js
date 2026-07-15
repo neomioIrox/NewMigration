@@ -174,7 +174,7 @@ class MigrationEngine extends EventEmitter{
         if(this.pauseRequested){
           await tracker.updateRunStatus(this.runId,"paused",{last_processed_source_id:lastId});
           await tracker.updateRunCounters(this.runId,this.counters.processed,this.counters.inserted,this.counters.skipped,this.counters.errors,lastId);
-          this.emit("paused",{runId:this.runId,counters:this.counters});
+          this.emit("paused",{runId:this.runId,counters:this.counters,mapping:m.filename});
           this.isRunning=false;
           return {status:"paused",runId:this.runId,counters:this.counters};
         }
@@ -390,7 +390,7 @@ class MigrationEngine extends EventEmitter{
 
           // Emit progress every 10 rows
           if(this.counters.processed%10===0){
-            this.emit("progress",{runId:this.runId,counters:this.counters,totalRows:totalRows});
+            this.emit("progress",{runId:this.runId,counters:this.counters,totalRows:totalRows,mapping:m.filename});
           }
         }
 
@@ -432,14 +432,14 @@ class MigrationEngine extends EventEmitter{
       // Completed
       await tracker.updateRunStatus(this.runId,"completed");
       await tracker.updateRunCounters(this.runId,this.counters.processed,this.counters.inserted,this.counters.skipped,this.counters.errors,lastId);
-      this.emit("completed",{runId:this.runId,counters:this.counters});
+      this.emit("completed",{runId:this.runId,counters:this.counters,mapping:m.filename});
       logger.info("Migration completed",{runId:this.runId,counters:this.counters});
       this.isRunning=false;
       return {status:"completed",runId:this.runId,counters:this.counters};
 
     }catch(err){
       if(this.runId) await tracker.updateRunStatus(this.runId,"failed");
-      this.emit("error",{runId:this.runId,error:err.message});
+      this.emit("error",{runId:this.runId,error:err.message,mapping:m.filename});
       logger.error("Migration failed",{runId:this.runId,error:err.message});
       this.isRunning=false;
       throw err;
