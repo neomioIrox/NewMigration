@@ -17,6 +17,13 @@ function fakeEngine(behavior,delayMs){
   return e;
 }
 
+function stoppableEngine(){
+  var e=new EventEmitter();
+  e.requestPause=function(){setImmediate(function(){e.emit("paused",{runId:null});});};
+  setImmediate(function(){e.emit("started",{runId:null,mapping:"fake"});});
+  return e;
+}
+
 var emitted=[];
 var fakeIo={emit:function(name,data){emitted.push({name:name,data:data});}};
 
@@ -90,6 +97,56 @@ function waitForIdle(){
     data=await pt.getRunWithSteps(run.id);
     assert.strictEqual(data.steps[0].status,"pending","interrupted step reverts to pending");
     assert.ok(emitted.some(function(e){return e.name==="pipeline:stopped";}));
+
+    // Scenario 5: manual stop via stopPipeline() on a pause-capable engine
+    orch._dispatchers.standard=function(){return stoppableEngine();};
+    orch._dispatchers.donation=function(){return stoppableEngine();};
+    orch._dispatchers.prayname=function(){return stoppableEngine();};
+    orch._dispatchers.asakim=function(){return stoppableEngine();};
+    assert.strictEqual(orch.stopPipeline(),false,"stop with nothing running returns false");
+    initial=await orch.startPipeline("fresh",fakeIo);
+    createdRunIds.push(initial.run.id);
+    var stopRunId=initial.run.id;
+    // Poll until step 0 is actually running so the stop hits mid-step
+    await new Promise(function(resolve,reject){
+      var tries=0;
+      (function poll(){
+        pt.getRunWithSteps(stopRunId).then(function(d){
+          if(d&&d.steps[0].status==="running") return resolve();
+          if(++tries>80) return reject(new Error("step 0 never reached running"));
+          setTimeout(poll,25);
+        }).catch(reject);
+      })();
+    });
+    emitted=[];
+    assert.strictEqual(orch.stopPipeline(),true,"stop while running returns true");
+    run=await waitForIdle();
+    assert.strictEqual(run.status,"stopped","manual stop -> pipeline stopped");
+    data=await pt.getRunWithSteps(run.id);
+    assert.strictEqual(data.steps[0].status,"pending","stopped step reverts to pending");
+    assert.ok(emitted.some(function(e){return e.name==="pipeline:stopped";}));
+    var current=await orch.getCurrentRun();
+    assert.strictEqual(current.run.id,stopRunId,"getCurrentRun returns the latest run");
+    var all=await orch.getAllRuns();
+    assert.ok(all.some(function(r){return r.id===stopRunId;}),"getAllRuns includes the run");
+
+    // Scenario 6: genuinely concurrent starts — exactly one wins, the other gets 409
+    orch._dispatchers.standard=function(){return fakeEngine("ok");};
+    orch._dispatchers.donation=function(){return fakeEngine("ok");};
+    orch._dispatchers.prayname=function(){return fakeEngine("ok");};
+    orch._dispatchers.asakim=function(){return fakeEngine("ok");};
+    var p1=orch.startPipeline("fresh",fakeIo),p2=orch.startPipeline("fresh",fakeIo);
+    var settled=await Promise.allSettled([p1,p2]);
+    var fulfilled=settled.filter(function(s){return s.status==="fulfilled";});
+    var rejectedOnes=settled.filter(function(s){return s.status==="rejected";});
+    assert.strictEqual(fulfilled.length,1,"exactly one concurrent start must win");
+    assert.strictEqual(rejectedOnes.length,1,"exactly one concurrent start must lose");
+    assert.strictEqual(rejectedOnes[0].reason.code,409,"loser must be rejected with 409");
+    createdRunIds.push(fulfilled[0].value.run.id);
+    run=await waitForIdle();
+    assert.strictEqual(run.status,"completed");
+    data=await pt.getRunWithSteps(run.id);
+    assert.strictEqual(data.steps.filter(function(s){return s.status==="completed";}).length,20);
 
     console.log("test-pipeline-orchestrator: ALL PASS");
   }finally{

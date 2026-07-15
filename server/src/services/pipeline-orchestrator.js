@@ -27,23 +27,23 @@ function _awaitEngine(engine,onStarted){
 
 async function startPipeline(mode,io){
   if(running){var e=new Error("Pipeline is already running");e.code=409;throw e;}
-  var active=await pipelineTracker.getActiveRun();
-  if(active){var e2=new Error("Pipeline run #"+active.id+" is already running");e2.code=409;throw e2;}
-
-  var steps=loadPipelineConfig(); // throws a clear message on bad config — no run is created
-
-  var runId=null;
-  if(mode!=="fresh"){
-    var latest=await pipelineTracker.getLatestRun();
-    if(latest&&(latest.status==="failed"||latest.status==="stopped")) runId=latest.id;
-  }
-  if(runId===null){
-    runId=await pipelineTracker.createPipelineRun(mode==="fresh"?"fresh":"continue",steps);
-  }else{
-    await pipelineTracker.updateRunStatus(runId,"running",{error_message:null});
-  }
-
-  running=true;stopRequested=false;
+  running=true; // claim synchronously — closes the double-call window
+  var runId=null,steps=null;
+  try{
+    var active=await pipelineTracker.getActiveRun();
+    if(active){var e2=new Error("Pipeline run #"+active.id+" is already running");e2.code=409;throw e2;}
+    steps=loadPipelineConfig(); // throws a clear message on bad config — no run is created
+    if(mode!=="fresh"){
+      var latest=await pipelineTracker.getLatestRun();
+      if(latest&&(latest.status==="failed"||latest.status==="stopped")) runId=latest.id;
+    }
+    if(runId===null){
+      runId=await pipelineTracker.createPipelineRun(mode==="fresh"?"fresh":"continue",steps);
+    }else{
+      await pipelineTracker.updateRunStatus(runId,"running",{error_message:null});
+    }
+  }catch(err){running=false;throw err;}
+  stopRequested=false;
   _runLoop(runId,steps,io); // fire-and-forget; state is read via getCurrentRun/socket events
   return pipelineTracker.getRunWithSteps(runId);
 }
