@@ -2,12 +2,19 @@ const BASE="/api";
 
 async function fetchJson(url,options){
   var res=await fetch(BASE+url,{headers:{"Content-Type":"application/json"},...options});
-  if(!res.ok) throw new Error("API error: "+res.status);
+  if(!res.ok){
+    var msg="API error: "+res.status;
+    try{var body=await res.json();if(body&&body.error) msg=body.error;}catch(e){}
+    throw new Error(msg);
+  }
   return res.json();
 }
 
 export const api={
   testConnections:()=>fetchJson("/connections/test"),
+  getConnectionsConfig:()=>fetchJson("/connections/config"),
+  testConnectionConfig:(connection,values)=>fetchJson("/connections/test-config",{method:"POST",body:JSON.stringify({connection,values})}),
+  saveConnectionConfig:(connection,values)=>fetchJson("/connections/config",{method:"PUT",body:JSON.stringify({connection,values})}),
   getMappings:()=>fetchJson("/mappings"),
   getMapping:(name)=>fetchJson("/mappings/"+name),
   getRuns:()=>fetchJson("/migrations"),

@@ -1,14 +1,24 @@
-import{useQuery}from"@tanstack/react-query";
+import{useState}from"react";
+import{useQuery,useQueryClient}from"@tanstack/react-query";
 import{api}from"../api/client";
+import ConnectionEditForm from"./ConnectionEditForm";
 
 export default function ConnectionStatus(){
+  const qc=useQueryClient();
   const{data,isLoading,refetch}=useQuery({queryKey:["connections"],queryFn:api.testConnections});
+  const{data:cfg}=useQuery({queryKey:["connectionsConfig"],queryFn:api.getConnectionsConfig});
+  const[editing,setEditing]=useState(null);
   if(isLoading) return <div className="p-8 text-center">Testing connections...</div>;
   const conns=[{key:"mssql",label:"MSSQL (Source)"},{key:"mysqlTarget",label:"MySQL (Target)"},{key:"mysqlTracker",label:"MySQL (Tracker)"}];
+  function onApplied(){
+    setEditing(null);
+    qc.invalidateQueries({queryKey:["connections"]});
+    qc.invalidateQueries({queryKey:["connectionsConfig"]});
+  }
   return(
     <div>
       <h2 className="text-2xl font-bold mb-6">Database Connections</h2>
-      <div className="grid grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-3 gap-4 mb-6 items-start">
         {conns.map(c=>{
           const info=data?.[c.key]||{};
           return <div key={c.key} className="bg-white rounded-lg shadow p-6">
@@ -18,6 +28,10 @@ export default function ConnectionStatus(){
             </div>
             <div className="text-sm text-gray-600">{info.message||"Unknown"}</div>
             <div className="text-xs text-gray-400 mt-1">{info.database}</div>
+            <button onClick={()=>setEditing(editing===c.key?null:c.key)} className="mt-3 text-sm text-blue-600 underline">
+              {editing===c.key?"Close":"Edit"}
+            </button>
+            {editing===c.key&&cfg&&<ConnectionEditForm connKey={c.key} initial={cfg[c.key]} onApplied={onApplied}/>}
           </div>;
         })}
       </div>
