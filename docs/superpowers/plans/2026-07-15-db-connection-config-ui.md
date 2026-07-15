@@ -225,9 +225,9 @@ test("isPipelineRunning is false at rest",function(){
 });
 
 test("resetPool is a safe no-op when no pool exists",async function(){
-  await targetDb.resetPool();
-  await trackerDb.resetPool();
-  await mssqlDb.resetPool();
+  await assert.doesNotReject(targetDb.resetPool());
+  await assert.doesNotReject(trackerDb.resetPool());
+  await assert.doesNotReject(mssqlDb.resetPool());
 });
 
 test("mssql exports getErrorMessage",function(){
