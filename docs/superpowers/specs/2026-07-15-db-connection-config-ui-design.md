@@ -64,7 +64,7 @@ If a submitted MSSQL connection string contains the literal mask `******`, the r
 
 ### Guards
 
-- **Active migration:** `PUT` returns 409 while any migration run is executing. The exact detection hook (migration engine in-memory state vs. tracker `runs` status) is resolved during implementation planning.
+- **Active or paused migration:** `PUT` returns 409 while any migration run is executing or paused (in-memory engine state + pipeline flag + a tracker query on `migration_runs` for status `running`/`paused`, so the guard survives server restarts). Approved amendment 2026-07-15: paused runs block too — a run paused mid-table must not be resumed against a different DB.
 - **Concurrent applies:** single-flight in-memory lock; a second concurrent apply gets 409.
 
 ## Client design

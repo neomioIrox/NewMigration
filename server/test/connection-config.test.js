@@ -5,6 +5,7 @@ const test=require("node:test");
 const assert=require("node:assert");
 const config=require("../src/config/database");
 const svc=require("../src/services/connection-config");
+const trackerDb=require("../src/db/mysql-tracker");
 
 test("maskConnectionString masks Pwd and Password values, case-insensitive",function(){
   assert.equal(
@@ -66,4 +67,26 @@ test("testCandidate returns validation failure without throwing",async function(
   var r=await svc.testCandidate("mysqlTarget",{user:"u",database:"d"});
   assert.equal(r.success,false);
   assert.match(r.message,/host/);
+});
+
+test("hasBlockingTrackerRun true when a run is running or paused, false otherwise, false on tracker error",async function(){
+  var saved=trackerDb.query;
+  try{
+    trackerDb.query=async function(){return [[{cnt:2}]];};
+    assert.equal(await svc.hasBlockingTrackerRun(),true);
+    trackerDb.query=async function(){return [[{cnt:0}]];};
+    assert.equal(await svc.hasBlockingTrackerRun(),false);
+    trackerDb.query=async function(){throw new Error("tracker down");};
+    assert.equal(await svc.hasBlockingTrackerRun(),false);
+  }finally{trackerDb.query=saved;}
+});
+
+test("applyConfig rejects 409 when tracker has a paused run (before any connection attempt)",async function(){
+  var saved=trackerDb.query;
+  try{
+    trackerDb.query=async function(){return [[{cnt:1}]];};
+    await assert.rejects(svc.applyConfig("mysqlTracker",{host:"h",user:"u",database:"d"}),function(err){
+      return err.code===409&&/locked/.test(err.message);
+    });
+  }finally{trackerDb.query=saved;}
 });

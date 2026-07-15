@@ -21,6 +21,18 @@ const DB_MODULES={mssql:mssqlDb,mysqlTarget:targetDb,mysqlTracker:trackerDb};
 
 var applying=false;
 
+// Paused runs also block (approved spec amendment): a run paused mid-table
+// must not be resumed against a different DB. Tracker check survives restarts;
+// if the tracker itself is unreachable the in-memory guards still apply.
+async function hasBlockingTrackerRun(){
+  try{
+    var [rows]=await trackerDb.query("SELECT COUNT(*) AS cnt FROM migration_runs WHERE status IN ('running','paused')");
+    return rows[0].cnt>0;
+  }catch(err){
+    return false;
+  }
+}
+
 function maskConnectionString(cs){
   if(!cs) return cs;
   return cs.replace(/(pwd|password)(\s*=\s*)(\{[^}]*\}|[^;]*)/gi,function(_,k,eq){return k+eq+MASK;});
@@ -118,9 +130,13 @@ async function applyConfig(connection,values){
   }
   applying=true;
   try{
+    if(await hasBlockingTrackerRun()){
+      var blocked=new Error("A migration run is active or paused — connection settings are locked");
+      blocked.code=409;throw blocked;
+    }
     var test=await testCandidate(connection,values);
     if(!test.success){var bad=new Error(test.message);bad.code=400;throw bad;}
-    if(manager.hasActiveMigration()||orchestrator.isPipelineRunning()){
+    if(manager.hasActiveMigration()||orchestrator.isPipelineRunning()||await hasBlockingTrackerRun()){
       var raced=new Error("A migration started during the connection test — settings not applied");
       raced.code=409;throw raced;
     }
@@ -138,4 +154,4 @@ async function applyConfig(connection,values){
   }
 }
 
-module.exports={getRedactedConfig,testCandidate,applyConfig,maskConnectionString,validate,buildCandidate,MASK};
+module.exports={getRedactedConfig,testCandidate,applyConfig,maskConnectionString,validate,buildCandidate,MASK,hasBlockingTrackerRun};
