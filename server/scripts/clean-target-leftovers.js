@@ -4,9 +4,13 @@
 //   1. The Project-1 seed chain (Project 1 "קופת העיר" + ProjectItem 1 + LinkSetting 1
 //      + 3+3 localizations) — safe to delete: the engine's seed-project1 pre-runner
 //      recreates it automatically on the first Project mapping.
-//   2. Orphan LinkSettings (LinkType=2, ProjectId pointing at projects that don't exist).
-// App-owned rows are NOT touched: EntityContent IsTemplate=1 (email templates) + their
-// EntityContentItem bodies, and Address rows.
+//   2. Orphan LinkSettings (LinkType=2, ProjectId pointing at projects that don't exist)
+//      + the DEMO Banner rows that FK them (Banner names "אחד".."שש", seeded with the app
+//      baseline; only product 3 of their targets 3-8 is even in the migration scope, so
+//      the links stay broken either way — user-approved delete 2026-07-15).
+// App-owned rows that are NOT touched: EntityContent IsTemplate=1 (email templates) +
+// their EntityContentItem bodies, Address rows, and any Banner whose LinkSetting points
+// at a real Project.
 //
 // Dry-run by default; --apply performs the deletes. Every delete is guarded by a content
 // check — if the rows don't look exactly like the inspected leftovers, the script refuses.
@@ -51,8 +55,18 @@ async function q(sql, params) { const [rows] = await targetDb.query(sql, params 
     "WHERE ls.Id <> 1 AND ls.ProjectId IS NOT NULL AND p.Id IS NULL");
   if (orphans.length) {
     console.log("orphan LinkSettings (ProjectId has no Project): " + orphans.map(o => o.Id + "->" + o.ProjectId).join(", "));
+    const orphanIds = orphans.map(o => Number(o.Id)).join(",");
+    // Banner FKs LinkSetting (FK_Banner_LinkSetting) — the demo banners must go first
+    const banners = await q("SELECT Id, Name, LinkSettingId FROM Banner WHERE LinkSettingId IN (" + orphanIds + ")");
+    if (banners.length) {
+      console.log("demo Banners referencing them: " + banners.map(b => b.Id + " '" + b.Name + "'->" + b.LinkSettingId).join(", "));
+      actions.push({
+        sql: "DELETE FROM Banner WHERE LinkSettingId IN (" + orphanIds + ")",
+        why: "demo banners whose link points at a nonexistent project"
+      });
+    }
     actions.push({
-      sql: "DELETE FROM LinkSetting WHERE Id IN (" + orphans.map(o => Number(o.Id)).join(",") + ")",
+      sql: "DELETE FROM LinkSetting WHERE Id IN (" + orphanIds + ")",
       why: "orphan link settings referencing nonexistent projects"
     });
   } else {
