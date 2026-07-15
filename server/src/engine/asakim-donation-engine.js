@@ -4,6 +4,7 @@ const targetDb=require("../db/mysql-target");
 const trackerDb=require("../db/mysql-tracker");
 const {recordError}=require("./batch-runner");
 const {processGetDate}=require("./expression-eval");
+const {ilWallToUtcString}=require("./tz");
 const tracker=require("../services/tracker");
 const logger=require("../logger");
 
@@ -136,12 +137,12 @@ class AsakimDonationEngine extends EventEmitter{
             SumPaymentCurrency:row.SumPaymentCurrency!=null?row.SumPaymentCurrency:null,
             DocID:row.DocID!=null?row.DocID:null,
             DocumentPaymentsID:row.DocumentPaymentsID||null,
-            DocPaymentDate:row.DocPaymentDate||null,
-            DocValueDate:row.DocValueDate||null,
-            DocRegisterDate:row.DocRegisterDate||null,
+            DocPaymentDate:ilWallToUtcString(row.DocPaymentDate),
+            DocValueDate:ilWallToUtcString(row.DocValueDate),
+            DocRegisterDate:ilWallToUtcString(row.DocRegisterDate),
             CardID:row.CardID||null,
             PaymentType:row.PaymentType||null,
-            RecordDate:row.RecordDate||null,
+            RecordDate:ilWallToUtcString(row.RecordDate),
             CountPayments:row.CountPayments!=null?row.CountPayments:null,
             SourceType:row.SourceType||null,
             Comments:row.Comments||null,

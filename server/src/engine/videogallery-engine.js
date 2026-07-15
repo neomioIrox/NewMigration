@@ -136,7 +136,7 @@ class VideoGalleryEngine extends EventEmitter{
       return;
     }
 
-    var now=new Date();
+    var now=require("./tz").utcNowString();
     var conn=this.dryRun?null:await targetDb.getConnection();
     try{
       if(conn) await conn.beginTransaction();

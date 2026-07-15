@@ -4,7 +4,7 @@ const targetDb=require("../db/mysql-target");
 const trackerDb=require("../db/mysql-tracker");
 const {recordError}=require("./batch-runner");
 const {preloadFKCache}=require("./fk-resolver");
-const {processGetDate}=require("./expression-eval");
+const tz=require("./tz");
 const tracker=require("../services/tracker");
 const logger=require("../logger");
 
@@ -79,6 +79,12 @@ class DonationEngine extends EventEmitter{
       logger.info("Removing AUTO_INCREMENT from Donation table for ID preservation");
       await targetDb.query("ALTER TABLE `Donation` MODIFY COLUMN `Id` int NOT NULL");
       logger.info("AUTO_INCREMENT removed from Donation table");
+
+      // ========================================
+      // STEP 0c: Ensure the migration action exists (DonationActionLog.ActionId FK).
+      // Migrated OrderLog entries are tagged ReceivedFromMigration, not RedirectToPaymentPage.
+      // ========================================
+      await targetDb.query("INSERT IGNORE INTO `LutDonationAction` (`Id`,`Description`,`IsSystemValue`) VALUES (14,'ReceivedFromMigration',1)");
 
       // ========================================
       // STEP 0b: Preload FK Caches
@@ -242,7 +248,7 @@ class DonationEngine extends EventEmitter{
   // Process entire batch with bulk inserts
   // ============================================
   async _processBatch(rows,sourceIdCol){
-    var now=processGetDate();
+    var now=this._utcNow();
 
     // Phase 1: Transform all rows (sync) and collect addresses
     var prepared=[];       // {sourceId, order, donationData, billingAddr, shippingAddr, cvRows}
@@ -262,7 +268,7 @@ class DonationEngine extends EventEmitter{
             Reason:(row.ProjectId&&row.ProjectId>0)?"project-unresolved":"prayer-unresolved"});
         }
         var cma=this._getClearingMethodAreaSync(
-          row.PaymentMethod,row.OrderLaguage,row.ChargeCurrency);
+          row.PaymentMethod,row.OrderLaguage,row.ChargeCurrency,row.ClearingProvider,row.AsakimID);
         var clearingMethodAreaId=cma?cma.Id:null;
         var src=this._resolveSource(row.UserSource);
         var amount=this._authoritativeAmount(row);
@@ -290,13 +296,13 @@ class DonationEngine extends EventEmitter{
           Status:this._mapStatus(row.ChargeStatus),
           Currency:this._mapCurrency(row.ChargeCurrency||row.OrderCurrency),
           LanguageId:this._mapLanguage(row.OrderLaguage),
-          MonthlySum:this._calcMonthlySum(amount,row.Payments),
+          MonthlySum:this._round2(amount),
           PaymentsCount:row.Payments||1,
           PaymentType:row.DonationType==="FixedDonation"?1:2,
           ReferenceNum:this._trunc(row.ReferenceCode,50),
           ClearingMethodAreaId:clearingMethodAreaId,
           ClearingMethodTerminalNum:this._trunc(row.TerminalNumber,50),
-          TerminalId:null,
+          TerminalId:this._mapTerminalId(row.TerminalNumber),
           ProviderReferenceNum:this._trunc(row.InternalDealNumber,50),
           ProviderApprovalNum:this._trunc(row.TokenApprovalNumber,100),
           ProviderResultCode:this._trunc(row.ChargeResultNum,10),
@@ -328,13 +334,15 @@ class DonationEngine extends EventEmitter{
           TreatStatus:1,
           StatusChangedAt:now,
           StatusChangedBy:-1,
-          CreatedAt:row.DateCreated||now,
+          CreatedAt:row.DateCreated?this._ilWallToUtcString(row.DateCreated):now,
           CreatedBy:-1,
           UpdatedAt:now,
           UpdatedBy:-1,
           DisplayCurrency:this._mapCurrency(row.ChargeCurrency||row.OrderCurrency),
-          DisplayMonthlySum:this._calcMonthlySum(amount,row.Payments),
-          StatusReason:null
+          DisplayMonthlySum:this._round2(amount),
+          StatusReason:null,
+          TaxesByCard:this._mapTaxesByCard(row.snTaxesByCard),
+          DonorIdNumber:(row.DonorIdentity&&String(row.DonorIdentity).trim())?this._trunc(String(row.DonorIdentity).trim(),100):null
         };
 
         // Collect currency value rows
@@ -394,8 +402,8 @@ class DonationEngine extends EventEmitter{
       if(orderLog){
         actionLogRows.push({
           DonationId:donId,
-          ActionId:1,
-          CreatedAt:prepared[i].order.DateCreated||now,
+          ActionId:14, // ReceivedFromMigration (ensured in STEP 0c)
+          CreatedAt:prepared[i].order.DateCreated?this._ilWallToUtcString(prepared[i].order.DateCreated):now,
           CreatedBy:-1,
           UpdatedAt:now,
           UpdatedBy:-1,
@@ -610,7 +618,10 @@ class DonationEngine extends EventEmitter{
       zip=order.CertificateZip;
     }
 
-    if(!street&&!city&&!country&&!zip) return null;
+    // Country alone is meaningless (source often carries only "ישראל" with no address):
+    // require at least one real address component, ignoring whitespace-only values.
+    var blank=function(v){return v===null||v===undefined||String(v).trim()===""};
+    if(blank(street)&&blank(city)&&blank(zip)) return null;
 
     return {
       Street:street?this._trunc(street,100):"",
@@ -669,16 +680,19 @@ class DonationEngine extends EventEmitter{
   // ============================================
   // ClearingMethodAreaId (sync - fully cached)
   // ============================================
-  _getClearingMethodAreaSync(paymentMethod,orderLanguage,chargeCurrency){
+  _getClearingMethodAreaSync(paymentMethod,orderLanguage,chargeCurrency,clearingProvider,asakimId){
+    // Business orders sometimes carry an empty PaymentMethod but always an AsakimID —
+    // same rule as _mapSourceApp (verified: in-scope AsakimID orders are Asakim or empty).
+    if(!paymentMethod&&asakimId&&String(asakimId).trim()!=="") paymentMethod="Asakim";
     if(!paymentMethod) return null;
-    var clearingMethodId=this._mapClearingMethod(paymentMethod,orderLanguage,chargeCurrency);
+    var clearingMethodId=this._mapClearingMethod(paymentMethod,orderLanguage,chargeCurrency,clearingProvider);
     var area=this._mapArea(orderLanguage,chargeCurrency);
     var cacheKey=clearingMethodId+"_"+area;
     return this.clearingMethodAreaCache.get(cacheKey)||null;
   }
 
-  _getClearingMethodAreaIdSync(paymentMethod,orderLanguage,chargeCurrency){
-    var cma=this._getClearingMethodAreaSync(paymentMethod,orderLanguage,chargeCurrency);
+  _getClearingMethodAreaIdSync(paymentMethod,orderLanguage,chargeCurrency,clearingProvider,asakimId){
+    var cma=this._getClearingMethodAreaSync(paymentMethod,orderLanguage,chargeCurrency,clearingProvider,asakimId);
     return cma?cma.Id:null;
   }
 
@@ -730,8 +744,13 @@ class DonationEngine extends EventEmitter{
   // ============================================
   // Simple mappers (unchanged)
   // ============================================
-  _mapClearingMethod(paymentMethod,orderLanguage,chargeCurrency){
+  _mapClearingMethod(paymentMethod,orderLanguage,chargeCurrency,clearingProvider){
     if(paymentMethod==="CreditCard"){
+      // Orders.ClearingProvider is authoritative when set: after the clearing switch,
+      // Israeli cards go through NedarimIFRAME (not CardCom) and fr/en£ through Stripe.
+      var prov=clearingProvider?String(clearingProvider).trim().toLowerCase():"";
+      if(prov==="nedarimiframe") return 5;
+      if(prov==="stripe") return 1;
       if(orderLanguage==="en"&&chargeCurrency==="£") return 1;
       if(orderLanguage==="en") return 3;
       if(orderLanguage==="he") return 2;
@@ -740,6 +759,7 @@ class DonationEngine extends EventEmitter{
     }
     if(paymentMethod==="PayPal"||paymentMethod===" PayPal") return 7;
     if(paymentMethod==="NedarimPlus") return 8;
+    if(paymentMethod==="Asakim") return 9;
     if(paymentMethod==="AsserBishvil") return 10;
     if(paymentMethod==="Broom") return 11;
     if(paymentMethod==="ThreePillars") return 12;
@@ -750,6 +770,23 @@ class DonationEngine extends EventEmitter{
     if(paymentMethod==="BankStandingOrder") return 22;
     if(paymentMethod==="Bit") return 23;
     return 24;
+  }
+
+  // Terminal ownership by clearing terminal number (source `terminals` table):
+  //   kupatHair (קופת העיר, Terminal 1): CardCom TerminalNo 39114, Nedarim Mosad 7012535
+  //   kranot    (קרנות,     Terminal 2): CardCom TerminalNo 75101, Nedarim Mosad 7012536
+  // 7016222/7016223 are the new-system Nedarim terminals (kupat/kranot respectively).
+  _mapTerminalId(terminalNumber){
+    if(!terminalNumber) return null;
+    var map={"39114":1,"7012535":1,"7016222":1,"75101":2,"7012536":2,"7016223":2};
+    return map[String(terminalNumber).trim()]||null;
+  }
+
+  // snTaxesByCard 1-4 matches LutTaxesByCardDonation Ids
+  // (1=Individual,2=Company,3=ForeignResident,4=Anonymous); 0/null = not set.
+  _mapTaxesByCard(snTaxesByCard){
+    var n=Number(snTaxesByCard);
+    return(n>=1&&n<=4)?n:null;
   }
 
   _mapArea(orderLanguage,chargeCurrency){
@@ -850,10 +887,37 @@ class DonationEngine extends EventEmitter{
     return {type:2,id:null,code:this._trunc(s,50)};
   }
 
-  _calcMonthlySum(total,payments){
-    if(!total) return 0;
-    var n=payments||1;
-    return Math.round((total/n)*100)/100;
+  // Donation.MonthlySum takes Orders.Total AS-IS — never divided by Payments (the field
+  // name is misleading; QA 2026-07-14, orders 1834632/1833484/1834502):
+  //   one-time (PaymentType 2): source Total is the FULL sum; the FE derives the
+  //     per-installment amount as MonthlySum/PaymentsCount.
+  //   recurring (PaymentType 1): source Total is the MONTHLY charge; the FE derives the
+  //     full commitment as MonthlySum*PaymentsCount (and TotalInILS/USD/EUR already hold
+  //     the full commitment, which is why DonationCurrencyValue was always correct).
+  // The old amount/Payments here double-divided one-time installments (391/6 shown as
+  // 65.17 total) and shrank recurring monthlies (78.7 -> 7.87).
+  _round2(v){
+    if(!v) return 0;
+    return Math.round(v*100)/100;
+  }
+
+  // Timezone handling lives in the shared ./tz module (source = IL wall clock,
+  // target = UTC strings; see tz.js for the full contract).
+  _ilWallToUtcString(d){return tz.ilWallToUtcString(d);}
+
+  _utcNow(){return tz.utcNowString();}
+
+  // Card expiry: CardExp holds "MMYY"; on some clearings (incl. NedarimIframe) it is empty
+  // and the expiry lives split in CardValidityMonth/CardValidityYear — normalize to "MMYY".
+  _cardExp(order){
+    if(order.CardExp) return order.CardExp;
+    var m=order.CardValidityMonth?String(order.CardValidityMonth).trim():"";
+    var y=order.CardValidityYear?String(order.CardValidityYear).trim():"";
+    if(!m||!y) return null;
+    if(m.length===1) m="0"+m;
+    if(y.length===4) y=y.substring(2);
+    if(m.length!==2||y.length!==2) return null;
+    return m+y;
   }
 
   _buildProviderJSON(order){
@@ -861,7 +925,8 @@ class DonationEngine extends EventEmitter{
     if(order.VoucherAccountNum) d.voucherAccountNum=order.VoucherAccountNum;
     if(order.CardToken) d.cardToken=order.CardToken;
     if(order.CardOwnerName) d.cardOwnerName=order.CardOwnerName;
-    if(order.CardExp) d.cardExp=order.CardExp;
+    var exp=this._cardExp(order);
+    if(exp) d.cardExp=exp;
     if(order.CardNum) d.cardNum=order.CardNum;
     if(order.CardHolderId) d.cardHolderId=order.CardHolderId;
     if(order.CardAuthNum) d.cardAuthNum=order.CardAuthNum;
@@ -896,7 +961,9 @@ class DonationEngine extends EventEmitter{
       "CardNum","CardHolderId","CardAuthNum",
       "FirstPayment","ConstPayment","LowProfileDealGuid",
       "AsakimInvoiceID","AsakimID","OrderLaguage","IsManualDonation",
-      "OrderLog"
+      "OrderLog",
+      "ClearingProvider","CardValidityMonth","CardValidityYear",
+      "DonorIdentity","snTaxesByCard"
     ].join(",");
   }
 }

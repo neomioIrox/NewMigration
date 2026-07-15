@@ -5,6 +5,7 @@ const trackerDb=require("../db/mysql-tracker");
 const {recordError}=require("./batch-runner");
 const {preloadFKCache}=require("./fk-resolver");
 const {processGetDate}=require("./expression-eval");
+const {ilWallToUtcString}=require("./tz");
 const tracker=require("../services/tracker");
 const logger=require("../logger");
 
@@ -164,8 +165,8 @@ class PrayNameEngine extends EventEmitter{
         // PrayDescription (NOT NULL)
         var prayDesc=row.Comment!=null?String(row.Comment):"";
 
-        // CreatedAt (NOT NULL)
-        var createdAt=row.DateCreated||now;
+        // CreatedAt (NOT NULL) — source wall-clock Date must become a UTC string (see tz.js)
+        var createdAt=row.DateCreated?ilWallToUtcString(row.DateCreated):now;
 
         prepared.push({
           sourceId:sourceId,
