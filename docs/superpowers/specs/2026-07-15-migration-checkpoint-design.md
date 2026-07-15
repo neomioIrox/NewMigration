@@ -58,7 +58,7 @@ CREATE TABLE IF NOT EXISTS MigrationCheckpoint (
 פרמטר חדש `startMode` עם שלושה ערכים:
 
 - **`continue` (ברירת מחדל):** בתחילת `run()` — `checkpoint.get(mappingName)` מזריע את `lastId` ההתחלתי מ-`LastSourceId`. לולאת ה-keyset הקיימת לא משתנה — פשוט מתחילה מהסמן במקום מ-null.
-- **`fresh`:** `lastId` מתחיל null; שורת ה-checkpoint נמחקת במסלול ה-restart הקיים (`migration-manager.js` restartMigration — לצד `cleanupForRestart` ומחיקת LegacyMapping, נוסיף `checkpoint.resetForMapping()`).
+- **`fresh`:** `lastId` מתחיל null, והמנוע עצמו מוחק את שורת ה-checkpoint בתחילת הריצה (`resetForMapping`; מנוטרל ב-dryRun). מסלול ה-restart הקיים (`migration-manager.js` restartMigration) מעביר `startMode:'fresh'` — האיפוס מגיע מהמנוע, בלי קוד כפול.
 - **`gapfill`:** `lastId` מתחיל null, אבל המנוע טוען מראש קבוצת ID-ים קיימים ומדלג עליהם (הכללה של תבנית ה-Set ב-donation-engine):
   - מיפויי `preserveSourceId` → `SELECT Id FROM <targetTable>`
   - מיפויים בלי preserveSourceId (Type3 וכו') → `SELECT source_id FROM id_mappings WHERE entity_type=?`
@@ -67,8 +67,9 @@ CREATE TABLE IF NOT EXISTS MigrationCheckpoint (
 
 ### מנועים ייעודיים
 
-- **Donation / PrayName / Asakim / VideoGallery** — אותה לולאת keyset, אותם שלושה תפרים: הזרעת `lastId` מה-checkpoint, upsert פר-batch, markCompleted בסיום. הדילוג-מול-יעד המובנה של Donation נשאר פעיל גם ב-continue (רשת ביטחון זולה).
-- **Recruiter / RecruitersGroup (מנועי bulk)** — אין סמן ID; ה-checkpoint שלהם הוא סמן השלמה בלבד (`LastSourceId=NULL`, רק `Status`+`CompletedAt`). ב-continue של ההרצה המלאה, שלב bulk עם `Status='completed'` מדולג; רענון שלהם — דרך fresh או הרצה ידנית.
+- **כל ששת המנועים הייעודיים (Donation / PrayName / Asakim / VideoGallery / Recruiter / RecruitersGroup)** — כולם עובדים באותה לולאת keyset עם `lastId` (תוקן ב-2026-07-15: גם מנועי ה-bulk של Recruiter/RecruitersGroup מדפדפים לפי source ID, בניגוד להנחה מוקדמת), ולכן כולם מקבלים את אותם שלושה תפרים: הזרעת `lastId` מה-checkpoint, upsert פר-batch, markCompleted בסיום. הדילוג-מול-יעד המובנה של Donation (וכן `alreadyExists` ב-Recruiter/RecruitersGroup) נשאר פעיל גם ב-continue (רשת ביטחון זולה).
+- **dryRun** (Donation/PrayName/Asakim ועוד): כתיבות checkpoint (upsert / markCompleted / reset) מנוטרלות ב-dryRun; קריאת ה-seed נשארת פעילה כדי שהתצוגה המקדימה תשקף ריצת continue אמיתית.
+- **startMode לא נתמך** (`gapfill` במנוע ייעודי): המנוע רץ כ-continue עם אזהרה בלוג — לא נכשל.
 
 ## 4. חיבור לחלון ההרצה המלאה ול-API
 
@@ -76,8 +77,8 @@ CREATE TABLE IF NOT EXISTS MigrationCheckpoint (
 
 ה-checkbox של דף ה-pipeline כבר ממופה בתוכנית ה-orchestrator ל-`mode: "fresh" | "continue"` ב-`POST /api/pipeline/start`. הפיצ'ר הזה מגדיר את המשמעות פר-שלב:
 
-- **continue** — כל שלב מופעל עם `startMode:'continue'`; שלב bulk שהושלם מדולג; שאר השלבים מסיימים מהר אם אין שורות חדשות מעל הסמן.
-- **fresh** — ה-orchestrator מאפס כל שלב לפני הרצתו: מסלול ה-restart הקיים + `resetForMapping`.
+- **continue** — כל שלב מופעל עם `startMode:'continue'`; כל השלבים רצים ומסיימים מהר אם אין שורות חדשות מעל הסמן.
+- **fresh** — כל שלב מופעל עם `startMode:'fresh'`. מחיקת שורת ה-checkpoint ממומשת **בתוך המנוע** בתחילת ריצת fresh (בעלות יחידה על מחזור החיים) — כך ה-orchestrator, מסלול ה-restart של mapping בודד והמסך הבודד מקבלים את האיפוס אוטומטית בלי קוד כפול. מסלול ה-restart מעביר `startMode:'fresh'` ל-`startMigration`.
 
 ### Endpoints חדשים
 
