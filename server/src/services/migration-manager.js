@@ -169,7 +169,7 @@ async function restartMigration(runId,io){
     await legacyMapping.ensureTable();
     await legacyMapping.deleteForMapping(run.mapping_name);
   }
-  return startMigration(run.mapping_name,{batchSize:run.batch_size},io);
+  return startMigration(run.mapping_name,{batchSize:run.batch_size,startMode:"fresh"},io);
 }
 
 function startDonationMigration(options,io){

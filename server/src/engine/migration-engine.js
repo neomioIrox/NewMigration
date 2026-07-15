@@ -7,6 +7,7 @@ const {preloadFKCache,resolveFK}=require("./fk-resolver");
 const {evaluateCondition,processGetDate}=require("./expression-eval");
 const tracker=require("../services/tracker");
 const legacyMapping=require("../services/legacy-mapping");
+const migrationCheckpoint=require("../services/migration-checkpoint");
 const logger=require("../logger");
 
 class MigrationEngine extends EventEmitter{
@@ -15,6 +16,9 @@ class MigrationEngine extends EventEmitter{
     this.mapping=mapping;
     this.batchSize=(options&&options.batchSize)||500;
     this.totalLimit=(options&&options.totalLimit)||0;
+    this.startMode=(options&&options.startMode)||"continue"; // continue | fresh | gapfill
+    this.checkpointReporter=migrationCheckpoint.createReporter(mapping.filename||mapping.targetTable);
+    this.gapfillExistingIds=null; // Set<number> of source ids already in the target (gapfill mode)
     this.runId=null;
     this.pauseRequested=false;
     this.isRunning=false;
@@ -34,6 +38,35 @@ class MigrationEngine extends EventEmitter{
     var raw=JSON.parse(fs.readFileSync(fp,"utf8"));
     var ids=Array.isArray(raw)?raw:(raw.productIds||raw.ids||[]);
     return ids.map(Number).filter(function(x){return!isNaN(x)});
+  }
+
+  // gapfill: where to read "already migrated" source ids from. Precedence:
+  // 1. LegacyMapping (per-MappingName, one row per source row — covers collapse mappings
+  //    whose main table was never inserted). A row that failed AFTER its LegacyMapping
+  //    insert would be silently skipped, but LegacyMapping is written with the item insert
+  //    in the same row try/catch, so a partial row has no LegacyMapping entry.
+  // 2. preserveSourceId: the target table's own ids (Id==sourceId).
+  // 3. id_mappings by entityType (tracker approximation, survives for non-preserve mappings).
+  _gapfillSourceQuery(m){
+    if(m.legacyMapping){
+      return {db:"target",sql:"SELECT SourceId AS id FROM LegacyMapping WHERE MappingName=?",params:[m.filename||m.targetTable]};
+    }
+    if(m.preserveSourceId){
+      var idCol=m.targetIdColumn||"Id";
+      return {db:"target",sql:"SELECT `"+idCol+"` AS id FROM `"+m.targetTable+"`",params:[]};
+    }
+    var entityType=m._meta&&m._meta.entityType||m.filename||m.targetTable;
+    return {db:"tracker",sql:"SELECT source_id AS id FROM id_mappings WHERE entity_type=?",params:[entityType]};
+  }
+
+  async _loadGapfillSet(m){
+    var src=this._gapfillSourceQuery(m);
+    if(src.db==="target"&&m.legacyMapping) await legacyMapping.ensureTable();
+    var db=src.db==="target"?targetDb:require("../db/mysql-tracker");
+    var [rows]=await db.query(src.sql,src.params);
+    var set=new Set(rows.map(function(r){return Number(r.id)}));
+    logger.info("gapfill: existing source ids preloaded",{mapping:m.filename||m.targetTable,count:set.size,from:src.db==="target"?src.sql.split("FROM ")[1].split(" ")[0]:"id_mappings"});
+    return set;
   }
 
   // Collapse mode with a per-row parent chosen OFFLINE: parentProjectIdMapFile names a JSON
@@ -162,8 +195,26 @@ class MigrationEngine extends EventEmitter{
         if(existingRun) lastId=existingRun.last_processed_source_id;
         await tracker.updateRunStatus(resumeRunId,"running");
       }else{
+        // startMode (checkpoint feature): fresh deletes this mapping's checkpoint row HERE —
+        // the single owner of the reset, so restartMigration, the pipeline orchestrator and
+        // the UI all inherit it. continue seeds the keyset cursor from the checkpoint.
+        // gapfill scans from 0 and skips ids already in the target. A checkpoint READ
+        // failure or gapfill-set load failure aborts the run (throw) — silently starting
+        // from 0 would duplicate rows on non-preserveSourceId mappings.
+        if(this.startMode==="fresh"){
+          await migrationCheckpoint.ensureTable();
+          await migrationCheckpoint.resetForMapping(m.filename||targetTable);
+        }else if(this.startMode==="continue"){
+          await migrationCheckpoint.ensureTable();
+          var cp=await migrationCheckpoint.get(m.filename||targetTable);
+          if(cp&&cp.LastSourceId!=null) lastId=cp.LastSourceId;
+          if(lastId!=null) logger.info("continue mode: seeding from checkpoint",{mapping:m.filename||targetTable,lastSourceId:lastId});
+        }else if(this.startMode==="gapfill"){
+          this.gapfillExistingIds=await this._loadGapfillSet(m);
+        }
         this.runId=await tracker.createRun(m.filename||targetTable,sourceTable,targetTable,totalRows,this.batchSize);
       }
+      await this.checkpointReporter.init(this.counters.inserted);
 
       this.emit("started",{runId:this.runId,totalRows:totalRows,mapping:m.filename});
       logger.info("Migration started",{runId:this.runId,source:sourceTable,target:targetTable,total:totalRows});
@@ -174,6 +225,7 @@ class MigrationEngine extends EventEmitter{
         if(this.pauseRequested){
           await tracker.updateRunStatus(this.runId,"paused",{last_processed_source_id:lastId});
           await tracker.updateRunCounters(this.runId,this.counters.processed,this.counters.inserted,this.counters.skipped,this.counters.errors,lastId);
+          await this.checkpointReporter.batch(lastId,this.counters.inserted);
           this.emit("paused",{runId:this.runId,counters:this.counters,mapping:m.filename});
           this.isRunning=false;
           return {status:"paused",runId:this.runId,counters:this.counters};
@@ -205,6 +257,9 @@ class MigrationEngine extends EventEmitter{
           var sourceId=row[sourceIdCol];
           lastId=sourceId;
           this.counters.processed++;
+
+          // gapfill: skip rows already in the target (cheaper than the per-row tracker check)
+          if(this.gapfillExistingIds&&this.gapfillExistingIds.has(Number(sourceId))){this.counters.skipped++;continue;}
 
           // Check if already processed
           var alreadyDone=await tracker.isRowProcessed(this.runId,sourceId);
@@ -396,6 +451,7 @@ class MigrationEngine extends EventEmitter{
 
         // Update counters after each batch
         await tracker.updateRunCounters(this.runId,this.counters.processed,this.counters.inserted,this.counters.skipped,this.counters.errors,lastId);
+        await this.checkpointReporter.batch(lastId,this.counters.inserted);
         if(rows.length<this.batchSize) hasMore=false;
       }
 
@@ -432,6 +488,7 @@ class MigrationEngine extends EventEmitter{
       // Completed
       await tracker.updateRunStatus(this.runId,"completed");
       await tracker.updateRunCounters(this.runId,this.counters.processed,this.counters.inserted,this.counters.skipped,this.counters.errors,lastId);
+      await this.checkpointReporter.complete();
       this.emit("completed",{runId:this.runId,counters:this.counters,mapping:m.filename});
       logger.info("Migration completed",{runId:this.runId,counters:this.counters});
       this.isRunning=false;

@@ -9,9 +9,9 @@ router.get("/",async function(req,res){
 
 router.post("/start",async function(req,res){
   try{
-    var {mappingName,batchSize,totalLimit}=req.body;
+    var {mappingName,batchSize,totalLimit,startMode}=req.body;
     if(!mappingName) return res.status(400).json({error:"mappingName required"});
-    var engine=manager.startMigration(mappingName,{batchSize:batchSize||500,totalLimit:totalLimit||0},req.app.get("io"));
+    var engine=manager.startMigration(mappingName,{batchSize:batchSize||500,totalLimit:totalLimit||0,startMode:startMode||"continue"},req.app.get("io"));
     res.json({message:"Migration started",mappingName:mappingName});
   }catch(err){res.status(500).json({error:err.message});}
 });
