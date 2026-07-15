@@ -1,9 +1,12 @@
 const assert=require("assert");
 const {loadPipelineConfig,validatePipeline}=require("../../src/services/pipeline-config");
 
-// 1. Real config: loads, has exactly 20 steps, every dependency appears earlier in the list
+// 1. Real config: loads, has exactly 19 steps, every dependency appears earlier in the list
+// (ProjectItemLocalizationMapping was removed 2026-07-15: it has no sourceTable — the
+// generic engine cannot run it standalone; PIL rows are created inline by the Project mappings)
 var steps=loadPipelineConfig();
-assert.strictEqual(steps.length,20,"expected 20 steps, got "+steps.length);
+assert.strictEqual(steps.length,19,"expected 19 steps, got "+steps.length);
+assert.ok(!steps.some(function(s){return s.name==="ProjectItemLocalizationMapping";}),"PIL must not be a pipeline step (no sourceTable)");
 var pos={};
 steps.forEach(function(s,i){pos[s.name]=i;});
 steps.forEach(function(s){
