@@ -3,15 +3,18 @@ const EventEmitter=require("events");
 const {initTrackerDb}=require("../../src/db/init-tracker");
 const pt=require("../../src/services/pipeline-tracker");
 const orch=require("../../src/services/pipeline-orchestrator");
+const tracker=require("../../src/services/tracker");
+const trackerDb=require("../../src/db/mysql-tracker");
 
-function fakeEngine(behavior,delayMs){
+function fakeEngine(behavior,delayMs,runId){
+  var rid=runId===undefined?null:runId;
   var e=new EventEmitter();
   setImmediate(function(){
-    e.emit("started",{runId:null,mapping:"fake"});
+    e.emit("started",{runId:rid,mapping:"fake"});
     setTimeout(function(){
-      if(behavior==="error") e.emit("error",{runId:null,error:"boom"});
-      else if(behavior==="paused") e.emit("paused",{runId:null});
-      else e.emit("completed",{runId:null,counters:{processed:1,inserted:1,skipped:0,errors:0}});
+      if(behavior==="error") e.emit("error",{runId:rid,error:"boom"});
+      else if(behavior==="paused") e.emit("paused",{runId:rid});
+      else e.emit("completed",{runId:rid,counters:{processed:1,inserted:1,skipped:0,errors:0}});
     },delayMs||0);
   });
   return e;
@@ -44,6 +47,7 @@ function waitForIdle(){
 (async function(){
   await initTrackerDb();
   var createdRunIds=[];
+  var createdMigrationRunIds=[];
   try{
     // Scenario 1: all engines succeed -> run completed, all 20 steps completed
     orch._dispatchers.standard=function(){return fakeEngine("ok");};
@@ -148,11 +152,74 @@ function waitForIdle(){
     data=await pt.getRunWithSteps(run.id);
     assert.strictEqual(data.steps.filter(function(s){return s.status==="completed";}).length,20);
 
+    // Scenario 7: continue must RESUME a paused engine run instead of re-dispatching it
+    // from scratch (Fix C1). The migration run is real (created via tracker.js) so its
+    // status transitions reflect what the actual engine layer would report.
+    var resumeMigId=await tracker.createRun("TestResumeMapping","src","tgt",100,500);
+    createdMigrationRunIds.push(resumeMigId);
+    await tracker.updateRunStatus(resumeMigId,"paused");
+    orch._dispatchers.standard=function(){return fakeEngine("paused",0,resumeMigId);};
+    orch._dispatchers.donation=function(){return fakeEngine("ok");};
+    orch._dispatchers.prayname=function(){return fakeEngine("ok");};
+    orch._dispatchers.asakim=function(){return fakeEngine("ok");};
+    initial=await orch.startPipeline("fresh",fakeIo);
+    createdRunIds.push(initial.run.id);
+    var resumeRunId=initial.run.id;
+    run=await waitForIdle();
+    assert.strictEqual(run.status,"stopped","pipeline stops when step 0's engine reports paused");
+    data=await pt.getRunWithSteps(run.id);
+    assert.strictEqual(data.steps[0].status,"pending","paused step reverts to pending");
+    assert.strictEqual(data.steps[0].migration_run_id,resumeMigId,"migration_run_id must survive the pending revert");
+
+    var resumeCalledWith=null;
+    orch._dispatchers.resume=function(mid,io){resumeCalledWith=mid;return Promise.resolve(fakeEngine("ok"));};
+    orch._dispatchers.standard=function(){return fakeEngine("ok");};
+    initial=await orch.startPipeline("continue",fakeIo);
+    assert.strictEqual(initial.run.id,resumeRunId,"continue must reuse the stopped run");
+    run=await waitForIdle();
+    assert.strictEqual(run.status,"completed","resumed run completes normally");
+    assert.strictEqual(resumeCalledWith,resumeMigId,"resume dispatcher must be called with the paused engine run id");
+    data=await pt.getRunWithSteps(run.id);
+    assert.strictEqual(data.steps.filter(function(s){return s.status==="completed";}).length,20);
+
+    // Scenario 8: continue must ABORT (not fresh-dispatch) a step whose previous engine run
+    // crashed mid-write — re-dispatching it from scratch would duplicate rows already
+    // inserted into the target RDS (Fix C1).
+    var abortMigId=await tracker.createRun("TestAbortMapping","src","tgt",100,500);
+    createdMigrationRunIds.push(abortMigId);
+    var standardCallCount=0;
+    orch._dispatchers.standard=function(){standardCallCount++;return fakeEngine("error",0,abortMigId);};
+    initial=await orch.startPipeline("fresh",fakeIo);
+    createdRunIds.push(initial.run.id);
+    var abortRunId=initial.run.id;
+    run=await waitForIdle();
+    assert.strictEqual(run.status,"failed","step 0 errors on the first attempt");
+    data=await pt.getRunWithSteps(run.id);
+    assert.strictEqual(data.steps[0].migration_run_id,abortMigId,"migration_run_id recorded from the started event");
+
+    // Simulate the underlying engine run having crashed mid-write, after inserting rows
+    await tracker.updateRunStatus(abortMigId,"failed");
+    await tracker.updateRunCounters(abortMigId,50,50,0,0,null);
+
+    standardCallCount=0;
+    initial=await orch.startPipeline("continue",fakeIo);
+    assert.strictEqual(initial.run.id,abortRunId,"continue must reuse the failed run");
+    run=await waitForIdle();
+    assert.strictEqual(run.status,"failed","continue must abort, not silently succeed");
+    data=await pt.getRunWithSteps(run.id);
+    assert.strictEqual(data.steps[0].status,"failed","aborted step is marked failed");
+    assert.ok(data.steps[0].error_message.indexOf("כפילויות")!==-1,"error must warn about duplicate rows");
+    assert.strictEqual(data.steps[1].status,"pending","later steps are untouched");
+    assert.strictEqual(standardCallCount,0,"a partially-written step must not be fresh-dispatched");
+
     console.log("test-pipeline-orchestrator: ALL PASS");
   }finally{
     // Cleanup only — process.exit here would swallow assertion failures
     // (exit(0) in a finally preempts the pending exception and the .catch).
+    // pipeline_run_steps.migration_run_id is ON DELETE SET NULL from migration_runs, and
+    // pipeline_run_steps itself cascades from pipeline_runs — delete pipeline runs first.
     for(var id of createdRunIds){await pt.deletePipelineRun(id);}
+    for(var mid of createdMigrationRunIds){await trackerDb.query("DELETE FROM migration_runs WHERE id=?",[mid]);}
   }
   process.exit(0); // success path only; failures propagate to .catch below
 })().catch(function(e){console.error(e);process.exit(1);});

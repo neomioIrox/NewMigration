@@ -60,6 +60,10 @@ async function updateStepStatus(runId,stepName,status,extra){
   await trackerDb.query("UPDATE pipeline_run_steps SET "+sets.join(",")+" WHERE pipeline_run_id=? AND step_name=?",vals);
 }
 
+async function setStepMigrationRunId(runId,stepName,migrationRunId){
+  await trackerDb.query("UPDATE pipeline_run_steps SET migration_run_id=? WHERE pipeline_run_id=? AND step_name=?",[migrationRunId,runId,stepName]);
+}
+
 async function failStaleRunningRuns(){
   var [result]=await trackerDb.query(
     "UPDATE pipeline_runs SET status='failed',error_message='Server restarted while pipeline was running',completed_at=NOW() WHERE status='running'");
@@ -75,4 +79,4 @@ async function deletePipelineRun(runId){
   await trackerDb.query("DELETE FROM pipeline_runs WHERE id=?",[runId]);
 }
 
-module.exports={createPipelineRun,getRunWithSteps,getLatestRun,getActiveRun,getAllRuns,updateRunStatus,updateStepStatus,failStaleRunningRuns,deletePipelineRun};
+module.exports={createPipelineRun,getRunWithSteps,getLatestRun,getActiveRun,getAllRuns,updateRunStatus,updateStepStatus,setStepMigrationRunId,failStaleRunningRuns,deletePipelineRun};
