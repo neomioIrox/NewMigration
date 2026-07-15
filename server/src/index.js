@@ -13,6 +13,7 @@ const statusRouter=require("./routes/status");
 const idLookupsRouter=require("./routes/id-lookups");
 const errorsRouter=require("./routes/errors");
 const validationRouter=require("./routes/validation");
+const pipelineRouter=require("./routes/pipeline");
 
 const app=express();
 const server=http.createServer(app);
@@ -33,6 +34,7 @@ app.use("/api/status",statusRouter);
 app.use("/api/id-mappings",idLookupsRouter);
 app.use("/api/errors",errorsRouter);
 app.use("/api/validation",validationRouter);
+app.use("/api/pipeline",pipelineRouter);
 
 // Health check
 app.get("/api/health",function(req,res){res.json({status:"ok",uptime:process.uptime()});});
@@ -44,6 +46,8 @@ async function start(){
     // Initialize tracker database
     await initTrackerDb();
     logger.info("Tracker DB initialized");
+    var staleCount=await require("./services/pipeline-orchestrator").recoverStaleRuns();
+    if(staleCount>0) logger.warn("Recovered "+staleCount+" stale pipeline run(s) from previous server crash");
 
     server.listen(PORT,function(){
       logger.info("Migration server running on port "+PORT);
