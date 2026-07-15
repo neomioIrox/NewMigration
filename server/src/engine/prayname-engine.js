@@ -10,11 +10,15 @@ const tracker=require("../services/tracker");
 const logger=require("../logger");
 const migrationCheckpoint=require("../services/migration-checkpoint");
 
-// PrayName scope: only prayer names whose donation is in the migrated scope.
-// Mirror the donation cutoff (scope-products.json, the SAME file the donation engine
-// reads) so we don't process the ~600k pre-cutoff rows whose orders were never
-// migrated and would all be dropped as fkMissing. After this filter, fkMissing
-// becomes a real signal (a genuinely unresolved in-scope donation) instead of noise.
+// PrayName scope (aligned 2026-07-15 with the donation engine's OR-scope): a prayer-name
+// row migrates iff its order migrates as a Donation —
+//   (a) o.ProjectId is a migrated project (live target Project ids + Type3 subs) — ALL TIME; or
+//   (b) o.PrayerId is a migrated prayer (ProjectItem_prayerName) — ALL TIME; or
+//   (c) the order is recent (o.DateCreated >= cutoff) — generals/leftovers.
+// The previous bare-cutoff filter silently dropped pre-cutoff prayer names whose donations
+// DID migrate via (a)/(b). With the aligned filter, fkMissing is a real signal again
+// (a genuinely unresolved in-scope donation) instead of noise. Cutoff comes from
+// scope-products.json — the SAME file the donation engine reads.
 const prayScope=require("../../data/scope-products.json");
 const SCOPE_CUTOFF=(prayScope&&prayScope.cutoff)?String(prayScope.cutoff):"2025-06-01";
 if(!/^\d{4}-\d{2}-\d{2}$/.test(SCOPE_CUTOFF)) throw new Error("Invalid PrayName scope cutoff: "+SCOPE_CUTOFF);
@@ -60,6 +64,10 @@ class PrayNameEngine extends EventEmitter{
       logger.info("Loading Donation FK cache for PrayName migration");
       this.donationCache=await preloadFKCache("Donation");
       logger.info("Donation cache: "+this.donationCache.size+" entries");
+
+      // Build the Orders scope predicate ONCE per run (mirrors the donation engine);
+      // _getSourceQuery embeds it in the count and in every batch query.
+      this.orderScope=await this._buildOrderScope();
 
       // Count source rows
       var countSql="WITH src AS ("+this._getSourceQuery()+") SELECT COUNT(*) as cnt FROM src";
@@ -268,12 +276,36 @@ class PrayNameEngine extends EventEmitter{
     }
   }
 
+  // Same OR-scope the donation engine builds (donation-engine.js STEP 1): live target
+  // Project ids + Type3 sub products, migrated prayers via ProjectItem_prayerName, and
+  // the cutoff for generals. PrayName runs AFTER Donation (pipeline dependsOn), so both
+  // sources are populated by then; on an empty target this yields (0) lists and the
+  // cutoff branch alone — same as the donation engine's behavior.
+  async _buildOrderScope(){
+    var [projRows]=await targetDb.query("SELECT Id FROM Project");
+    var scopePids=projRows.map(function(r){return Number(r.Id)}).filter(function(n){return!isNaN(n)&&n>0});
+    try{
+      var subList=require("../../data/type3-subs.json").productIds||[];
+      for(var sp of subList){sp=Number(sp);if(!isNaN(sp)&&sp>0)scopePids.push(sp);}
+    }catch(e){logger.info("type3-subs.json not found - PrayName order scope uses target Projects only");}
+    scopePids=Array.from(new Set(scopePids));
+    var prayerCache=await preloadFKCache("ProjectItem_prayerName");
+    var prayerPids=Array.from(prayerCache.keys()).map(Number).filter(function(n){return!isNaN(n)&&n>0});
+    logger.info("PrayName order scope",{projectsAndSubs:scopePids.length,prayers:prayerPids.length,cutoffForGenerals:SCOPE_CUTOFF});
+    return "(o.ProjectId IN ("+(scopePids.length?scopePids.join(","):"0")+")"
+      +(prayerPids.length?" OR o.PrayerId IN ("+prayerPids.join(",")+")":"")
+      +" OR o.DateCreated >= '"+SCOPE_CUTOFF+"')";
+  }
+
   _getSourceQuery(){
+    // Guard: the scope is built by run() before any query; a bare-cutoff fallback here
+    // would silently reintroduce the dropped-prayer-names bug.
+    if(!this.orderScope) throw new Error("PrayName order scope not built - _buildOrderScope() must run first");
     return "SELECT pn.PrayerNamesId, pn.FirstName, pn.LastName, pn.Comment, pn.OrderId, pn.DateCreated, pn.Gender"
       +" FROM PrayerNames pn WITH (NOLOCK)"
       +" INNER JOIN Orders o WITH (NOLOCK) ON pn.OrderId = o.OrdersId"
       +" WHERE o.ChargeStatus = 'OrderFinished'"
-      +" AND o.DateCreated >= '"+SCOPE_CUTOFF+"'";
+      +" AND "+this.orderScope;
   }
 
   _trunc(val,max){
