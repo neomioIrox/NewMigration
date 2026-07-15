@@ -1086,3 +1086,10 @@ Per project rule ("build vs execute"), an actual `POST /api/pipeline/start` agai
 - Spec coverage: config+order (Task 1), tables (Task 2), orchestrator incl. 409/stop/stale-recovery (Task 3), API (Task 4), socket plumbing kept additive via separate `lastPipelineEvent` (Task 5), UI incl. fresh-confirm dialog and browser-refresh-safe state (Task 6), testing scenarios from spec §7 (Tasks 1/3/7).
 - Naming consistency: step names = engine event `mapping` strings; UI matches `liveProgress.mapping===step.step_name`.
 - The spec's "step reverts to pending on manual stop" is implemented in the orchestrator `paused` branch and asserted in test scenario 4.
+
+## Post-review amendments (final whole-feature review, 2026-07-15)
+
+- **Continue semantics hardened (commit de02449):** before dispatching a non-completed step, the orchestrator triages the step's previous engine run: `completed` → step marked completed and skipped; `paused` → resumed via existing `manager.resumeMigration` (row-level resume, no duplicates); any other status with `processed_rows>0` → pipeline aborts with an explicit Hebrew message (re-running would duplicate target rows); otherwise fresh dispatch. Covered by test scenarios 7 (resume) and 8 (abort).
+- Stop-request windows closed (`stopRequested` claimed with `running`; `requestPause` recheck after `currentEngine` assignment); `onStarted` writes only `migration_run_id` (new `setStepMigrationRunId`); outer catch fails the in-flight step.
+- The abort-on-partial policy is interim: the parallel spec `2026-07-15-migration-checkpoint-design.md` (per-mapping checkpoint in target RDS + engine `startMode`) will supersede it at the engine level; its implementation should relax the orchestrator's abort branch.
+- Accepted follow-ups: start-side mutual exclusion between /pipeline and /migrate (document "don't use /migrate during a pipeline run"); fetchJson error-body passthrough.
