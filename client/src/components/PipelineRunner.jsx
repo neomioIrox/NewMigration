@@ -63,6 +63,54 @@ function StepRow({step,liveProgress}){
   );
 }
 
+function CheckpointMap({refreshKey}){
+  const{data,isLoading,refetch}=useQuery({
+    queryKey:["checkpoints"],
+    queryFn:api.getCheckpoints,
+    refetchInterval:15000
+  });
+  useEffect(()=>{refetch();},[refreshKey,refetch]);
+  const rows=data?.checkpoints||[];
+  function fmt(d){return d?new Date(d).toLocaleString("he-IL"):"—";}
+  return(
+    <div className="bg-white rounded-lg shadow p-6 mt-6">
+      <h3 className="font-semibold mb-3">מפת נקודות המשך (MigrationCheckpoint)</h3>
+      {isLoading&&<p className="text-gray-500 text-sm">טוען...</p>}
+      {!isLoading&&rows.length===0&&<p className="text-gray-500 text-sm">אין עדיין נקודות המשך — ירשמו אוטומטית בריצה הבאה.</p>}
+      {rows.length>0&&(
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-right border-b text-gray-500">
+                <th className="py-1 pl-3">Mapping</th>
+                <th className="py-1 pl-3">ID אחרון</th>
+                <th className="py-1 pl-3">סטטוס</th>
+                <th className="py-1 pl-3">עדכון אחרון</th>
+                <th className="py-1 pl-3">הושלם</th>
+                <th className="py-1 pl-3">שורות (מצטבר)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map(r=>(
+                <tr key={r.MappingName} className="border-b last:border-0">
+                  <td className="py-1 pl-3 font-medium">{STEP_LABELS[r.MappingName]||r.MappingName}</td>
+                  <td className="py-1 pl-3 font-mono" dir="ltr">{r.LastSourceId??"—"}</td>
+                  <td className={"py-1 pl-3 "+(r.Status==="completed"?"text-green-700":"text-blue-700")}>
+                    {r.Status==="completed"?"הושלם ✓":"בתהליך ⟳"}
+                  </td>
+                  <td className="py-1 pl-3" dir="ltr">{fmt(r.LastRunAt)}</td>
+                  <td className="py-1 pl-3" dir="ltr">{fmt(r.CompletedAt)}</td>
+                  <td className="py-1 pl-3">{(r.RowsMigrated??0).toLocaleString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function PipelineRunner(){
   const[fresh,setFresh]=useState(false);
   const queryClient=useQueryClient();
@@ -153,6 +201,8 @@ export default function PipelineRunner(){
       <div className="space-y-2">
         {steps.map(s=><StepRow key={s.step_name} step={s} liveProgress={liveProgress}/>)}
       </div>
+
+      <CheckpointMap refreshKey={lastPipelineEvent}/>
     </div>
   );
 }
