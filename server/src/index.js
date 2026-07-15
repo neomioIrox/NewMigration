@@ -14,6 +14,7 @@ const idLookupsRouter=require("./routes/id-lookups");
 const errorsRouter=require("./routes/errors");
 const validationRouter=require("./routes/validation");
 const pipelineRouter=require("./routes/pipeline");
+const checkpointsRouter=require("./routes/checkpoints");
 
 const app=express();
 const server=http.createServer(app);
@@ -35,6 +36,7 @@ app.use("/api/id-mappings",idLookupsRouter);
 app.use("/api/errors",errorsRouter);
 app.use("/api/validation",validationRouter);
 app.use("/api/pipeline",pipelineRouter);
+app.use("/api/checkpoints",checkpointsRouter);
 
 // Health check
 app.get("/api/health",function(req,res){res.json({status:"ok",uptime:process.uptime()});});
