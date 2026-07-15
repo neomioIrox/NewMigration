@@ -10,4 +10,7 @@ async function testConnection() {
   catch (err) { return { success: false, message: err.message, database: config.mysqlTracker.database }; }
 }
 async function close() { if (pool) { await pool.end(); pool = null; } }
-module.exports = { getPool, query, getConnection, testConnection, close };
+async function resetPool(){
+  if(pool){var old=pool;pool=null;try{await old.end();}catch(err){logger.warn("MySQL tracker pool close failed: "+err.message);}}
+}
+module.exports = { getPool, query, getConnection, testConnection, close, resetPool };

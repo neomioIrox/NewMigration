@@ -44,4 +44,11 @@ async function close() {
   if (pool) { await pool.close(); pool = null; }
 }
 
-module.exports = { getPool, query, testConnection, close };
+async function resetPool(){
+  // sql.close() clears the driver's global connection so the next
+  // sql.connect() picks up new config values instead of reusing the old pool.
+  pool=null;
+  try{await sql.close();}catch(err){logger.warn("MSSQL pool close failed: "+getErrorMessage(err));}
+}
+
+module.exports = { getPool, query, testConnection, close, resetPool, getErrorMessage };

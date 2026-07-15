@@ -217,6 +217,12 @@ function startAsakimDonationMigration(options,io){
 
 function getActiveEngine(runId){return activeEngines.get(runId)||null;}
 
+function hasActiveMigration(){
+  if(galleryChainRunning) return true;
+  for(var engine of activeEngines.values()){if(engine.isRunning) return true;}
+  return false;
+}
+
 // ======= Gallery chain: images galleries -> images media -> videos =======
 // One-click orchestrator. Each stage is pre-checked against the tracker so the
 // button is idempotent: completed stages are skipped (a synthetic completed
@@ -291,4 +297,4 @@ function startGalleryMigrationChain(options,io){
   })();
 }
 
-module.exports={loadMapping,listMappings,startMigration,startDonationMigration,startPrayNameMigration,startAsakimDonationMigration,startGalleryMigrationChain,pauseMigration,resumeMigration,restartMigration,getActiveEngine};
+module.exports={loadMapping,listMappings,startMigration,startDonationMigration,startPrayNameMigration,startAsakimDonationMigration,startGalleryMigrationChain,pauseMigration,resumeMigration,restartMigration,getActiveEngine,hasActiveMigration,_activeEngines:activeEngines};

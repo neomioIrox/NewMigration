@@ -133,4 +133,6 @@ function getAllRuns(){return pipelineTracker.getAllRuns();}
 
 function recoverStaleRuns(){return pipelineTracker.failStaleRunningRuns();}
 
-module.exports={startPipeline,stopPipeline,getCurrentRun,getAllRuns,recoverStaleRuns,_dispatchers:dispatchers};
+function isPipelineRunning(){return running;}
+
+module.exports={startPipeline,stopPipeline,getCurrentRun,getAllRuns,recoverStaleRuns,isPipelineRunning,_dispatchers:dispatchers};
