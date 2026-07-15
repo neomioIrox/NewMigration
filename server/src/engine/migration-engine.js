@@ -5,6 +5,7 @@ const {processRow,processColumn,processLocalizations,LANG_IDS}=require("./row-pr
 const {insertRow,insertRowWithTracking,recordMapping,markRowProcessed,updateRow,recordError,findExistingId}=require("./batch-runner");
 const {preloadFKCache,resolveFK}=require("./fk-resolver");
 const {evaluateCondition,processGetDate}=require("./expression-eval");
+const {rewriteContentUrls}=require("./content-url-rewriter");
 const tracker=require("../services/tracker");
 const legacyMapping=require("../services/legacy-mapping");
 const migrationCheckpoint=require("../services/migration-checkpoint");
@@ -610,11 +611,11 @@ class MigrationEngine extends EventEmitter{
       var description=row[sourceCol];
       if(!description||String(description).trim()==="") continue;
       var descText=String(description);
-      // URL replacement if needed
+      // URL rewriting: legacy img srcs -> S3 (2020/01), hrefs kept in OLD site format
+      // verbatim (relative ones absolutized to www.kupat.org.il) — never mapped to new
+      // routes; the site router owns that. See content-url-rewriter.js + its test.
       if(ecDef.urlReplace){
-        descText=descText.replace(/href\s*=\s*["'][^"']*["']/gi,function(match){
-          return 'routerLink="/donate"';
-        });
+        descText=rewriteContentUrls(descText);
       }
       // Insert entitycontent
       var contentId=await insertRow("EntityContent",{
