@@ -1,0 +1,107 @@
+{
+  "filename": "GalleryMediaMapping_Images",
+  "sourceTable": "GaleryPics",
+  "targetTable": "Media",
+  "sourceIdColumn": "GaleryPicsId",
+  "whereClause": "Pic IS NOT NULL AND Pic != ''",
+  "_meta": {
+    "entityType": "Media_GalleryImage",
+    "sourceTable": "GaleryPics",
+    "targetTable": "Media",
+    "sourcePrimaryKey": "GaleryPicsId",
+    "order": 9.2,
+    "description": "Gallery image media: GaleryPics -> Media + GalleryMedia junction. Must run AFTER GalleryMapping_Images. RelativePath must be the FULL S3 key (FE builds URL as bucket + RelativePath only; Year/Month dirs are not used in URL building). Legacy files were bulk-uploaded to S3 under 2020/01/.",
+    "dependencies": ["GalleryMapping_Images"]
+  },
+  "postMigrationRunners": ["set-gallery-main-media"],
+  "columnMappings": {
+    "YearDirectory": {
+      "convertType": "const",
+      "value": "2020"
+    },
+    "MonthDirectory": {
+      "convertType": "const",
+      "value": "01"
+    },
+    "RelativePath": {
+      "convertType": "expression",
+      "oldTable": "GaleryPics",
+      "oldColumn": "Pic",
+      "expression": "value ? ('2020/01/' + value).substring(0, 500) : null"
+    },
+    "SourceType": {
+      "convertType": "const",
+      "value": "2"
+    },
+    "MediaType": {
+      "convertType": "const",
+      "value": "1"
+    },
+    "FriendlyName": {
+      "convertType": "expression",
+      "oldTable": "GaleryPics",
+      "oldColumn": "Name",
+      "expression": "value ? value.substring(0, 100) : null"
+    },
+    "MatchToPlatform": {
+      "convertType": "const",
+      "value": "3"
+    },
+    "RecordStatus": {
+      "convertType": "const",
+      "value": "2"
+    },
+    "StatusChangedAt": {
+      "convertType": "const",
+      "value": "GETDATE()"
+    },
+    "StatusChangedBy": {
+      "convertType": "const",
+      "value": "-1"
+    },
+    "CreatedAt": {
+      "convertType": "const",
+      "value": "GETDATE()"
+    },
+    "CreatedBy": {
+      "convertType": "const",
+      "value": "-1"
+    },
+    "UpdatedAt": {
+      "convertType": "const",
+      "value": "GETDATE()"
+    },
+    "UpdatedBy": {
+      "convertType": "const",
+      "value": "-1"
+    }
+  },
+  "afterInsertMappings": [
+    {
+      "targetTable": "GalleryMedia",
+      "entityType": "GalleryMedia_Image",
+      "columns": {
+        "GalleryId": {
+          "source": "fk_lookup",
+          "entityType": "Gallery_Images",
+          "oldColumn": "GaleryId"
+        },
+        "MediaId": {
+          "source": "newId"
+        },
+        "isMainMedia": {
+          "convertType": "const",
+          "value": null
+        },
+        "CreatedAt": {
+          "convertType": "const",
+          "value": "GETDATE()"
+        },
+        "CreatedBy": {
+          "convertType": "const",
+          "value": "-1"
+        }
+      }
+    }
+  ]
+}

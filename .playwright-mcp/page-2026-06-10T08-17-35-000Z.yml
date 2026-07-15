@@ -1,0 +1,17 @@
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - heading "Migration System" [level=1] [ref=e5]
+    - generic [ref=e8]: Disconnected
+    - navigation [ref=e9]:
+      - link "Dashboard" [ref=e10] [cursor=pointer]:
+        - /url: /
+      - link "Migration Runner" [ref=e11] [cursor=pointer]:
+        - /url: /migrate
+      - link "ID Mappings" [ref=e12] [cursor=pointer]:
+        - /url: /id-mappings
+      - link "Errors" [ref=e13] [cursor=pointer]:
+        - /url: /errors
+      - link "Connections" [ref=e14] [cursor=pointer]:
+        - /url: /connections
+  - main [ref=e15]:
+    - generic [ref=e16]: Loading...

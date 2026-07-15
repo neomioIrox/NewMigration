@@ -1,0 +1,17 @@
+{
+  "filename": "VideoGalleryMediaMapping",
+  "sourceTable": "Videos",
+  "targetTable": "VideoGalleryMedia",
+  "sourceIdColumn": "VideosId",
+  "engineBacked": "videogallery-engine",
+  "_meta": {
+    "entityType": "VideoGallery",
+    "sourceTable": "Videos",
+    "targetTable": "VideoGalleryMedia",
+    "sourcePrimaryKey": "VideosId",
+    "order": 13.5,
+    "description": "Video gallery: Videos -> VideoGalleryMedia + Media + LinkSetting. Runs via dedicated VideoGalleryEngine (NOT the generic mapping engine — this file is a UI entry/marker; the column logic lives in server/src/engine/videogallery-engine.js). The app reads videos from VideoGalleryMedia via gallery/getVideoGalleryQuickView — NOT from Gallery/GalleryMedia (see legacy/LESSONS_LEARNED.md). Idempotent: already-migrated VideosId are skipped.",
+    "dependencies": []
+  },
+  "columnMappings": {}
+}

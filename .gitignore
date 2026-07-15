@@ -21,6 +21,9 @@ temp_*.txt
 # Generated mapping files
 mapping-reports/
 
+# Environment variables
+.env
+
 # Local settings
 .claude/settings.local.json
 

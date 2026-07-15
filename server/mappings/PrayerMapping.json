@@ -1,0 +1,339 @@
+{
+  "filename": "PrayerMapping",
+  "legacyMapping": { "sourceType": 2 },
+  "description": "Mapping for Prayers table to project (ProjectType=2) with PrayerName items (ItemType=3)",
+  "sourceTable": "Prayers",
+  "targetTable": "Project",
+  "sourceIdColumn": "PrayersId",
+  "_meta": {
+    "entityType": "Project",
+    "sourceTable": "Prayers",
+    "targetTable": "Project",
+    "sourcePrimaryKey": "PrayersId",
+    "order": 4
+  },
+  "fixedParentProjectId": 1,
+  "preMigrationRunners": ["seed-project1"],
+  "_collapseNote": "Collapse mode: prayers are NOT created as a Project each. Every prayer becomes a single ProjectItem (ItemType=3) under the existing Project Id=1. The engine therefore SKIPS columnMappings (Project) and localizationMappings (ProjectLocalization) below - they are retained for reference only. All meaningful per-prayer data lives on the ProjectItem + ProjectItemLocalization. Donation linkage is unaffected (Donation.ItemId resolves via ProjectItem_prayerName, keyed by PrayersId). PRECONDITION: a Project with Id=1 must exist before this runs (FK_ProjectItem_PI_Project).",
+  "whereClause": "1=1",
+  "columnMappings": {
+    "Name": {
+      "convertType": "expression",
+      "oldTable": "Prayers",
+      "oldColumn": "Name",
+      "expression": "value ? value.substring(0, 150) : null"
+    },
+    "ProjectType": {
+      "convertType": "const",
+      "value": 2,
+      "comment": "Collection type - Prayers are treated as Collections"
+    },
+    "KupatFundNo": {
+      "convertType": "direct",
+      "oldTable": "Prayers",
+      "oldColumn": "PrayersId",
+      "comment": "Using PrayersId as KupatFundNo for tracking"
+    },
+    "DisplayAsSelfView": {
+      "convertType": "const",
+      "value": 0
+    },
+    "RecordStatus": {
+      "convertType": "const",
+      "value": 2
+    },
+    "StatusChangedAt": {
+      "convertType": "const",
+      "value": "GETDATE()"
+    },
+    "StatusChangedBy": {
+      "convertType": "const",
+      "value": -1
+    },
+    "CreatedAt": {
+      "convertType": "const",
+      "value": "GETDATE()"
+    },
+    "CreatedBy": {
+      "convertType": "const",
+      "value": -1
+    },
+    "UpdatedAt": {
+      "convertType": "const",
+      "value": "GETDATE()"
+    },
+    "UpdatedBy": {
+      "convertType": "const",
+      "value": -1
+    },
+    "TerminalId": {
+      "convertType": "const",
+      "value": 1,
+      "comment": "Default terminal"
+    }
+  },
+  "fkMappings": {},
+  "linkSettingMappings": {
+    "_collapseNote": "Item-level only. In collapse mode these create per-prayer 'Donate' buttons wired into ProjectItemLocalization (MainButtonLinkSettingId / ProjectFooterLinkSettingId) via _updateItemLocalizationLinks. The shared Project 1 localization is NOT touched (guarded by fixedParent in _postInsertUpdates). listViewButton is intentionally omitted - there is no per-prayer project page.",
+    "mainButton": {
+      "hebrew": { "LinkType": 1, "LinkTargetType": 3, "LinkText": "לתרומה" },
+      "english": { "LinkType": 1, "LinkTargetType": 3, "LinkText": "Donate" },
+      "french": { "LinkType": 1, "LinkTargetType": 3, "LinkText": "Pour faire un don" }
+    },
+    "footerButton": {
+      "hebrew": { "LinkType": 1, "LinkTargetType": 3, "LinkText": "לתרומה" },
+      "english": { "LinkType": 1, "LinkTargetType": 3, "LinkText": "Donate" },
+      "french": { "LinkType": 1, "LinkTargetType": 3, "LinkText": "Pour faire un don" }
+    }
+  },
+  "localizationMappings": {
+    "targetTable": "ProjectLocalization",
+    "parentFkColumn": "ProjectId",
+    "Title": {
+      "hebrew": {
+        "convertType": "expression",
+        "oldTable": "Prayers",
+        "oldColumn": "Name",
+        "expression": "value ? value.substring(0, 150) : null"
+      },
+      "english": {
+        "convertType": "expression",
+        "oldTable": "Prayers",
+        "oldColumn": "Name_en",
+        "expression": "value ? value.substring(0, 150) : (row.Name ? row.Name.substring(0, 150) : 'No Translation')",
+        "defaultValue": "No Translation"
+      },
+      "french": {
+        "convertType": "expression",
+        "oldTable": "Prayers",
+        "oldColumn": "Name_fr",
+        "expression": "value ? value.substring(0, 150) : (row.Name ? row.Name.substring(0, 150) : 'No Translation')",
+        "defaultValue": "No Translation"
+      }
+    },
+    "Description": {
+      "hebrew": {
+        "convertType": "expression",
+        "oldTable": "Prayers",
+        "oldColumn": "ShortName",
+        "expression": "value || row.Name"
+      },
+      "english": {
+        "convertType": "expression",
+        "oldTable": "Prayers",
+        "oldColumn": "ShortName_en",
+        "expression": "value || row.Name_en || row.Name"
+      },
+      "french": {
+        "convertType": "expression",
+        "oldTable": "Prayers",
+        "oldColumn": "ShortName_fr",
+        "expression": "value || row.Name_fr || row.Name"
+      }
+    },
+    "DisplayInSite": {
+      "hebrew": {
+        "convertType": "expression",
+        "oldTable": "Prayers",
+        "oldColumn": "Hide",
+        "expression": "row.Hide ? 0 : 1"
+      },
+      "english": {
+        "convertType": "expression",
+        "oldTable": "Prayers",
+        "oldColumn": "Hide_en",
+        "expression": "row.Hide_en ? 0 : 1"
+      },
+      "french": {
+        "convertType": "expression",
+        "oldTable": "Prayers",
+        "oldColumn": "Hide_fr",
+        "expression": "row.Hide_fr ? 0 : 1"
+      }
+    },
+    "RecruitmentTarget": {
+      "hebrew": {
+        "convertType": "expression",
+        "oldTable": "Prayers",
+        "oldColumn": "Price",
+        "expression": "(value === 0 || value === null) ? null : value",
+        "defaultValue": "0"
+      },
+      "english": {
+        "convertType": "expression",
+        "oldTable": "Prayers",
+        "oldColumn": "Price_en",
+        "expression": "(value === 0 || value === null) ? null : value"
+      },
+      "french": {
+        "convertType": "expression",
+        "oldTable": "Prayers",
+        "oldColumn": "Price_fr",
+        "expression": "(value === 0 || value === null) ? null : value"
+      }
+    },
+    "HideDonationsInSite": {
+      "hebrew": {
+        "convertType": "const",
+        "value": "0"
+      },
+      "english": {
+        "convertType": "const",
+        "value": "0"
+      },
+      "french": {
+        "convertType": "const",
+        "value": "0"
+      }
+    },
+    "OrderInProjectsPageView": {
+      "hebrew": {
+        "convertType": "direct",
+        "oldTable": "Prayers",
+        "oldColumn": "Sort"
+      },
+      "english": {
+        "convertType": "direct",
+        "oldTable": "Prayers",
+        "oldColumn": "Sort"
+      },
+      "french": {
+        "convertType": "direct",
+        "oldTable": "Prayers",
+        "oldColumn": "Sort"
+      }
+    },
+    "CreatedAt": {
+      "convertType": "const",
+      "value": "GETDATE()"
+    },
+    "CreatedBy": {
+      "convertType": "const",
+      "value": "-1"
+    },
+    "UpdatedAt": {
+      "convertType": "const",
+      "value": "GETDATE()"
+    },
+    "UpdatedBy": {
+      "convertType": "const",
+      "value": "-1"
+    }
+  },
+  "projectItemMappings": {
+      "prayerName": {
+        "ItemName": {
+          "convertType": "expression",
+          "oldTable": "Prayers",
+          "oldColumn": "Name",
+          "expression": "value ? value.substring(0, 150) : null"
+        },
+        "ItemType": {
+          "convertType": "const",
+          "value": 3,
+          "comment": "PrayerName type"
+        },
+        "PriceType": {
+          "convertType": "const",
+          "value": 1,
+          "comment": "Fixed price"
+        },
+        "KupatFundNo": {
+          "convertType": "direct",
+          "oldTable": "Prayers",
+          "oldColumn": "PrayersId",
+          "comment": "Using PrayersId as fund number"
+        },
+        "HasEngravingName": {
+          "convertType": "const",
+          "value": 1,
+          "comment": "Prayers allow names"
+        },
+        "AllowFreeAddPrayerNames": {
+          "convertType": "const",
+          "value": 1,
+          "comment": "Allow adding prayer names"
+        },
+        "AllowAddDedication": {
+          "convertType": "const",
+          "value": 1
+        },
+        "DeliveryMethod": {
+          "convertType": "const",
+          "value": null
+        },
+        "AllowSelfPickup": {
+          "convertType": "const",
+          "value": null
+        },
+        "MainMedia": {
+          "convertType": "const",
+          "value": null
+        },
+        "ImageForListsView": {
+          "convertType": "const",
+          "value": null
+        },
+        "RecordStatus": {
+          "convertType": "const",
+          "value": 2
+        },
+        "StatusChangedAt": {
+          "convertType": "const",
+          "value": "GETDATE()"
+        },
+        "StatusChangedBy": {
+          "convertType": "const",
+          "value": -1
+        },
+        "CreatedAt": {
+          "convertType": "const",
+          "value": "GETDATE()"
+        },
+        "CreatedBy": {
+          "convertType": "const",
+          "value": -1
+        },
+        "UpdatedAt": {
+          "convertType": "const",
+          "value": "GETDATE()"
+        },
+        "UpdatedBy": {
+          "convertType": "const",
+          "value": -1
+        }
+      }
+  },
+  "projectItemLocalizationMappings": {
+    "hebrew": {
+      "Title": { "convertType": "expression", "oldColumn": "Name", "expression": "value ? value.substring(0, 150) : null" },
+      "Description": { "convertType": "expression", "oldColumn": "ShortName", "expression": "value || row.Name" },
+      "PaymentSum": { "convertType": "direct", "oldColumn": "Price" },
+      "DisplayInSite": { "convertType": "expression", "oldColumn": "Hide", "expression": "row.Hide ? 0 : 1", "comment": "Preserve per-prayer visibility that previously lived on ProjectLocalization" },
+      "CreatedAt": { "convertType": "const", "value": "GETDATE()" },
+      "CreatedBy": { "convertType": "const", "value": "-1" },
+      "UpdatedAt": { "convertType": "const", "value": "GETDATE()" },
+      "UpdatedBy": { "convertType": "const", "value": "-1" }
+    },
+    "english": {
+      "Title": { "convertType": "expression", "oldColumn": "Name_en", "expression": "value ? value.substring(0, 150) : (row.Name ? row.Name.substring(0, 150) : 'No Translation')" },
+      "Description": { "convertType": "expression", "oldColumn": "ShortName_en", "expression": "value || row.Name_en || row.Name" },
+      "PaymentSum": { "convertType": "direct", "oldColumn": "Price_en" },
+      "DisplayInSite": { "convertType": "expression", "oldColumn": "Hide_en", "expression": "row.Hide_en ? 0 : 1" },
+      "CreatedAt": { "convertType": "const", "value": "GETDATE()" },
+      "CreatedBy": { "convertType": "const", "value": "-1" },
+      "UpdatedAt": { "convertType": "const", "value": "GETDATE()" },
+      "UpdatedBy": { "convertType": "const", "value": "-1" }
+    },
+    "french": {
+      "Title": { "convertType": "expression", "oldColumn": "Name_fr", "expression": "value ? value.substring(0, 150) : (row.Name ? row.Name.substring(0, 150) : 'No Translation')" },
+      "Description": { "convertType": "expression", "oldColumn": "ShortName_fr", "expression": "value || row.Name_fr || row.Name" },
+      "PaymentSum": { "convertType": "direct", "oldColumn": "Price_fr" },
+      "DisplayInSite": { "convertType": "expression", "oldColumn": "Hide_fr", "expression": "row.Hide_fr ? 0 : 1" },
+      "CreatedAt": { "convertType": "const", "value": "GETDATE()" },
+      "CreatedBy": { "convertType": "const", "value": "-1" },
+      "UpdatedAt": { "convertType": "const", "value": "GETDATE()" },
+      "UpdatedBy": { "convertType": "const", "value": "-1" }
+    }
+  }
+}

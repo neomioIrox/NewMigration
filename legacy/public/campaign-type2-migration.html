@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>מיגרציית מגביות סוג 2 (Campaign Type 2)</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            min-height: 100vh;
+            padding: 20px;
+            direction: rtl;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            padding: 30px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #4CAF50;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }
+
+        .info-box {
+            background: #e8f5e9;
+            border-right: 4px solid #4CAF50;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+        }
+
+        .info-box h3 {
+            color: #4CAF50;
+            margin-bottom: 10px;
+        }
+
+        .info-box p {
+            color: #555;
+            line-height: 1.6;
+            margin-bottom: 8px;
+        }
+
+        .info-box ul {
+            margin-right: 20px;
+            color: #555;
+            line-height: 1.8;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            flex: 1;
+            min-width: 200px;
+            padding: 15px 30px;
+            font-size: 1.1em;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: bold;
+            color: white;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(76, 175, 80, 0.4);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
+        }
+
+        .btn-secondary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255, 152, 0, 0.4);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        #results {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            display: none;
+        }
+
+        #results.show {
+            display: block;
+        }
+
+        .result-item {
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 5px;
+            background: white;
+        }
+
+        .result-success {
+            border-right: 4px solid #28a745;
+        }
+
+        .result-error {
+            border-right: 4px solid #dc3545;
+        }
+
+        .result-warning {
+            border-right: 4px solid #ffc107;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            display: none;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #4CAF50;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            color: #4CAF50;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .stat-number {
+            font-size: 2em;
+            font-weight: bold;
+            color: #4CAF50;
+        }
+
+        .stat-label {
+            color: #666;
+            margin-top: 5px;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="index.html" class="back-link">← חזרה לדף הראשי</a>
+
+        <h1>📜 מיגרציית מגביות סוג 2</h1>
+
+        <div class="info-box">
+            <h3>מה מתבצע כאן?</h3>
+            <p>מיגרציה של מגביות מסוג 2 (מגבית עם שטר בלבד) מטבלת <strong>Products</strong> בבסיס הנתונים הישן לטבלאות <strong>project</strong> ו-<strong>projectItem</strong> בבסיס הנתונים החדש.</p>
+            <p><strong>סה"כ מגביות למיגרציה:</strong> 26</p>
+            <p><strong>WHERE Clause:</strong> <code>Certificate = 1 AND NOT EXISTS ProductGroup</code></p>
+            <p><strong>טבלאות שייווצרו:</strong></p>
+            <ul>
+                <li><strong>project:</strong> 26 פרויקטים (ProjectType=2 Campaign)</li>
+                <li><strong>projectLocalization:</strong> 78 שורות (26 × 3 שxxxx עברית, אנגלית, צרפתית)</li>
+                <li><strong>projectItem:</strong> 52 פריטים (26 × 2: Certificate ItemType=2 + Donation ItemType=4)</li>
+                <li><strong>projectItemLocalization:</strong> 156 שורות (52 × 3 שxxxxxxxxxxxxx               <li><strong>linkSetting:</strong> 156 שורות (78 Main + 78 ListView)</li>
+                <li><strong>entityContent:</strong> ~37 שורות</li>
+                <li><strong>entityContentItem:</strong> ~37 שורות</li>
+            </ul>
+            <p><strong>תכונות:</strong></p>
+            <ul>
+                <li>מיגרציה מלאה עם לוקליזציה (עברית, אנגלית, צרפתית)</li>
+                <li>יצירת 2 ProjectItems לכל מגבית (שטר + תרומה)</li>
+                <li>תמיכה בתיאורים, תמונות, וקישורים</li>
+                <li>מבוסס על המיפוי ProjectMapping_Collections_Type2.json</li>
+            </ul>
+        </div>
+
+        <div class="button-group">
+            <button id="runBtn" class="btn-primary" onclick="runMigration()">
+                ▶️ הרץ מיגרציה
+            </button>
+            <button class="btn-secondary" onclick="location.reload()">
+                🔄 רענן דף
+            </button>
+        </div>
+
+        <div id="loading" class="loading">
+            <div class="spinner"></div>
+            <p>מריץ מיגרציה... אנא המתן (זה עשוי לקחת מספר שניות)</p>
+        </div>
+
+        <div id="results">
+            <h2>תוצאות המיגרציה</h2>
+            <div id="stats" class="stats"></div>
+            <div id="details" style="margin-top: 20px;"></div>
+        </div>
+    </div>
+
+    <script>
+        async function runMigration() {
+            const runBtn = document.getElementById('runBtn');
+            const loading = document.getElementById('loading');
+            const results = document.getElementById('results');
+            const stats = document.getElementById('stats');
+            const details = document.getElementById('details');
+
+            // Disable button
+            runBtn.disabled = true;
+            loading.classList.add('show');
+            results.classList.remove('show');
+
+            try {
+                // Step 1: Load Type 2 mapping
+                const mappingResponse = await fetch('/api/load-mapping/ProjectMapping_Collections_Type2');
+                const mappingResult = await mappingResponse.json();
+
+                if (!mappingResult.success) {
+                    throw new Error('שגיאה בטעינת מיפוי: ' + mappingResult.message);
+                }
+
+                const mapping = mappingResult.mapping;
+
+                // Step 2: Execute migration
+                const response = await fetch('/api/migrate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        tableName: 'project',
+                        mappings: mapping.columnMappings || {},
+                        fkMappings: mapping.fkMappings || {},
+                        localizationMappings: mapping.localizationMappings || {},
+                        projectItemMappings: mapping.projectItemMappings || {},
+                        projectItemLocalizationMappings: mapping.projectItemLocalizationMappings || {},
+                        mediaMappings: mapping.mediaMappings || {},
+                        whereClause: mapping.whereClause || null
+                    })
+                });
+
+                const data = await response.json();
+
+                loading.classList.remove('show');
+                results.classList.add('show');
+
+                if (data.success) {
+                    // Show statistics
+                    const projectCount = data.project?.insertedCount || 0;
+                    const localizationCount = data.projectLocalization?.insertedCount || 0;
+                    const itemCount = data.projectItem?.insertedCount || 0;
+                    const itemLocalizationCount = data.projectItemLocalization?.insertedCount || 0;
+                    const linkSettingCount = (data.linkSetting?.insertedCount || 0) + (data.linkSettingListView?.insertedCount || 0);
+                    const entityContentCount = data.entityContent?.insertedCount || 0;
+                    const entityContentItemCount = data.entityContent?.contentItemInsertedCount || 0;
+                    const totalRows = projectCount + localizationCount + itemCount + itemLocalizationCount + linkSettingCount + entityContentCount + entityContentItemCount;
+
+                    stats.innerHTML = `
+                        <div class="stat-card">
+                            <div class="stat-number">${projectCount}</div>
+                            <div class="stat-label">project</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number">${localizationCount}</div>
+                            <div class="stat-label">projectLocalization</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number">${itemCount}</div>
+                            <div class="stat-label">projectItem</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number">${itemLocalizationCount}</div>
+                            <div class="stat-label">projectItemLocalization</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number">${linkSettingCount}</div>
+                            <div class="stat-label">linkSetting</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number">${entityContentCount}</div>
+                            <div class="stat-label">entityContent</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number">${entityContentItemCount}</div>
+                            <div class="stat-label">entityContentItem</div>
+                        </div>
+                        <div class="stat-card" style="grid-column: 1 / -1; background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%); color: white;">
+                            <div class="stat-number" style="color: white;">${totalRows}</div>
+                            <div class="stat-label" style="color: white;">סה"כ שורות שנוצרו</div>
+                        </div>
+                    `;
+
+                    // Show details
+                    let detailsHtml = '<div class="result-item result-success">✅ מיגרציה הושלמה בהצלחה!</div>';
+
+                    detailsHtml += `<div class="result-item result-success">✅ נוצרו ${projectCount} פרויקטים מסוג Campaign (ProjectType=2)</div>`;
+                    detailsHtml += `<div class="result-item result-success">✅ נוצרו ${localizationCount} לוקליזציות (עברית, אנגלית, צרפתית)</div>`;
+                    detailsHtml += `<div class="result-item result-success">✅ נוצרו ${itemCount} פריטים (Certificate + Donation)</div>`;
+                    detailsHtml += `<div class="result-item result-success">✅ נוצרו ${itemLocalizationCount} לוקליזציות פריטים</div>`;
+                    detailsHtml += `<div class="result-item result-success">✅ נוצרו ${linkSettingCount} קישורים (Main + ListView)</div>`;
+                    detailsHtml += `<div class="result-item result-success">✅ נוצרו ${entityContentCount} תכנים</div>`;
+                    detailsHtml += `<div class="result-item result-success">✅ נוצרו ${entityContentItemCount} פריטי תוכן</div>`;
+
+                    // Collect all errors from all tables
+                    const allErrors = [
+                        ...(data.project?.errors || []),
+                        ...(data.projectLocalization?.errors || []),
+                        ...(data.projectItem?.errors || []),
+                        ...(data.projectItemLocalization?.errors || []),
+                        ...(data.linkSetting?.errors || []),
+                        ...(data.linkSettingListView?.errors || []),
+                        ...(data.entityContent?.errors || [])
+                    ];
+
+                    if (allErrors.length > 0) {
+                        detailsHtml += `<div class="result-item result-warning">⚠️ ${allErrors.length} שגיאות:</div>`;
+                        allErrors.slice(0, 10).forEach(err => {
+                            const errMsg = typeof err === 'string' ? err : err.error || JSON.stringify(err);
+                            detailsHtml += `<div class="result-item result-error">❌ ${errMsg}</div>`;
+                        });
+                        if (allErrors.length > 10) {
+                            detailsHtml += `<div class="result-item result-warning">... ועוד ${allErrors.length - 10} שגיאות</div>`;
+                        }
+                    }
+
+                    if (data.message) {
+                        detailsHtml += `<div class="result-item result-success">📝 ${data.message}</div>`;
+                    }
+
+                    details.innerHTML = detailsHtml;
+
+                } else {
+                    stats.innerHTML = '';
+                    details.innerHTML = `<div class="result-item result-error">❌ שגיאה: ${data.error || data.message}</div>`;
+                }
+
+            } catch (error) {
+                loading.classList.remove('show');
+                results.classList.add('show');
+                stats.innerHTML = '';
+                details.innerHTML = `<div class="result-item result-error">❌ שגיאה בתקשורת: ${error.message}</div>`;
+            } finally {
+                runBtn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>

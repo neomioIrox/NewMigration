@@ -1,0 +1,116 @@
+{
+  "filename": "GalleryMapping_Images",
+  "sourceTable": "Galeries",
+  "targetTable": "Gallery",
+  "sourceIdColumn": "GaleriesId",
+  "_meta": {
+    "entityType": "Gallery_Images",
+    "sourceTable": "Galeries",
+    "targetTable": "Gallery",
+    "sourcePrimaryKey": "GaleriesId",
+    "order": 9.1,
+    "description": "Image galleries: Galeries -> gallery + gallerylocalization (3 langs)"
+  },
+  "columnMappings": {
+    "Name": {
+      "convertType": "expression",
+      "oldTable": "Galeries",
+      "oldColumn": "Name",
+      "expression": "value ? value.substring(0, 200) : ('Gallery ' + row.GaleriesId)"
+    },
+    "Order": {
+      "convertType": "direct",
+      "oldTable": "Galeries",
+      "oldColumn": "Sort"
+    },
+    "RecordStatus": {
+      "convertType": "const",
+      "value": "2"
+    },
+    "StatusChangedAt": {
+      "convertType": "const",
+      "value": "GETDATE()"
+    },
+    "StatusChangedBy": {
+      "convertType": "const",
+      "value": "-1"
+    },
+    "CreatedAt": {
+      "convertType": "const",
+      "value": "GETDATE()"
+    },
+    "CreatedBy": {
+      "convertType": "const",
+      "value": "-1"
+    },
+    "UpdatedAt": {
+      "convertType": "const",
+      "value": "GETDATE()"
+    },
+    "UpdatedBy": {
+      "convertType": "const",
+      "value": "-1"
+    }
+  },
+  "localizationMappings": {
+    "targetTable": "GalleryLocalization",
+    "parentFkColumn": "GalleryId",
+    "languageColumn": "Language",
+    "Title": {
+      "hebrew": {
+        "convertType": "expression",
+        "oldTable": "Galeries",
+        "oldColumn": "Name",
+        "expression": "value ? value.substring(0, 200) : null"
+      },
+      "english": {
+        "convertType": "expression",
+        "oldTable": "Galeries",
+        "oldColumn": "Name_en",
+        "expression": "value ? value.substring(0, 200) : null"
+      },
+      "french": {
+        "convertType": "expression",
+        "oldTable": "Galeries",
+        "oldColumn": "Name_fr",
+        "expression": "value ? value.substring(0, 200) : null"
+      }
+    },
+    "Display": {
+      "hebrew": {
+        "convertType": "expression",
+        "oldTable": "Galeries",
+        "oldColumn": "Hide",
+        "expression": "row.Hide ? 0 : 1"
+      },
+      "english": {
+        "convertType": "expression",
+        "oldTable": "Galeries",
+        "oldColumn": "Hide_en",
+        "expression": "row.Hide_en ? 0 : 1"
+      },
+      "french": {
+        "convertType": "expression",
+        "oldTable": "Galeries",
+        "oldColumn": "Hide_fr",
+        "expression": "row.Hide_fr ? 0 : 1"
+      }
+    },
+    "CreatedAt": {
+      "convertType": "const",
+      "value": "GETDATE()"
+    },
+    "CreatedBy": {
+      "convertType": "const",
+      "value": "-1"
+    },
+    "UpdatedAt": {
+      "convertType": "const",
+      "value": "GETDATE()"
+    },
+    "UpdatedBy": {
+      "convertType": "const",
+      "value": "-1"
+    }
+  }
+}

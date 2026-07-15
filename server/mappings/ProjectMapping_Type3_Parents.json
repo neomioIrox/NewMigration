@@ -1,0 +1,1099 @@
+{
+  "filename": "ProjectMapping_Type3_Parents",
+  "legacyMapping": { "sourceType": 1 },
+  "sourceTable": "products",
+  "targetTable": "Project",
+  "sourceIdColumn": "productsid",
+  "_meta": {
+    "entityType": "Project",
+    "sourceTable": "products",
+    "targetTable": "Project",
+    "sourcePrimaryKey": "productsid",
+    "order": 4,
+    "note": "Case 3 — ProductGroup campaign PARENTS. One Project per active-campaign parent, with only the parent's own single item (certificate-derived); no hidden donation item."
+  },
+  "whereClause": "Terminal = 1",
+  "preserveSourceId": true,
+  "preMigrationRunners": ["seed-project1"],
+  "scopeFilter": {
+    "column": "productsid",
+    "file": "type3-parents.json"
+  },
+  "columnMappings": {
+    "Name": {
+      "convertType": "expression",
+      "oldTable": "products",
+      "oldColumn": "Name",
+      "expression": "value ? value.substring(0, 150) : null"
+    },
+    "ProjectType": {
+      "convertType": "const",
+      "value": "2"
+    },
+    "KupatFundNo": {
+      "convertType": "direct",
+      "oldTable": "products",
+      "oldColumn": "ProjectNumber"
+    },
+    "DisplayAsSelfView": {
+      "convertType": "direct",
+      "oldTable": "products",
+      "oldColumn": "WithoutKupatView"
+    },
+    "RecordStatus": {
+      "convertType": "const",
+      "value": "2"
+    },
+    "StatusChangedAt": {
+      "convertType": "direct",
+      "oldTable": "products",
+      "oldColumn": "productsid",
+      "useFkMapping": true,
+      "mappingFile": "ProductCreatedDate.json",
+      "defaultValue": "GETDATE_MINUS_1Y()",
+      "comment": "Same as CreatedAt - uses pre-generated date mapping"
+    },
+    "StatusChangedBy": {
+      "convertType": "const",
+      "value": "-1"
+    },
+    "CreatedAt": {
+      "convertType": "direct",
+      "oldTable": "products",
+      "oldColumn": "productsid",
+      "useFkMapping": true,
+      "mappingFile": "ProductCreatedDate.json",
+      "defaultValue": "GETDATE_MINUS_1Y()",
+      "comment": "Uses pre-generated date mapping: each ProductId gets unique date starting 5 years ago, incrementing by 2 days"
+    },
+    "CreatedBy": {
+      "convertType": "const",
+      "value": "-1"
+    },
+    "UpdatedAt": {
+      "convertType": "const",
+      "value": "GETDATE()"
+    },
+    "UpdatedBy": {
+      "convertType": "const",
+      "value": "-1"
+    },
+    "TerminalId": {
+      "convertType": "direct",
+      "oldTable": "products",
+      "oldColumn": "Terminal",
+      "defaultValue": "1",
+      "useFkMapping": true
+    }
+  },
+  "fkMappings": {
+    "TerminalId": {
+      "1": "1",
+      "4": "2"
+    },
+    "StatusChangedAt": "ProductCreatedDate.json",
+    "CreatedAt": "ProductCreatedDate.json"
+  },
+  "localizationMappings": {
+    "targetTable": "ProjectLocalization",
+    "parentFkColumn": "ProjectId",
+    "Title": {
+      "hebrew": {
+        "convertType": "expression",
+        "oldTable": "products",
+        "oldColumn": "Name",
+        "expression": "value ? value.substring(0, 150) : null"
+      },
+      "english": {
+        "convertType": "expression",
+        "oldTable": "products",
+        "oldColumn": "Name_en",
+        "expression": "value ? value.substring(0, 150) : (row.Name ? row.Name.substring(0, 150) : 'No Translation')",
+        "defaultValue": "No Translation"
+      },
+      "french": {
+        "convertType": "expression",
+        "oldTable": "products",
+        "oldColumn": "Name_fr",
+        "expression": "value ? value.substring(0, 150) : (row.Name ? row.Name.substring(0, 150) : 'No Translation')",
+        "defaultValue": "No Translation"
+      }
+    },
+    "Description": {
+      "hebrew": {
+        "convertType": "direct",
+        "oldTable": "products",
+        "oldColumn": "ShortDescription"
+      },
+      "english": {
+        "convertType": "direct",
+        "oldTable": "products",
+        "oldColumn": "ShortDescription_en"
+      },
+      "french": {
+        "convertType": "direct",
+        "oldTable": "products",
+        "oldColumn": "ShortDescription_fr"
+      }
+    },
+    "DisplayInSite": {
+      "hebrew": {
+        "convertType": "expression",
+        "oldTable": "products",
+        "oldColumn": "Hide",
+        "expression": "(!row.Hide && row.ShowMainPage) ? 1 : 0"
+      },
+      "english": {
+        "convertType": "expression",
+        "oldTable": "products",
+        "oldColumn": "Hide_en",
+        "expression": "(!row.Hide_en && row.ShowMainPage) ? 1 : 0"
+      },
+      "french": {
+        "convertType": "expression",
+        "oldTable": "products",
+        "oldColumn": "Hide_fr",
+        "expression": "(!row.Hide_fr && row.ShowMainPage) ? 1 : 0"
+      }
+    },
+    "RecruitmentTarget": {
+      "hebrew": {
+        "convertType": "expression",
+        "oldTable": "products",
+        "oldColumn": "Price",
+        "expression": "(value === 0 || value === null) ? null : value",
+        "defaultValue": "0"
+      },
+      "english": {
+        "convertType": "expression",
+        "oldTable": "products",
+        "oldColumn": "Price_en",
+        "expression": "(value === 0 || value === null) ? null : value"
+      },
+      "french": {
+        "convertType": "expression",
+        "oldTable": "products",
+        "oldColumn": "Price_fr",
+        "expression": "(value === 0 || value === null) ? null : value"
+      }
+    },
+    "HideDonationsInSite": {
+      "hebrew": {
+        "convertType": "direct",
+        "oldTable": "products",
+        "oldColumn": "HideDonationAmount"
+      },
+      "english": {
+        "convertType": "direct",
+        "oldTable": "products",
+        "oldColumn": "HideDonationAmount"
+      },
+      "french": {
+        "convertType": "direct",
+        "oldTable": "products",
+        "oldColumn": "HideDonationAmount"
+      }
+    },
+    "OrderInProjectsPageView": {
+      "hebrew": {
+        "convertType": "direct",
+        "oldTable": "products",
+        "oldColumn": "Sort",
+        "expression": "value <= 30 ? value : null"
+      },
+      "english": {
+        "convertType": "direct",
+        "oldTable": "products",
+        "oldColumn": "Sort",
+        "expression": "value <= 30 ? value : null"
+      },
+      "french": {
+        "convertType": "direct",
+        "oldTable": "products",
+        "oldColumn": "Sort",
+        "expression": "value <= 30 ? value : null"
+      }
+    },
+    "CreatedAt": {
+      "convertType": "const",
+      "value": "GETDATE()"
+    },
+    "CreatedBy": {
+      "convertType": "const",
+      "value": "-1"
+    },
+    "UpdatedAt": {
+      "convertType": "const",
+      "value": "GETDATE()"
+    },
+    "UpdatedBy": {
+      "convertType": "const",
+      "value": "-1"
+    }
+  },
+  "entityContentMappings": {
+    "hebrew": {
+      "sourceColumn": "Description",
+      "urlReplace": true
+    },
+    "english": {
+      "sourceColumn": "Description_en",
+      "urlReplace": true
+    },
+    "french": {
+      "sourceColumn": "Description_fr",
+      "urlReplace": true
+    }
+  },
+  "projectItemMappings": {
+    "certificate": {
+      "_comment": "Parent product's own item — the campaign's only parent-level item. Per decision 2026-07-14 the hidden catch-all 'donation' item (ItemType=4) was REMOVED from all campaigns. ItemType/PriceType/HasEngravingName/DeliveryMethod derived from the parent's Certificate (1->2 certificate, 0->5 fund-donation). Keyed 'certificate' so it records ProjectItem_certificate by the parent productsid -> donation routing for parent orders.",
+      "ItemName": {
+        "convertType": "expression",
+        "oldTable": "products",
+        "oldColumn": "Name",
+        "expression": "value ? value.substring(0, 150) : null"
+      },
+      "ItemType": {
+        "convertType": "expression",
+        "oldColumn": "Certificate",
+        "expression": "row.Certificate == 1 ? 2 : 5"
+      },
+      "PriceType": {
+        "convertType": "expression",
+        "oldColumn": "Certificate",
+        "expression": "row.Certificate == 1 ? 1 : 2"
+      },
+      "HasEngravingName": {
+        "convertType": "expression",
+        "oldColumn": "Certificate",
+        "expression": "row.Certificate == 1 ? 1 : 0"
+      },
+      "AllowFreeAddPrayerNames": {
+        "convertType": "expression",
+        "oldTable": "products",
+        "oldColumn": "ShowPrayerNames",
+        "expression": "value ? 1 : 0",
+        "defaultValue": 0
+      },
+      "DeliveryMethod": {
+        "convertType": "expression",
+        "oldColumn": "Certificate",
+        "expression": "row.Certificate == 1 ? 1 : null"
+      },
+      "RecordStatus": {
+        "convertType": "const",
+        "value": "2"
+      },
+      "StatusChangedAt": {
+        "convertType": "const",
+        "value": "GETDATE()"
+      },
+      "StatusChangedBy": {
+        "convertType": "const",
+        "value": "-1"
+      },
+      "CreatedAt": {
+        "convertType": "const",
+        "value": "GETDATE()"
+      },
+      "CreatedBy": {
+        "convertType": "const",
+        "value": "-1"
+      },
+      "UpdatedAt": {
+        "convertType": "const",
+        "value": "GETDATE()"
+      },
+      "UpdatedBy": {
+        "convertType": "const",
+        "value": "-1"
+      }
+    }
+  },
+  "projectItemLocalizationMappings": {
+    "hebrew": {
+      "DisplayInSite": {
+        "convertType": "expression",
+        "oldColumn": "Hide",
+        "expression": "(!row.Hide && row.ShowMainPage) ? 1 : 0"
+      },
+      "Title": {
+        "convertType": "expression",
+        "oldColumn": "ProjectNameForDonationPage",
+        "expression": "(value && value !== row.Name) ? value.substring(0, 150) : (row.Name ? row.Name.substring(0, 150) : null)"
+      },
+      "PaymentSum": {
+        "convertType": "expression",
+        "oldColumn": "DefaultDonationSumFixed",
+        "expression": "row.DefaultDonationSumFixed > 0 ? (row.DefaultDonationSumFixed * (row.DefaultPaymentsNumFixed || 1)) : row.DefaultDonationsSum"
+      },
+      "DefaultPaymentType": {
+        "convertType": "expression",
+        "oldColumn": "DefaultDonationSumFixed",
+        "expression": "row.DefaultDonationSumFixed > 0 ? 1 : 2"
+      },
+      "DefaultPaymentsCount": {
+        "convertType": "expression",
+        "oldColumn": "DefaultDonationSumFixed",
+        "expression": "row.DefaultDonationSumFixed > 0 ? row.DefaultPaymentsNumFixed : row.DefaultPaymentsNumber"
+      },
+      "NameForReceipt": {
+        "convertType": "expression",
+        "oldColumn": "ProjectNameForInvoice",
+        "expression": "value ? value.substring(0, 150) : null"
+      },
+      "OrderInItemsPageView": {
+        "convertType": "expression",
+        "oldColumn": "Sort",
+        "expression": "(value && value <= 30) ? value : null"
+      },
+      "OrderInProjectPageFooter": {
+        "convertType": "const",
+        "value": "1"
+      },
+      "CreatedAt": {
+        "convertType": "const",
+        "value": "GETDATE()"
+      },
+      "CreatedBy": {
+        "convertType": "const",
+        "value": "-1"
+      },
+      "UpdatedAt": {
+        "convertType": "const",
+        "value": "GETDATE()"
+      },
+      "UpdatedBy": {
+        "convertType": "const",
+        "value": "-1"
+      }
+    },
+    "english": {
+      "DisplayInSite": {
+        "convertType": "expression",
+        "oldColumn": "Hide_en",
+        "expression": "(!row.Hide_en && row.ShowMainPage) ? 1 : 0"
+      },
+      "Title": {
+        "convertType": "expression",
+        "oldColumn": "Name_en",
+        "expression": "value ? value.substring(0, 150) : (row.Name ? row.Name.substring(0, 150) : null)"
+      },
+      "PaymentSum": {
+        "convertType": "expression",
+        "oldColumn": "DefaultDonationSumFixed_en",
+        "expression": "(row.DefaultDonationSumFixed_en > 0 ? (row.DefaultDonationSumFixed_en * (row.DefaultPaymentsNumFixed_en || 1)) : row.DefaultDonationsSum_en) || (row.DefaultDonationSumFixed > 0 ? (row.DefaultDonationSumFixed * (row.DefaultPaymentsNumFixed || 1)) : row.DefaultDonationsSum)"
+      },
+      "DefaultPaymentType": {
+        "convertType": "expression",
+        "oldColumn": "DefaultDonationSumFixed_en",
+        "expression": "(row.DefaultDonationSumFixed_en > 0 || row.DefaultDonationsSum_en > 0) ? (row.DefaultDonationSumFixed_en > 0 ? 1 : 2) : (row.DefaultDonationSumFixed > 0 ? 1 : 2)"
+      },
+      "DefaultPaymentsCount": {
+        "convertType": "expression",
+        "oldColumn": "DefaultDonationSumFixed_en",
+        "expression": "(row.DefaultDonationSumFixed_en > 0 ? row.DefaultPaymentsNumFixed_en : row.DefaultPaymentsNumber_en) || (row.DefaultDonationSumFixed > 0 ? row.DefaultPaymentsNumFixed : row.DefaultPaymentsNumber)"
+      },
+      "NameForReceipt": {
+        "convertType": "expression",
+        "oldColumn": "ProjectNameForInvoice_en",
+        "expression": "value ? value.substring(0, 150) : null"
+      },
+      "OrderInItemsPageView": {
+        "convertType": "expression",
+        "oldColumn": "Sort",
+        "expression": "(value && value <= 30) ? value : null"
+      },
+      "OrderInProjectPageFooter": {
+        "convertType": "const",
+        "value": "1"
+      },
+      "CreatedAt": {
+        "convertType": "const",
+        "value": "GETDATE()"
+      },
+      "CreatedBy": {
+        "convertType": "const",
+        "value": "-1"
+      },
+      "UpdatedAt": {
+        "convertType": "const",
+        "value": "GETDATE()"
+      },
+      "UpdatedBy": {
+        "convertType": "const",
+        "value": "-1"
+      }
+    },
+    "french": {
+      "DisplayInSite": {
+        "convertType": "expression",
+        "oldColumn": "Hide_fr",
+        "expression": "(!row.Hide_fr && row.ShowMainPage) ? 1 : 0"
+      },
+      "Title": {
+        "convertType": "expression",
+        "oldColumn": "Name_fr",
+        "expression": "value ? value.substring(0, 150) : (row.Name ? row.Name.substring(0, 150) : null)"
+      },
+      "PaymentSum": {
+        "convertType": "expression",
+        "oldColumn": "DefaultDonationSumFixed_fr",
+        "expression": "(row.DefaultDonationSumFixed_fr > 0 ? (row.DefaultDonationSumFixed_fr * (row.DefaultPaymentsNumFixed_fr || 1)) : row.DefaultDonationsSum_fr) || (row.DefaultDonationSumFixed > 0 ? (row.DefaultDonationSumFixed * (row.DefaultPaymentsNumFixed || 1)) : row.DefaultDonationsSum)"
+      },
+      "DefaultPaymentType": {
+        "convertType": "expression",
+        "oldColumn": "DefaultDonationSumFixed_fr",
+        "expression": "(row.DefaultDonationSumFixed_fr > 0 || row.DefaultDonationsSum_fr > 0) ? (row.DefaultDonationSumFixed_fr > 0 ? 1 : 2) : (row.DefaultDonationSumFixed > 0 ? 1 : 2)"
+      },
+      "DefaultPaymentsCount": {
+        "convertType": "expression",
+        "oldColumn": "DefaultDonationSumFixed_fr",
+        "expression": "(row.DefaultDonationSumFixed_fr > 0 ? row.DefaultPaymentsNumFixed_fr : row.DefaultPaymentsNumber_fr) || (row.DefaultDonationSumFixed > 0 ? row.DefaultPaymentsNumFixed : row.DefaultPaymentsNumber)"
+      },
+      "NameForReceipt": {
+        "convertType": "expression",
+        "oldColumn": "ProjectNameForInvoice_fr",
+        "expression": "value ? value.substring(0, 150) : null"
+      },
+      "OrderInItemsPageView": {
+        "convertType": "expression",
+        "oldColumn": "Sort",
+        "expression": "(value && value <= 30) ? value : null"
+      },
+      "OrderInProjectPageFooter": {
+        "convertType": "const",
+        "value": "1"
+      },
+      "CreatedAt": {
+        "convertType": "const",
+        "value": "GETDATE()"
+      },
+      "CreatedBy": {
+        "convertType": "const",
+        "value": "-1"
+      },
+      "UpdatedAt": {
+        "convertType": "const",
+        "value": "GETDATE()"
+      },
+      "UpdatedBy": {
+        "convertType": "const",
+        "value": "-1"
+      }
+    }
+  },
+  "mediaMappings": {
+    "hebrew": {
+      "projectImage": {
+        "RelativePath": {
+          "convertType": "expression",
+          "oldTable": "products",
+          "oldColumn": "Pic",
+          "expression": "'2020/01/' + value"
+        },
+        "YearDirectory": {
+          "convertType": "const",
+          "value": "2020"
+        },
+        "MonthDirectory": {
+          "convertType": "const",
+          "value": "01"
+        },
+        "SourceType": {
+          "convertType": "const",
+          "value": "1"
+        },
+        "MediaType": {
+          "convertType": "const",
+          "value": "1"
+        },
+        "FriendlyName": {
+          "convertType": "const",
+          "value": null
+        },
+        "MatchToPlatform": {
+          "convertType": "const",
+          "value": "3"
+        },
+        "RecordStatus": {
+          "convertType": "const",
+          "value": "2"
+        },
+        "StatusChangedAt": {
+          "convertType": "const",
+          "value": "GETDATE()"
+        },
+        "StatusChangedBy": {
+          "convertType": "const",
+          "value": "-1"
+        },
+        "CreatedAt": {
+          "convertType": "const",
+          "value": "GETDATE()"
+        },
+        "CreatedBy": {
+          "convertType": "const",
+          "value": "-1"
+        },
+        "UpdatedAt": {
+          "convertType": "const",
+          "value": "GETDATE()"
+        },
+        "UpdatedBy": {
+          "convertType": "const",
+          "value": "-1"
+        },
+        "condition": "row.Pic != null && row.Pic != ''"
+      },
+      "projectVideo": {
+        "RelativePath": {
+          "convertType": "expression",
+          "oldTable": "products",
+          "oldColumn": "ProjectVideo",
+          "expression": "'2020/01/' + value"
+        },
+        "YearDirectory": {
+          "convertType": "const",
+          "value": "2020"
+        },
+        "MonthDirectory": {
+          "convertType": "const",
+          "value": "01"
+        },
+        "SourceType": {
+          "convertType": "const",
+          "value": "1"
+        },
+        "MediaType": {
+          "convertType": "const",
+          "value": "2"
+        },
+        "FriendlyName": {
+          "convertType": "const",
+          "value": null
+        },
+        "MatchToPlatform": {
+          "convertType": "const",
+          "value": "3"
+        },
+        "RecordStatus": {
+          "convertType": "const",
+          "value": "2"
+        },
+        "StatusChangedAt": {
+          "convertType": "const",
+          "value": "GETDATE()"
+        },
+        "StatusChangedBy": {
+          "convertType": "const",
+          "value": "-1"
+        },
+        "CreatedAt": {
+          "convertType": "const",
+          "value": "GETDATE()"
+        },
+        "CreatedBy": {
+          "convertType": "const",
+          "value": "-1"
+        },
+        "UpdatedAt": {
+          "convertType": "const",
+          "value": "GETDATE()"
+        },
+        "UpdatedBy": {
+          "convertType": "const",
+          "value": "-1"
+        },
+        "condition": "row.ProjectVideo != null && row.ProjectVideo != ''"
+      },
+      "donationBanner": {
+        "RelativePath": {
+          "convertType": "expression",
+          "oldTable": "products",
+          "oldColumn": "DonationPageBanner1",
+          "expression": "'2020/01/' + value"
+        },
+        "YearDirectory": {
+          "convertType": "const",
+          "value": "2020"
+        },
+        "MonthDirectory": {
+          "convertType": "const",
+          "value": "01"
+        },
+        "SourceType": {
+          "convertType": "const",
+          "value": "1"
+        },
+        "MediaType": {
+          "convertType": "const",
+          "value": "1"
+        },
+        "FriendlyName": {
+          "convertType": "const",
+          "value": null
+        },
+        "MatchToPlatform": {
+          "convertType": "const",
+          "value": "3"
+        },
+        "RecordStatus": {
+          "convertType": "const",
+          "value": "2"
+        },
+        "StatusChangedAt": {
+          "convertType": "const",
+          "value": "GETDATE()"
+        },
+        "StatusChangedBy": {
+          "convertType": "const",
+          "value": "-1"
+        },
+        "CreatedAt": {
+          "convertType": "const",
+          "value": "GETDATE()"
+        },
+        "CreatedBy": {
+          "convertType": "const",
+          "value": "-1"
+        },
+        "UpdatedAt": {
+          "convertType": "const",
+          "value": "GETDATE()"
+        },
+        "UpdatedBy": {
+          "convertType": "const",
+          "value": "-1"
+        },
+        "condition": "row.DonationPageBanner1 != null && row.DonationPageBanner1 != ''"
+      }
+    },
+    "french": {
+      "projectImage": {
+        "RelativePath": {
+          "convertType": "expression",
+          "oldTable": "products",
+          "oldColumn": "Pic_fr",
+          "expression": "'2020/01/' + value"
+        },
+        "YearDirectory": {
+          "convertType": "const",
+          "value": "2020"
+        },
+        "MonthDirectory": {
+          "convertType": "const",
+          "value": "01"
+        },
+        "SourceType": {
+          "convertType": "const",
+          "value": "1"
+        },
+        "MediaType": {
+          "convertType": "const",
+          "value": "1"
+        },
+        "FriendlyName": {
+          "convertType": "const",
+          "value": null
+        },
+        "MatchToPlatform": {
+          "convertType": "const",
+          "value": "3"
+        },
+        "RecordStatus": {
+          "convertType": "const",
+          "value": "2"
+        },
+        "StatusChangedAt": {
+          "convertType": "const",
+          "value": "GETDATE()"
+        },
+        "StatusChangedBy": {
+          "convertType": "const",
+          "value": "-1"
+        },
+        "CreatedAt": {
+          "convertType": "const",
+          "value": "GETDATE()"
+        },
+        "CreatedBy": {
+          "convertType": "const",
+          "value": "-1"
+        },
+        "UpdatedAt": {
+          "convertType": "const",
+          "value": "GETDATE()"
+        },
+        "UpdatedBy": {
+          "convertType": "const",
+          "value": "-1"
+        },
+        "condition": "row.Pic_fr != null && row.Pic_fr != ''"
+      },
+      "projectVideo": {
+        "RelativePath": {
+          "convertType": "expression",
+          "oldTable": "products",
+          "oldColumn": "ProjectVideo_fr",
+          "expression": "'2020/01/' + value"
+        },
+        "YearDirectory": {
+          "convertType": "const",
+          "value": "2020"
+        },
+        "MonthDirectory": {
+          "convertType": "const",
+          "value": "01"
+        },
+        "SourceType": {
+          "convertType": "const",
+          "value": "1"
+        },
+        "MediaType": {
+          "convertType": "const",
+          "value": "2"
+        },
+        "FriendlyName": {
+          "convertType": "const",
+          "value": null
+        },
+        "MatchToPlatform": {
+          "convertType": "const",
+          "value": "3"
+        },
+        "RecordStatus": {
+          "convertType": "const",
+          "value": "2"
+        },
+        "StatusChangedAt": {
+          "convertType": "const",
+          "value": "GETDATE()"
+        },
+        "StatusChangedBy": {
+          "convertType": "const",
+          "value": "-1"
+        },
+        "CreatedAt": {
+          "convertType": "const",
+          "value": "GETDATE()"
+        },
+        "CreatedBy": {
+          "convertType": "const",
+          "value": "-1"
+        },
+        "UpdatedAt": {
+          "convertType": "const",
+          "value": "GETDATE()"
+        },
+        "UpdatedBy": {
+          "convertType": "const",
+          "value": "-1"
+        },
+        "condition": "row.ProjectVideo_fr != null && row.ProjectVideo_fr != ''"
+      },
+      "donationBanner": {
+        "RelativePath": {
+          "convertType": "expression",
+          "oldTable": "products",
+          "oldColumn": "DonationPageBanner1_fr",
+          "expression": "'2020/01/' + value"
+        },
+        "YearDirectory": {
+          "convertType": "const",
+          "value": "2020"
+        },
+        "MonthDirectory": {
+          "convertType": "const",
+          "value": "01"
+        },
+        "SourceType": {
+          "convertType": "const",
+          "value": "1"
+        },
+        "MediaType": {
+          "convertType": "const",
+          "value": "1"
+        },
+        "FriendlyName": {
+          "convertType": "const",
+          "value": null
+        },
+        "MatchToPlatform": {
+          "convertType": "const",
+          "value": "3"
+        },
+        "RecordStatus": {
+          "convertType": "const",
+          "value": "2"
+        },
+        "StatusChangedAt": {
+          "convertType": "const",
+          "value": "GETDATE()"
+        },
+        "StatusChangedBy": {
+          "convertType": "const",
+          "value": "-1"
+        },
+        "CreatedAt": {
+          "convertType": "const",
+          "value": "GETDATE()"
+        },
+        "CreatedBy": {
+          "convertType": "const",
+          "value": "-1"
+        },
+        "UpdatedAt": {
+          "convertType": "const",
+          "value": "GETDATE()"
+        },
+        "UpdatedBy": {
+          "convertType": "const",
+          "value": "-1"
+        },
+        "condition": "row.DonationPageBanner1_fr != null && row.DonationPageBanner1_fr != ''"
+      }
+    },
+    "english": {
+      "projectImage": {
+        "RelativePath": {
+          "convertType": "expression",
+          "oldTable": "products",
+          "oldColumn": "Pic_en",
+          "expression": "'2020/01/' + value"
+        },
+        "YearDirectory": {
+          "convertType": "const",
+          "value": "2020"
+        },
+        "MonthDirectory": {
+          "convertType": "const",
+          "value": "01"
+        },
+        "SourceType": {
+          "convertType": "const",
+          "value": "1"
+        },
+        "MediaType": {
+          "convertType": "const",
+          "value": "1"
+        },
+        "FriendlyName": {
+          "convertType": "const",
+          "value": null
+        },
+        "MatchToPlatform": {
+          "convertType": "const",
+          "value": "3"
+        },
+        "RecordStatus": {
+          "convertType": "const",
+          "value": "2"
+        },
+        "StatusChangedAt": {
+          "convertType": "const",
+          "value": "GETDATE()"
+        },
+        "StatusChangedBy": {
+          "convertType": "const",
+          "value": "-1"
+        },
+        "CreatedAt": {
+          "convertType": "const",
+          "value": "GETDATE()"
+        },
+        "CreatedBy": {
+          "convertType": "const",
+          "value": "-1"
+        },
+        "UpdatedAt": {
+          "convertType": "const",
+          "value": "GETDATE()"
+        },
+        "UpdatedBy": {
+          "convertType": "const",
+          "value": "-1"
+        },
+        "condition": "row.Pic_en != null && row.Pic_en != ''"
+      },
+      "projectVideo": {
+        "RelativePath": {
+          "convertType": "expression",
+          "oldTable": "products",
+          "oldColumn": "ProjectVideo_en",
+          "expression": "'2020/01/' + value"
+        },
+        "YearDirectory": {
+          "convertType": "const",
+          "value": "2020"
+        },
+        "MonthDirectory": {
+          "convertType": "const",
+          "value": "01"
+        },
+        "SourceType": {
+          "convertType": "const",
+          "value": "1"
+        },
+        "MediaType": {
+          "convertType": "const",
+          "value": "2"
+        },
+        "FriendlyName": {
+          "convertType": "const",
+          "value": null
+        },
+        "MatchToPlatform": {
+          "convertType": "const",
+          "value": "3"
+        },
+        "RecordStatus": {
+          "convertType": "const",
+          "value": "2"
+        },
+        "StatusChangedAt": {
+          "convertType": "const",
+          "value": "GETDATE()"
+        },
+        "StatusChangedBy": {
+          "convertType": "const",
+          "value": "-1"
+        },
+        "CreatedAt": {
+          "convertType": "const",
+          "value": "GETDATE()"
+        },
+        "CreatedBy": {
+          "convertType": "const",
+          "value": "-1"
+        },
+        "UpdatedAt": {
+          "convertType": "const",
+          "value": "GETDATE()"
+        },
+        "UpdatedBy": {
+          "convertType": "const",
+          "value": "-1"
+        },
+        "condition": "row.ProjectVideo_en != null && row.ProjectVideo_en != ''"
+      },
+      "donationBanner": {
+        "RelativePath": {
+          "convertType": "expression",
+          "oldTable": "products",
+          "oldColumn": "DonationPageBanner1_en",
+          "expression": "'2020/01/' + value"
+        },
+        "YearDirectory": {
+          "convertType": "const",
+          "value": "2020"
+        },
+        "MonthDirectory": {
+          "convertType": "const",
+          "value": "01"
+        },
+        "SourceType": {
+          "convertType": "const",
+          "value": "1"
+        },
+        "MediaType": {
+          "convertType": "const",
+          "value": "1"
+        },
+        "FriendlyName": {
+          "convertType": "const",
+          "value": null
+        },
+        "MatchToPlatform": {
+          "convertType": "const",
+          "value": "3"
+        },
+        "RecordStatus": {
+          "convertType": "const",
+          "value": "2"
+        },
+        "StatusChangedAt": {
+          "convertType": "const",
+          "value": "GETDATE()"
+        },
+        "StatusChangedBy": {
+          "convertType": "const",
+          "value": "-1"
+        },
+        "CreatedAt": {
+          "convertType": "const",
+          "value": "GETDATE()"
+        },
+        "CreatedBy": {
+          "convertType": "const",
+          "value": "-1"
+        },
+        "UpdatedAt": {
+          "convertType": "const",
+          "value": "GETDATE()"
+        },
+        "UpdatedBy": {
+          "convertType": "const",
+          "value": "-1"
+        },
+        "condition": "row.DonationPageBanner1_en != null && row.DonationPageBanner1_en != ''"
+      }
+    }
+  },
+  "linkSettingMappings": {
+    "mainButton": {
+      "hebrew": {
+        "LinkType": 1,
+        "LinkTargetType": 3,
+        "LinkText": "לתרומה"
+      },
+      "english": {
+        "LinkType": 1,
+        "LinkTargetType": 3,
+        "LinkText": "Donate"
+      },
+      "french": {
+        "LinkType": 1,
+        "LinkTargetType": 3,
+        "LinkText": "Pour faire un don"
+      }
+    },
+    "footerButton": {
+      "hebrew": {
+        "LinkType": 1,
+        "LinkTargetType": 3,
+        "LinkText": "לתרומה"
+      },
+      "english": {
+        "LinkType": 1,
+        "LinkTargetType": 3,
+        "LinkText": "Donate"
+      },
+      "french": {
+        "LinkType": 1,
+        "LinkTargetType": 3,
+        "LinkText": "Pour faire un don"
+      }
+    },
+    "listViewButton": {
+      "_noItemId": true,
+      "hebrew": {
+        "LinkType": 3,
+        "LinkTargetType": 1,
+        "LinkTextColumn": "Name"
+      },
+      "english": {
+        "LinkType": 3,
+        "LinkTargetType": 1,
+        "LinkTextColumn": "Name_en"
+      },
+      "french": {
+        "LinkType": 3,
+        "LinkTargetType": 1,
+        "LinkTextColumn": "Name_fr"
+      }
+    }
+  },
+  "savedAt": "generated from ProjectMapping_Collections_Fixed for Case 3 parents"
+}

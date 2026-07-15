@@ -1,0 +1,42 @@
+{
+  "filename": "FundCategoryMapping",
+  "sourceTable": "products",
+  "targetTable": "FundCategory",
+  "sourceIdColumn": "productsid",
+  "_meta": {
+    "entityType": "FundCategory",
+    "sourceTable": "products",
+    "targetTable": "FundCategory",
+    "sourcePrimaryKey": "productsid",
+    "dependsOn": ["Project", "LutFundCategory"],
+    "order": 12
+  },
+  "whereClause": "IsNull([Certificate],0) != 1 AND NOT EXISTS (SELECT 1 FROM ProductGroup g WITH (NOLOCK) WHERE g.ParentProductId=products.productsid OR g.SubProductId=products.productsid) AND products.catId > 0",
+  "columnMappings": {
+    "FundId": {
+      "convertType": "direct",
+      "oldTable": "products",
+      "oldColumn": "productsid",
+      "useFkMapping": true
+    },
+    "CategoryId": {
+      "convertType": "direct",
+      "oldTable": "products",
+      "oldColumn": "CatId",
+      "useFkMapping": true
+    },
+    "CreatedAt": {
+      "convertType": "const",
+      "value": "GETDATE()"
+    },
+    "CreatedBy": {
+      "convertType": "const",
+      "value": "-1"
+    }
+  },
+  "fkMappings": {
+    "FundId": "Project",
+    "CategoryId": "LutFundCategory"
+  },
+  "savedAt": "2026-02-02T00:00:00.000Z"
+}

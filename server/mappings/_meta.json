@@ -1,0 +1,123 @@
+{
+  "migrationOrder": [
+    {
+      "mapping": "AffiliateMapping",
+      "entityType": "Affiliate",
+      "order": 0,
+      "dependsOn": []
+    },
+    {
+      "mapping": "SourceMapping",
+      "entityType": "Source",
+      "order": 1,
+      "dependsOn": [
+        "Affiliate"
+      ]
+    },
+    {
+      "mapping": "LutFundCategoryMapping",
+      "entityType": "LutFundCategory",
+      "order": 2,
+      "dependsOn": []
+    },
+    {
+      "mapping": "ProjectMapping_Funds_Fixed",
+      "entityType": "Project",
+      "order": 3,
+      "dependsOn": []
+    },
+    {
+      "mapping": "ProjectMapping_Collections_Fixed",
+      "entityType": "Project",
+      "order": 4,
+      "dependsOn": []
+    },
+    {
+      "mapping": "ProjectMapping_Type3_Parents",
+      "entityType": "Project",
+      "order": 5,
+      "dependsOn": []
+    },
+    {
+      "mapping": "ProjectMapping_Type3_Subs",
+      "entityType": "Project",
+      "order": 6,
+      "dependsOn": [
+        "Project"
+      ]
+    },
+    {
+      "mapping": "ProjectMapping_Collections_Type2",
+      "entityType": "Project",
+      "order": 7,
+      "dependsOn": []
+    },
+    {
+      "mapping": "PrayerMapping",
+      "entityType": "Project",
+      "order": 8,
+      "dependsOn": []
+    },
+    {
+      "mapping": "RecruitersGroupMapping",
+      "entityType": "RecruitersGroup",
+      "order": 9,
+      "dependsOn": [
+        "Project"
+      ]
+    },
+    {
+      "mapping": "RecruiterMapping",
+      "entityType": "Recruiter",
+      "order": 10,
+      "dependsOn": [
+        "Project",
+        "RecruitersGroup"
+      ]
+    },
+    {
+      "mapping": "RecruiterLocalizationMapping",
+      "entityType": "RecruiterLocalization",
+      "order": 11,
+      "dependsOn": [
+        "Recruiter"
+      ]
+    },
+    {
+      "mapping": "GalleryMapping_Images",
+      "entityType": "Gallery",
+      "order": 12,
+      "dependsOn": []
+    },
+    {
+      "mapping": "GalleryMediaMapping_Images",
+      "entityType": "Media_GalleryImage",
+      "order": 13,
+      "dependsOn": [
+        "Gallery"
+      ]
+    },
+    {
+      "mapping": "VideoGalleryMediaMapping",
+      "entityType": "VideoGallery",
+      "order": 13.5,
+      "dependsOn": [],
+      "note": "Runs via dedicated VideoGalleryEngine (videogallery-engine.js), selectable from the UI like any mapping. Targets VideoGalleryMedia + LinkSetting + Media — NOT Gallery tables (GalleryMapping_Videos was deprecated, see mappings/deprecated/)."
+    },
+    {
+      "mapping": "FundCategoryMapping",
+      "entityType": "FundCategory",
+      "order": 14,
+      "dependsOn": [
+        "Project",
+        "LutFundCategory"
+      ]
+    },
+    {
+      "mapping": "AsakimDonationMapping",
+      "entityType": "AsakimDonation",
+      "order": 15,
+      "dependsOn": []
+    }
+  ]
+}

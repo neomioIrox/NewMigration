@@ -1,0 +1,150 @@
+{
+  "filename": "AsakimDonationMapping",
+  "description": "מיפוי תרומות עסקים - AsakimDonations (MSSQL) to AsakimDonation (MySQL)",
+  "sourceTable": "AsakimDonations",
+  "targetTable": "AsakimDonation",
+  "sourceIdColumn": "Id",
+  "_meta": {
+    "entityType": "AsakimDonation",
+    "sourceTable": "AsakimDonations",
+    "targetTable": "AsakimDonation",
+    "sourcePrimaryKey": "Id",
+    "dependsOn": [],
+    "order": 13,
+    "description": "Asakim donations: AsakimDonations -> AsakimDonation. Source 120,128 rows; scope-filtered to 106,069 rows whose DonationID matches an in-scope Orders.AsakimID (ChargeStatus='OrderFinished' AND DateCreated >= cutoff). No target FK dependency."
+  },
+  "columnMappings": {
+    "CardName": {
+      "convertType": "expression",
+      "oldTable": "AsakimDonations",
+      "oldColumn": "CardName",
+      "expression": "value ? value.substring(0, 100) : null",
+      "comment": "Source is varchar(200), target is varchar(100) - truncate"
+    },
+    "DocumentReferenceNumber": {
+      "convertType": "direct",
+      "oldTable": "AsakimDonations",
+      "oldColumn": "DocumentReferenceNumber"
+    },
+    "ProjectName": {
+      "convertType": "direct",
+      "oldTable": "AsakimDonations",
+      "oldColumn": "ProjectName"
+    },
+    "ProjectNumber": {
+      "convertType": "direct",
+      "oldTable": "AsakimDonations",
+      "oldColumn": "ProjectNumber"
+    },
+    "SumPaymentShekel": {
+      "convertType": "direct",
+      "oldTable": "AsakimDonations",
+      "oldColumn": "SumPaymentShekel"
+    },
+    "SumPaymentCurrency": {
+      "convertType": "direct",
+      "oldTable": "AsakimDonations",
+      "oldColumn": "SumPaymentCurrency"
+    },
+    "DocID": {
+      "convertType": "direct",
+      "oldTable": "AsakimDonations",
+      "oldColumn": "DocID"
+    },
+    "DocumentPaymentsID": {
+      "convertType": "direct",
+      "oldTable": "AsakimDonations",
+      "oldColumn": "DocumentPaymentsID"
+    },
+    "DocPaymentDate": {
+      "convertType": "direct",
+      "oldTable": "AsakimDonations",
+      "oldColumn": "DocPaymentDate"
+    },
+    "DocValueDate": {
+      "convertType": "direct",
+      "oldTable": "AsakimDonations",
+      "oldColumn": "DocValueDate"
+    },
+    "DocRegisterDate": {
+      "convertType": "direct",
+      "oldTable": "AsakimDonations",
+      "oldColumn": "DocRegisterDate"
+    },
+    "CardID": {
+      "convertType": "direct",
+      "oldTable": "AsakimDonations",
+      "oldColumn": "CardID"
+    },
+    "PaymentType": {
+      "convertType": "direct",
+      "oldTable": "AsakimDonations",
+      "oldColumn": "PaymentType"
+    },
+    "RecordDate": {
+      "convertType": "direct",
+      "oldTable": "AsakimDonations",
+      "oldColumn": "RecordDate"
+    },
+    "CountPayments": {
+      "convertType": "direct",
+      "oldTable": "AsakimDonations",
+      "oldColumn": "CountPayments"
+    },
+    "SourceType": {
+      "convertType": "direct",
+      "oldTable": "AsakimDonations",
+      "oldColumn": "SourceType"
+    },
+    "Comments": {
+      "convertType": "direct",
+      "oldTable": "AsakimDonations",
+      "oldColumn": "Comments"
+    },
+    "ArmyIDNumber": {
+      "convertType": "direct",
+      "oldTable": "AsakimDonations",
+      "oldColumn": "ArmyIDNumber"
+    },
+    "SalesPersonID": {
+      "convertType": "direct",
+      "oldTable": "AsakimDonations",
+      "oldColumn": "SalesPersonID"
+    },
+    "SalesPersonName": {
+      "convertType": "direct",
+      "oldTable": "AsakimDonations",
+      "oldColumn": "SalesPersonName"
+    },
+    "BillingID": {
+      "convertType": "direct",
+      "oldTable": "AsakimDonations",
+      "oldColumn": "BillingID"
+    },
+    "BillingItemsID": {
+      "convertType": "direct",
+      "oldTable": "AsakimDonations",
+      "oldColumn": "BillingItemsID"
+    },
+    "Status": {
+      "convertType": "direct",
+      "oldTable": "AsakimDonations",
+      "oldColumn": "Status"
+    },
+    "DonationID": {
+      "convertType": "direct",
+      "oldTable": "AsakimDonations",
+      "oldColumn": "DonationID"
+    }
+  },
+  "notes": [
+    "מקור: 120,128 שורות (נכון ל-2026-06-10). הספירה הישנה (87,725) הייתה מיושנת.",
+    "סינון scope: המנוע מהגר רק שורות שה-DonationID שלהן תואם Orders.AsakimID של תרומה בתחום (ChargeStatus='OrderFinished' ו-DateCreated מאז ה-cutoff). בתחום: 106,069 שורות.",
+    "נושרות 14,059 שורות ללא תרומה תואמת בתחום (6,270 DonationID ריק + 7,646 שלא תואם אף הזמנה + 143 מחוץ לתחום).",
+    "אין תלות FK ביעד - קורא את Orders מהמקור (MSSQL), לא את הטבלה המהוגרת, אז ניתן להריץ בכל שלב.",
+    "CardName: מקוצר מ-200 ל-100 תווים",
+    "StatusReason: קיימת ביעד אבל לא במקור - תישאר NULL",
+    "35 עמודות מקור לא ממופות (ProjectId, SalesPerson, Shva fields, Export fields וכו')"
+  ],
+  "savedAt": "2026-06-10T00:00:00.000Z"
+}

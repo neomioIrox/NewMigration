@@ -1,0 +1,66 @@
+{
+  "filename": "SourceMapping",
+  "description": "מיפוי מקורות - UserSources to source",
+  "sourceTable": "UserSources",
+  "targetTable": "Source",
+  "sourceIdColumn": "UserSourcesId",
+  "sourceQuery": "SELECT us.* FROM UserSources us WITH (NOLOCK) WHERE us.ParentSourcesId IS NOT NULL AND EXISTS (SELECT 1 FROM ParentSources ps WHERE ps.Id = us.ParentSourcesId)",
+  "whereClause": null,
+  "preserveSourceId": true,
+  "columnMappings": {
+    "AffiliateId": {
+      "convertType": "direct",
+      "oldColumn": "ParentSourcesId",
+      "useFkMapping": true,
+      "comment": "FK to Affiliate from ParentSources"
+    },
+    "SourceCode": {
+      "convertType": "expression",
+      "oldColumn": "Name",
+      "expression": "value ? value.substring(0, 50) : 'unknown'"
+    },
+    "Description": {
+      "convertType": "expression",
+      "oldColumn": "Title",
+      "expression": "value && value.trim() !== '' ? value.substring(0, 100) : (row.Name ? row.Name.substring(0, 100) : null)"
+    },
+    "RecordStatus": {
+      "convertType": "const",
+      "value": "2"
+    },
+    "StatusChangedAt": {
+      "convertType": "const",
+      "value": "GETDATE()"
+    },
+    "StatusChangedBy": {
+      "convertType": "const",
+      "value": "-1"
+    },
+    "CreatedAt": {
+      "convertType": "const",
+      "value": "GETDATE()"
+    },
+    "CreatedBy": {
+      "convertType": "const",
+      "value": "-1"
+    },
+    "UpdatedAt": {
+      "convertType": "const",
+      "value": "GETDATE()"
+    },
+    "UpdatedBy": {
+      "convertType": "const",
+      "value": "-1"
+    }
+  },
+  "fkMappings": {
+    "AffiliateId": "AffiliateMapping"
+  },
+  "postMigrationRunners": ["set-default-source-id"],
+  "notes": [
+    "sourceQuery: מסנן UserSources רק עם ParentSourcesId תקין",
+    "FK: AffiliateId -> entity_type 'Affiliate' ב-id_mappings",
+    "סדר מיגרציה: Source חייב להיות אחרי Affiliate",
+    "postMigrationRunners: set-default-source-id מעדכן אוטומטית את Affiliate.DefaultSourceId אחרי הכנסת כל ה-Sources"
+  ]
+}

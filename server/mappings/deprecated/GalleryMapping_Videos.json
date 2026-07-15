@@ -1,0 +1,212 @@
+{
+  "filename": "GalleryMapping_Videos",
+  "sourceTable": "Videos",
+  "targetTable": "Gallery",
+  "sourceIdColumn": "VideosId",
+  "whereClause": "Link IS NOT NULL AND Link != ''",
+  "_meta": {
+    "entityType": "Gallery_Videos",
+    "sourceTable": "Videos",
+    "targetTable": "Gallery",
+    "sourcePrimaryKey": "VideosId",
+    "order": 9.3,
+    "deprecated": true,
+    "description": "DEPRECATED — DO NOT RUN. The app does NOT read videos from Gallery/GalleryMedia; it reads VideoGalleryMedia via gallery/getVideoGalleryQuickView. This mapping was run once (2026-03-11), produced invisible rows, and was cleaned up by scripts/migration/cleanup-wrong-gallery-videos.js. The correct migration is scripts/migration/migrate-video-gallery-media.js. See legacy/LESSONS_LEARNED.md."
+  },
+  "columnMappings": {
+    "Name": {
+      "convertType": "expression",
+      "oldTable": "Videos",
+      "oldColumn": "Name",
+      "expression": "value ? value.replace(/[\\uD800-\\uDBFF][\\uDC00-\\uDFFF]/g, '').substring(0, 200) : ('Video ' + row.VideosId)"
+    },
+    "Order": {
+      "convertType": "direct",
+      "oldTable": "Videos",
+      "oldColumn": "Sort"
+    },
+    "RecordStatus": {
+      "convertType": "const",
+      "value": "2"
+    },
+    "StatusChangedAt": {
+      "convertType": "const",
+      "value": "GETDATE()"
+    },
+    "StatusChangedBy": {
+      "convertType": "const",
+      "value": "-1"
+    },
+    "CreatedAt": {
+      "convertType": "const",
+      "value": "GETDATE()"
+    },
+    "CreatedBy": {
+      "convertType": "const",
+      "value": "-1"
+    },
+    "UpdatedAt": {
+      "convertType": "const",
+      "value": "GETDATE()"
+    },
+    "UpdatedBy": {
+      "convertType": "const",
+      "value": "-1"
+    }
+  },
+  "localizationMappings": {
+    "targetTable": "GalleryLocalization",
+    "parentFkColumn": "GalleryId",
+    "languageColumn": "Language",
+    "Title": {
+      "hebrew": {
+        "convertType": "expression",
+        "oldTable": "Videos",
+        "oldColumn": "Name",
+        "expression": "value ? value.replace(/[\\uD800-\\uDBFF][\\uDC00-\\uDFFF]/g, '').substring(0, 200) : null"
+      },
+      "english": {
+        "convertType": "expression",
+        "oldTable": "Videos",
+        "oldColumn": "Name_en",
+        "expression": "value ? value.replace(/[\\uD800-\\uDBFF][\\uDC00-\\uDFFF]/g, '').substring(0, 200) : null"
+      },
+      "french": {
+        "convertType": "expression",
+        "oldTable": "Videos",
+        "oldColumn": "Name_fr",
+        "expression": "value ? value.replace(/[\\uD800-\\uDBFF][\\uDC00-\\uDFFF]/g, '').substring(0, 200) : null"
+      }
+    },
+    "Display": {
+      "hebrew": {
+        "convertType": "expression",
+        "oldTable": "Videos",
+        "oldColumn": "Hide",
+        "expression": "row.Hide ? 0 : 1"
+      },
+      "english": {
+        "convertType": "expression",
+        "oldTable": "Videos",
+        "oldColumn": "Hide_en",
+        "expression": "row.Hide_en ? 0 : 1"
+      },
+      "french": {
+        "convertType": "expression",
+        "oldTable": "Videos",
+        "oldColumn": "Hide_fr",
+        "expression": "row.Hide_fr ? 0 : 1"
+      }
+    },
+    "CreatedAt": {
+      "convertType": "const",
+      "value": "GETDATE()"
+    },
+    "CreatedBy": {
+      "convertType": "const",
+      "value": "-1"
+    },
+    "UpdatedAt": {
+      "convertType": "const",
+      "value": "GETDATE()"
+    },
+    "UpdatedBy": {
+      "convertType": "const",
+      "value": "-1"
+    }
+  },
+  "mediaMappings": {
+    "hebrew": {
+      "galleryVideo": {
+        "RelativePath": {
+          "convertType": "expression",
+          "oldTable": "Videos",
+          "oldColumn": "Link",
+          "expression": "value ? value.substring(0, 500) : null"
+        },
+        "YearDirectory": {
+          "convertType": "const",
+          "value": "legacy"
+        },
+        "MonthDirectory": {
+          "convertType": "const",
+          "value": "gallery"
+        },
+        "SourceType": {
+          "convertType": "const",
+          "value": "1"
+        },
+        "MediaType": {
+          "convertType": "const",
+          "value": "2"
+        },
+        "FriendlyName": {
+          "convertType": "expression",
+          "oldTable": "Videos",
+          "oldColumn": "Name",
+          "expression": "value ? value.substring(0, 100) : null"
+        },
+        "MatchToPlatform": {
+          "convertType": "const",
+          "value": "3"
+        },
+        "RecordStatus": {
+          "convertType": "const",
+          "value": "2"
+        },
+        "StatusChangedAt": {
+          "convertType": "const",
+          "value": "GETDATE()"
+        },
+        "StatusChangedBy": {
+          "convertType": "const",
+          "value": "-1"
+        },
+        "CreatedAt": {
+          "convertType": "const",
+          "value": "GETDATE()"
+        },
+        "CreatedBy": {
+          "convertType": "const",
+          "value": "-1"
+        },
+        "UpdatedAt": {
+          "convertType": "const",
+          "value": "GETDATE()"
+        },
+        "UpdatedBy": {
+          "convertType": "const",
+          "value": "-1"
+        },
+        "condition": "row.Link != null && row.Link != ''"
+      }
+    }
+  },
+  "afterInsertMappings": [
+    {
+      "targetTable": "GalleryMedia",
+      "entityType": "GalleryMedia_Video",
+      "columns": {
+        "GalleryId": {
+          "source": "newId"
+        },
+        "MediaId": {
+          "source": "mediaIdMap",
+          "key": "hebrew_galleryVideo"
+        },
+        "isMainMedia": {
+          "convertType": "const",
+          "value": "1"
+        },
+        "CreatedAt": {
+          "convertType": "const",
+          "value": "GETDATE()"
+        },
+        "CreatedBy": {
+          "convertType": "const",
+          "value": "-1"
+        }
+      }
+    }
+  ]
+}

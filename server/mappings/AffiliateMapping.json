@@ -1,0 +1,130 @@
+{
+  "filename": "AffiliateMapping",
+  "description": "מיפוי מקורות אב - ParentSources to affiliate",
+  "sourceTable": "ParentSources",
+  "targetTable": "Affiliate",
+  "sourceIdColumn": "Id",
+  "sourceQuery": "SELECT * FROM ParentSources WITH (NOLOCK)",
+  "whereClause": null,
+  "preserveSourceId": true,
+  "columnMappings": {
+    "Name": {
+      "convertType": "expression",
+      "oldColumn": "Name",
+      "expression": "value ? value.substring(0, 100) : 'ללא שם'"
+    },
+    "DefaultSourceId": {
+      "convertType": "const",
+      "value": null,
+      "comment": "יעודכן לאחר מיגרציית Source - ימצא Source.Id לפי SourceCode = ParentSources.Code"
+    },
+    "UserId": {
+      "convertType": "const",
+      "value": null,
+      "comment": "יעודכן אוטומטית ע\"י afterInsertMappings - יצירת User לכל Affiliate"
+    },
+    "RecordStatus": {
+      "convertType": "const",
+      "value": "2"
+    },
+    "StatusChangedAt": {
+      "convertType": "const",
+      "value": "GETDATE()"
+    },
+    "StatusChangedBy": {
+      "convertType": "const",
+      "value": "-1"
+    },
+    "CreatedAt": {
+      "convertType": "const",
+      "value": "GETDATE()"
+    },
+    "CreatedBy": {
+      "convertType": "const",
+      "value": "-1"
+    },
+    "UpdatedAt": {
+      "convertType": "const",
+      "value": "GETDATE()"
+    },
+    "UpdatedBy": {
+      "convertType": "const",
+      "value": "-1"
+    }
+  },
+  "afterInsertMappings": [
+    {
+      "targetTable": "User",
+      "entityType": "AffiliateUser",
+      "lookupKey": "UserName",
+      "updateParentColumn": "UserId",
+      "columns": {
+        "FirstName": {
+          "convertType": "expression",
+          "oldColumn": "Name",
+          "expression": "value ? (value.trim().split(/\\s+/).length > 1 ? value.trim().split(/\\s+/).slice(0, -1).join(' ').substring(0, 100) : value.substring(0, 100)) : 'Affiliate'"
+        },
+        "LastName": {
+          "convertType": "expression",
+          "oldColumn": "Name",
+          "expression": "value && value.trim().split(/\\s+/).length > 1 ? value.trim().split(/\\s+/).pop().substring(0, 300) : 'Affiliate'"
+        },
+        "Email": {
+          "convertType": "const",
+          "value": null
+        },
+        "UserName": {
+          "convertType": "expression",
+          "oldColumn": "UserName",
+          "expression": "value ? value.substring(0, 20) : (row.Name ? row.Name.substring(0, 20) : 'aff_' + row.Id)"
+        },
+        "Password": {
+          "convertType": "expression",
+          "oldColumn": "Password",
+          "expression": "value || ''"
+        },
+        "RoleId": {
+          "convertType": "const",
+          "value": 2,
+          "comment": "RoleId = 2 (שותף) - חובה שה-Role הזה יהיה קיים ביעד לפני ההרצה"
+        },
+        "RecordStatus": {
+          "convertType": "const",
+          "value": 2
+        },
+        "StatusChangedAt": {
+          "convertType": "const",
+          "value": "GETDATE()"
+        },
+        "StatusChangedBy": {
+          "convertType": "const",
+          "value": -1
+        },
+        "CreatedAt": {
+          "convertType": "const",
+          "value": "GETDATE()"
+        },
+        "CreatedBy": {
+          "convertType": "const",
+          "value": -1
+        },
+        "UpdatedAt": {
+          "convertType": "const",
+          "value": "GETDATE()"
+        },
+        "UpdatedBy": {
+          "convertType": "const",
+          "value": -1
+        }
+      }
+    }
+  ],
+  "fkMappings": {},
+  "notes": [
+    "afterInsertMappings יוצר User לכל Affiliate מ-ParentSources.UserName/Password ומעדכן UserId",
+    "lookupKey=UserName: אם User כבר קיים עם אותו UserName, משתמש בקיים במקום ליצור חדש",
+    "חובה שיהיה Role Id=2 (שותף) ביעד לפני ההרצה - אחרת יצירת ה-Users תיכשל על FK_User_Role",
+    "DefaultSourceId מתמלא ע\"י scripts/rerun-affiliate-source/03-set-default-source-id.js לאחר מיגרציית Source (המנוע לא מריץ postMigrationScript)",
+    "סדר מיגרציה: Affiliate חייב להיות לפני Source, ואז להריץ את סקריפט 03"
+  ]
+}

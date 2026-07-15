@@ -1,0 +1,100 @@
+{
+  "filename": "CustomerUserMapping",
+  "description": "מיפוי משתמשים - Users (MSSQL) to customeruser (MySQL)",
+  "sourceTable": "Users",
+  "targetTable": "CustomerUser",
+  "sourceIdColumn": "Id",
+  "preserveSourceId": true,
+  "dedupColumns": ["UserName"],
+  "dedupMaxLen": 40,
+  "_meta": {
+    "entityType": "CustomerUser"
+  },
+  "columnMappings": {
+    "FirstName": {
+      "convertType": "expression",
+      "oldColumn": "FirstName",
+      "expression": "value ? value.substring(0, 100) : 'Unknown'"
+    },
+    "LastName": {
+      "convertType": "expression",
+      "oldColumn": "LastName",
+      "expression": "value ? value.substring(0, 300) : 'Name'"
+    },
+    "Gender": {
+      "convertType": "const",
+      "value": null
+    },
+    "Email": {
+      "convertType": "expression",
+      "oldColumn": "Email",
+      "expression": "value ? value.substring(0, 100) : ('user' + row.Id + '@unknown.com')"
+    },
+    "UserName": {
+      "convertType": "expression",
+      "oldColumn": "UserName",
+      "expression": "value ? value.substring(0, 35) : ('user' + row.Id)",
+      "comment": "max 40 chars - truncate to 35 to leave room for dedup suffix. UNIQUE collisions are auto-resolved by the engine via dedupColumns (appends _<sourceId>)."
+    },
+    "Password": {
+      "convertType": "expression",
+      "oldColumn": "PasswordHash",
+      "expression": "value ? value.substring(0, 200) : ''",
+      "comment": "Store original hash as-is"
+    },
+    "Phone": {
+      "convertType": "expression",
+      "oldColumn": "PhoneNumber",
+      "expression": "(value && value.indexOf('**') === -1) ? value.substring(0, 100) : null",
+      "comment": "Filter out masked phone numbers containing **"
+    },
+    "RecordStatus": {
+      "convertType": "const",
+      "value": "2",
+      "comment": "2 = Accept/Active"
+    },
+    "StatusChangedAt": {
+      "convertType": "const",
+      "value": "GETDATE()"
+    },
+    "StatusChangedBy": {
+      "convertType": "const",
+      "value": "-1"
+    },
+    "CreatedAt": {
+      "convertType": "expression",
+      "oldColumn": "DateCreated",
+      "expression": "value || null",
+      "defaultValue": "GETDATE()"
+    },
+    "CreatedBy": {
+      "convertType": "const",
+      "value": "-1"
+    },
+    "UpdatedAt": {
+      "convertType": "const",
+      "value": "GETDATE()"
+    },
+    "UpdatedBy": {
+      "convertType": "const",
+      "value": "-1"
+    },
+    "IdNumber": {
+      "convertType": "const",
+      "value": null
+    },
+    "IsEmailVerified": {
+      "convertType": "const",
+      "value": "0"
+    }
+  },
+  "dependencies": [],
+  "notes": [
+    "4,305 משתמשים (כל ה-Users, ללא סינון scope - בניגוד למוצרים)",
+    "preserveSourceId: CustomerUser.Id == Users.Id (היעד ריק, מקור Id 2..4315); המנוע מיישר AUTO_INCREMENT אחרי הריצה",
+    "UserName unique constraint - כפילויות נפתרות אוטומטית ע\"י dedupColumns (סיומת _<sourceId>)",
+    "entity_type = 'CustomerUser' - משמש כ-FK ל-DonationMapping",
+    "Phone: מסנן טלפונים עם ** (מוסתרים)",
+    "חייב לרוץ לפני מיגרציית תרומות (Step 11)"
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "steps": [
+    {"name":"AffiliateMapping","label":"עמותות (Affiliate)","kind":"standard","dependsOn":[],"batchSize":500},
+    {"name":"SourceMapping","label":"מקורות (Source)","kind":"standard","dependsOn":["AffiliateMapping"],"batchSize":500},
+    {"name":"CustomerUserMapping","label":"משתמשים (CustomerUser)","kind":"standard","dependsOn":[],"batchSize":500},
+    {"name":"LutFundCategoryMapping","label":"קטגוריות קרנות (Lut)","kind":"standard","dependsOn":[],"batchSize":500},
+    {"name":"ProjectMapping_Funds_Fixed","label":"פרויקטים — קרנות","kind":"standard","dependsOn":[],"batchSize":500},
+    {"name":"ProjectMapping_Collections_Fixed","label":"פרויקטים — מגביות","kind":"standard","dependsOn":[],"batchSize":500},
+    {"name":"ProjectMapping_Collections_Type2","label":"פרויקטים — מגביות Type2","kind":"standard","dependsOn":[],"batchSize":500},
+    {"name":"ProjectMapping_Type3_Parents","label":"פרויקטים — Type3 אבות","kind":"standard","dependsOn":[],"batchSize":500},
+    {"name":"ProjectMapping_Type3_Subs","label":"פרויקטים — Type3 בנים","kind":"standard","dependsOn":["ProjectMapping_Type3_Parents"],"batchSize":500},
+    {"name":"PrayerMapping","label":"תפילות (Prayer)","kind":"standard","dependsOn":[],"batchSize":500},
+    {"name":"FundCategoryMapping","label":"שיוך קרנות לקטגוריות","kind":"standard","dependsOn":["ProjectMapping_Funds_Fixed","ProjectMapping_Collections_Fixed","ProjectMapping_Collections_Type2","ProjectMapping_Type3_Parents","ProjectMapping_Type3_Subs","LutFundCategoryMapping"],"batchSize":500},
+    {"name":"ProjectItemLocalizationMapping","label":"לוקליזציית פריטי פרויקט","kind":"standard","dependsOn":["ProjectMapping_Funds_Fixed","ProjectMapping_Collections_Fixed","ProjectMapping_Collections_Type2","ProjectMapping_Type3_Parents","ProjectMapping_Type3_Subs"],"batchSize":500},
+    {"name":"RecruitersGroupMapping","label":"קבוצות מגייסים","kind":"standard","dependsOn":["ProjectMapping_Funds_Fixed","ProjectMapping_Collections_Fixed","ProjectMapping_Collections_Type2","ProjectMapping_Type3_Parents","ProjectMapping_Type3_Subs"],"batchSize":500},
+    {"name":"RecruiterMapping","label":"מגייסים","kind":"standard","dependsOn":["ProjectMapping_Funds_Fixed","ProjectMapping_Collections_Fixed","ProjectMapping_Collections_Type2","ProjectMapping_Type3_Parents","ProjectMapping_Type3_Subs","RecruitersGroupMapping"],"batchSize":500},
+    {"name":"GalleryMapping_Images","label":"גלריות תמונות","kind":"standard","dependsOn":[],"batchSize":500},
+    {"name":"GalleryMediaMapping_Images","label":"מדיה — תמונות גלריה","kind":"standard","dependsOn":["GalleryMapping_Images"],"batchSize":500},
+    {"name":"VideoGalleryMediaMapping","label":"גלריית וידאו","kind":"standard","dependsOn":[],"batchSize":500},
+    {"name":"DonationMapping","label":"תרומות (Donation)","kind":"donation","dependsOn":["ProjectMapping_Funds_Fixed","ProjectMapping_Collections_Fixed","ProjectMapping_Collections_Type2","ProjectMapping_Type3_Parents","ProjectMapping_Type3_Subs","PrayerMapping","CustomerUserMapping","SourceMapping","RecruiterMapping"],"batchSize":1000},
+    {"name":"PrayNameMapping","label":"שמות לתפילה (PrayName)","kind":"prayname","dependsOn":["DonationMapping"],"batchSize":2000},
+    {"name":"AsakimDonationMapping","label":"תרומות עסקים (Asakim)","kind":"asakim","dependsOn":["DonationMapping"],"batchSize":2000}
+  ]
+}

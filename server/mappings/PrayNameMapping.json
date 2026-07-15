@@ -1,0 +1,70 @@
+{
+  "sourceTable": "PrayerNames",
+  "sourceQuery": "SELECT pn.PrayerNamesId, pn.FirstName, pn.LastName, pn.Comment, pn.OrderId, pn.DateCreated, pn.Gender FROM PrayerNames pn WITH (NOLOCK) INNER JOIN Orders o WITH (NOLOCK) ON pn.OrderId = o.OrdersId WHERE o.ChargeStatus = 'OrderFinished' AND o.DateCreated >= '2025-06-01'",
+  "sourceQueryComment": "DateCreated cutoff mirrors scope-products.json (donation scope). Engine reads the live cutoff from that file; this literal is documentation only.",
+  "sourceIdColumn": "PrayerNamesId",
+  "targetTable": "PrayName",
+  "entityType": "PrayName",
+  "columnMappings": {
+    "BelongToEntityType": {
+      "convertType": "const",
+      "value": 4,
+      "comment": "LutEntityType: 4 = Donation"
+    },
+    "BelongToEntityId": {
+      "convertType": "direct",
+      "oldColumn": "OrderId",
+      "useFkMapping": true,
+      "comment": "OrderId → Donation target_id via id_mappings"
+    },
+    "Name": {
+      "convertType": "expression",
+      "oldColumn": "FirstName",
+      "expression": "value ? value.substring(0, 100) : ''",
+      "comment": "FirstName nvarchar(200) → varchar(100), NOT NULL"
+    },
+    "Gender": {
+      "convertType": "expression",
+      "oldColumn": "Gender",
+      "expression": "value === 0 ? 1 : value === 1 ? 2 : null",
+      "nullable": true,
+      "comment": "0→Male(1), 1→Female(2), junk→NULL. FK→LutGender"
+    },
+    "ParentName": {
+      "convertType": "expression",
+      "oldColumn": "LastName",
+      "expression": "value ? value.substring(0, 100) : null",
+      "nullable": true,
+      "comment": "LastName nvarchar(200) → varchar(100), nullable"
+    },
+    "PrayDescription": {
+      "convertType": "expression",
+      "oldColumn": "Comment",
+      "expression": "value != null ? String(value) : ''",
+      "comment": "Comment nvarchar(max) → text, NOT NULL"
+    },
+    "CreatedAt": {
+      "convertType": "direct",
+      "oldColumn": "DateCreated",
+      "defaultValue": "GETDATE()",
+      "comment": "DateCreated nullable → NOT NULL with GETDATE() fallback"
+    },
+    "CreatedBy": {
+      "convertType": "const",
+      "value": -1,
+      "comment": "System user (User.Id=-1)"
+    },
+    "UpdatedAt": {
+      "convertType": "const",
+      "value": "GETDATE()"
+    },
+    "UpdatedBy": {
+      "convertType": "const",
+      "value": -1,
+      "comment": "System user (User.Id=-1)"
+    }
+  },
+  "fkMappings": {
+    "BelongToEntityId": "Donation"
+  }
+}

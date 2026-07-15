@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx vite --host)",
+      "Bash(npm start --prefix \"c:\\\\Users\\\\NeomiOs\\\\Documents\\\\NewMigration\\\\server\")"
+    ]
+  }
+}

@@ -1,0 +1,2070 @@
+{
+  "metadata": {
+    "createdAt": "2025-12-30T07:54:38.414Z",
+    "description": "Prayers.PrayersId → projectitem.Id mapping for Donation migration",
+    "totalPrayers": 294,
+    "mapped": 3,
+    "notFound": 291,
+    "usageInDonation": "38,149 Orders depend on PrayerId"
+  },
+  "mapping": {
+    "1": {
+      "PrayersId": 1,
+      "PrayerName": "קבר רחל - 40 יום",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "3": {
+      "PrayersId": 3,
+      "PrayerName": "מירון - שנה שלמה",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "4": {
+      "PrayersId": 4,
+      "PrayerName": "בכל שעה שתחפוץ תפילה ב-5 מקומות קדושים: בכותל המערבי, בקבר רחל, בציון הרשב\"י במירון, בציון השל\"ה הק' ובקברו של רבי יונתן בן עוזיאל בעמוקה - מיידית!. ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "5": {
+      "PrayersId": 5,
+      "PrayerName": "עמוקה - 40 יום ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "6": {
+      "PrayersId": 6,
+      "PrayerName": "כותל- 40 יום ברציפות",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "7": {
+      "PrayersId": 7,
+      "PrayerName": "מערת המכפלה- שנה שלמה",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "8": {
+      "PrayersId": 8,
+      "PrayerName": "קבר רחל -שנה שלמה בהשתתפות גדולי הדור",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "12": {
+      "PrayersId": 12,
+      "PrayerName": "תפילת גדולי הדור",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "13": {
+      "PrayersId": 13,
+      "PrayerName": "לתרומה ל3500 משפחות עניי קופת העיר כפי הוראת הגר\"ח קנייבסקי   ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "19": {
+      "PrayersId": 19,
+      "PrayerName": "מירון- 40 יום ברציפות",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "20": {
+      "PrayersId": 20,
+      "PrayerName": "מערת המכפלה- 40 יום ברציפות",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "21": {
+      "PrayersId": 21,
+      "PrayerName": "ציון השל\"ה- 40 יום ברציפות",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "22": {
+      "PrayersId": 22,
+      "PrayerName": "לתפילה בציון השל\"ה הק' - יום יום במשך שנה שלמה",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "23": {
+      "PrayersId": 23,
+      "PrayerName": "ע\"פ הוראת מרן הגר\"ח קניבסקי זצוק\"ל, כל התורם לקופת העיר הו\"ק מסך 180 ש\"ח, למשך 24 חודשים, יקבל את ברכת הבית המיוחדת שנכתבה בכתי\"ק של מרן זצוק\"ל לברכה ולהצלחה ולשמירה.",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "24": {
+      "PrayersId": 24,
+      "PrayerName": "מתפללים עליך בכל שעה שתחפוץ ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "41": {
+      "PrayersId": 41,
+      "PrayerName": "ל\"ג בעומר בציון הרשב\"י במירון 24 שעות ברצף ללא הפסקה של רגע. ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "42": {
+      "PrayersId": 42,
+      "PrayerName": "\"מירון-שנה שלמה\" מל\"ג בעומר תשפ\"א עד ל\"ג בעומר תשפ\"ב  כל יום ברציפות ללא הפסק של יום",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "43": {
+      "PrayersId": 43,
+      "PrayerName": "קשר ישיר עם השליח במירון ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "44": {
+      "PrayersId": 44,
+      "PrayerName": "לברכת מרן הגר''ש גלאי לתורמים ל15 היתומים שמתחתנים מל''ג בעומר עד שבועות ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "45": {
+      "PrayersId": 45,
+      "PrayerName": "לתפילת גדולי וצדיקי הדור בער''ח סיון בבית מרן האדמור מויזניץ שליט''א",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "46": {
+      "PrayersId": 46,
+      "PrayerName": "קשר ישיר מקבר השל''ה בער''ח סיוון ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "47": {
+      "PrayersId": 47,
+      "PrayerName": "שנה שלמה בקבר השל''ה הקדוש ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "48": {
+      "PrayersId": 48,
+      "PrayerName": "מי שבירך בעת פתיחת ההיכל אצל גדולי ישראל בחג השבועות ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "49": {
+      "PrayersId": 49,
+      "PrayerName": "40 יום רצופים בקבר האור החיים הקדוש, שליח קופת העיר יזכיר שם אחר שם עם בקשתו הפרטית. ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "50": {
+      "PrayersId": 50,
+      "PrayerName": "סגולת הגר''ח פלאג''י ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "51": {
+      "PrayersId": 51,
+      "PrayerName": "40 יום רצופים בעמוקה ע''י גדולי הדור בעצמם",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "52": {
+      "PrayersId": 52,
+      "PrayerName": "\"ישועה ניסית\" רע״א תפילות בעמוקה ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "53": {
+      "PrayersId": 53,
+      "PrayerName": "\"שאינה שבה ריקם\" 516 תפילות  כמנין “ואתחנן״",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "54": {
+      "PrayersId": 54,
+      "PrayerName": "שלוחי קופת העיר יצרו אתך קשר במעמד הפתיחה כדי  שתוכל להעביר ישירות את השם והבקשה . ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "55": {
+      "PrayersId": 55,
+      "PrayerName": "40 jours de prières consécutifs à Amouka par nos Grands Maitres en personnes",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "56": {
+      "PrayersId": 56,
+      "PrayerName": "40 יום רצופים בציון האור החיים הקדוש ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "57": {
+      "PrayersId": 57,
+      "PrayerName": "תפילת הגה''צ ר' שמעון גלאי בבית השונמית ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "58": {
+      "PrayersId": 58,
+      "PrayerName": "40 יום בבית השונמית ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "59": {
+      "PrayersId": 59,
+      "PrayerName": "Have Your Name  Prayed For, At the  Mekomos Kedoshim Any Time You Want",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "60": {
+      "PrayersId": 60,
+      "PrayerName": "תפילה רצופה בכותל המערבי בכל יום בהשתתפות גדולי הדור מר\"ח אלול ועד יוה\"כ ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "61": {
+      "PrayersId": 61,
+      "PrayerName": "בכל יום ויום מר\"ח אלול ועד יום כיפור שלוחי הקופה יעתירו עבורכם בעשרת המקומות הקדושים ויזכירו את שמכם בפרטות ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "62": {
+      "PrayersId": 62,
+      "PrayerName": "כותל ללא הפסקה - 24 שעות ברציפות מר\"ח אלול ועוד למוצאי יום הכיפורים. ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "63": {
+      "PrayersId": 63,
+      "PrayerName": "ברכת הצדיקים בערב ראש השנה",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "64": {
+      "PrayersId": 64,
+      "PrayerName": "מסע הקודש וילנא -ראדין בראשות רבותינו שרי התורה והיראה שליט\"א",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "65": {
+      "PrayersId": 65,
+      "PrayerName": "לתפילת מרן הגר\"ח קניבסקי בתוך ה'יהי רצון' שאומר מרן כל יום בעשי''ת לאחר אמירת כל ספר התהילים",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "66": {
+      "PrayersId": 66,
+      "PrayerName": "מעמד נכתבים לחיים תשע\"ח ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "68": {
+      "PrayersId": 68,
+      "PrayerName": "Mi Cheberah",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "69": {
+      "PrayersId": 69,
+      "PrayerName": "Pidione Kapparot",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "70": {
+      "PrayersId": 70,
+      "PrayerName": "מי שבירך של גדולי הדור מרנן שה\"ת הגר\"ח קניבסקי וראש הישיבה הגרי\"ג אדלשטיין בעיצומו של יום הכיפורים ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "71": {
+      "PrayersId": 71,
+      "PrayerName": "תפילת גדולי הדור בערב יום כיפור דקות ספורות לפני כל נדרי ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "72": {
+      "PrayersId": 72,
+      "PrayerName": "La Kamya de Rabbi Yéhouda Pétaya\t",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "73": {
+      "PrayersId": 73,
+      "PrayerName": "מי שבירך של מרן הגר\"ח קניבסקי בהושענא רבה ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "74": {
+      "PrayersId": 74,
+      "PrayerName": "שנה שלמה בקבר רחל ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "75": {
+      "PrayersId": 75,
+      "PrayerName": "40 יום בקבר רחל ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "76": {
+      "PrayersId": 76,
+      "PrayerName": "ביום היארצייט של רחל אמנו י\"א חשוון יעתיר שליח קופת העיר יעתיר שם אחר שם בפרטות ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "77": {
+      "PrayersId": 77,
+      "PrayerName": "שנה שלמה בקבר רחל מי\"א חשוון תשפ\"ג ועד לי\"א חשוון תשפ\"ד",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "78": {
+      "PrayersId": 78,
+      "PrayerName": "40 יום רצופים בקבר רחל מיום ההילולא י\"א חשוון ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "79": {
+      "PrayersId": 79,
+      "PrayerName": "לתפילת מרן הגר\"ש גלאי בר\"ח כסלו בקבר רחל ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "80": {
+      "PrayersId": 80,
+      "PrayerName": "40 גדולי הדור יתפללו עליכם בשעה התשיעית וכן תפילה בכותל המערבי ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "81": {
+      "PrayersId": 81,
+      "PrayerName": "תפילת 40 גדולי הדור וכן תפילה ב40 מקומות קדושים ע\"י שליחי קופת העיר שיזכירו שם שם בפרטות ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "82": {
+      "PrayersId": 82,
+      "PrayerName": "השעה התשיעית לא מוותרים על שום מקום שיכול להביא את הישועה!  תפילה ב90 מקומות קדושיםן",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "83": {
+      "PrayersId": 83,
+      "PrayerName": "תפילת 40 גדולי הדור וכן תפילה ב40 מקומות קדושים ע\"י שליחי קופת העיר שיזכירו שם שם בפרטות ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "84": {
+      "PrayersId": 84,
+      "PrayerName": "תפילת גדולי הדור כל יום בהדלקת נרות חנוכה ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "85": {
+      "PrayersId": 85,
+      "PrayerName": "271 תפילות בימי החנוכה המסוגלים לשידוכים בכותל המערבי ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "86": {
+      "PrayersId": 86,
+      "PrayerName": "מעמד גדולי הדור בזאת חנוכה ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "87": {
+      "PrayersId": 87,
+      "PrayerName": "\"בזאת תוושעו\" - כל גדולי וצדיקי הדור מתאספים בזאת חנוכה בבית מרן הגר''ח קניבסקי ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "88": {
+      "PrayersId": 88,
+      "PrayerName": "שליחי קופת העיר יעתירו בזאת חנוכה ב20 שערי שמים",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "89": {
+      "PrayersId": 89,
+      "PrayerName": "בכל יום ויום מימי השובבים בכותל המערבי, בקבר רחל, בציון הרשב''י במירון, ובמערת המכפלה ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "90": {
+      "PrayersId": 90,
+      "PrayerName": "בכל יום שישי מימי השובבי\"ם בכותל המערבי, בקבר רחל, במערת המכפלה, בציון הרשב''י במירון, בעמוקה, ובקבר השל\"ה ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "91": {
+      "PrayersId": 91,
+      "PrayerName": "בכל ליל שישי בימי השובבי\"ם בציון שבעת הרועים בבני ברק ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "92": {
+      "PrayersId": 92,
+      "PrayerName": "תפילת מרן הגר\"ש גלאי על קבר מרן הגראי\"ל שטינמן בסיום השלושים ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "93": {
+      "PrayersId": 93,
+      "PrayerName": "תפילת 48 גדולי וצדיקי הדור אשר יעתירו עבורך לפרנסה לאחר אמירת פרשת המן ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "94": {
+      "PrayersId": 94,
+      "PrayerName": "לתפילה ב3 המקומות המסוגלים, בכותל המערבי בציון הרשב\"י במירון ובציון ר' יהודה ב\"ר אילעי ביום המסוגל ג' בשלח ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "95": {
+      "PrayersId": 95,
+      "PrayerName": "48 גדולי וצדיקי הדור יגידו עבורך את פרשת המן וכן ב3 המקומות המסוגלים וכן שליח קופת העיר יעתיר עבורך לפרנסה בציון הרה\"ק ר' מנחם מנדל מרימנוב ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "96": {
+      "PrayersId": 96,
+      "PrayerName": "תפילת פתיחת המזל ביום ט\"ו בשבט ע\"י מרן הגר\"ח קניבסקי שליט\"א ומרן הגר\"ש גלאי שליט\"א ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "97": {
+      "PrayersId": 97,
+      "PrayerName": "מיכלשטט בראשות מרן הגר\"ש גלאי שליט\"א ועמו הגר\"י פישהוף שליט\"א ביום חמישי האחרון של שובבבי\"ם. ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "99": {
+      "PrayersId": 99,
+      "PrayerName": "ב-16 מקומות הקדושים בארץ הקודש וגם במקומות הקדושים בחו\"ל: בציון הבעש\"ט הק' במעזיבוז', ובציון הרה\"ק מברדיטשוב ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "100": {
+      "PrayersId": 100,
+      "PrayerName": "מעמד קרובה ישועתי ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "101": {
+      "PrayersId": 101,
+      "PrayerName": "תפילת גדולי הדור בפורים",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "102": {
+      "PrayersId": 102,
+      "PrayerName": "עמי בבקשתי - 26 שערי שמים בפורים",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "103": {
+      "PrayersId": 103,
+      "PrayerName": "פורים ארה\"ב ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "104": {
+      "PrayersId": 104,
+      "PrayerName": "פורים ארה\"ב ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "105": {
+      "PrayersId": 105,
+      "PrayerName": "פורים ארה\"ב ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "106": {
+      "PrayersId": 106,
+      "PrayerName": "זכר למחצית השקל ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "107": {
+      "PrayersId": 107,
+      "PrayerName": "26 שערי שמים ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "108": {
+      "PrayersId": 108,
+      "PrayerName": "ביום המסוגל ער''ח ניסן בארבעת הציונים הק' המסוגלים לפרנסה: רבי מאיר בעל הנס, רבי יהודה בר אילעי, רימנוב, ראדומסק, וכן בציון השל\"ה הק' בעל הסגולה",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "109": {
+      "PrayersId": 109,
+      "PrayerName": "בציון הק' של ר' לייב בעל היסורים ע\"י ת\"ח מופלגים שלוחי קופת העיר, בראשות מרן הגרש\"א שטרן שליט\"א אשר יתפלל את כל התהילים ברצף",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "110": {
+      "PrayersId": 110,
+      "PrayerName": "40 יום רצופים מער\"ח ניסן עד יום ירידת המן בכל שלושת המקומות המסוגלים לפרנסה: רבי מאיר בעל הנס, רבי יהודה בר אילעי ציון השל\"ה הק'",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "111": {
+      "PrayersId": 111,
+      "PrayerName": "בציון הק' של רבי לייב בעל היסורים בצפת ע\"י ת\"ח מופלגים שלוחי קופת העיר, כל יום שישי אחר חצות עד הישועה בס\"ד!",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "112": {
+      "PrayersId": 112,
+      "PrayerName": "פעמים ביום המסוגל - בסיום הש''ס בערב פסח וכן בקריאת האיגרת אחר חצות היום ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "113": {
+      "PrayersId": 113,
+      "PrayerName": "קריאת האגרת על הציון הק' של ר\"ש מאוסטרופולא",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "114": {
+      "PrayersId": 114,
+      "PrayerName": "תפלת מנין מגדולי וצדיקי הדור על הצאצאים בציון השל\"ה הק ' ביום ההילולא- יא ניסן.",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "115": {
+      "PrayersId": 115,
+      "PrayerName": "מערת המכפלה שנה שלמה ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "116": {
+      "PrayersId": 116,
+      "PrayerName": "מירון – 40 יום\" – החל מט' ניסן, עד ל\"ג בעומר",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "117": {
+      "PrayersId": 117,
+      "PrayerName": "סיום הש\"ס של מרן רשכבה\"ג  שה\"ת שליט\"א",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "119": {
+      "PrayersId": 119,
+      "PrayerName": "בציונים הקדושים של בעלי הילולא - רבי מאיר בעל הנס, הרמ''א, רבי מנחם מנדל מרימנוב ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "120": {
+      "PrayersId": 120,
+      "PrayerName": "שבוע של פתיחת שערים בכותל המערבי, בקבר רחל, במירון, במערת המכפלה, בציון השל''ה ובעמוקה, ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "122": {
+      "PrayersId": 122,
+      "PrayerName": "שלוחי קופת העיר יזכירו שם אחר שם בפרטות לאחר תפילת השל''ה בער''ח סיון ב8 מקומות קדושים ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "123": {
+      "PrayersId": 123,
+      "PrayerName": "40 יום ברציפות בקבר השלה ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "124": {
+      "PrayersId": 124,
+      "PrayerName": "לראשונה!!! תפילת השל''ה מידי חודש בחודשו ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "125": {
+      "PrayersId": 125,
+      "PrayerName": "מי שברך ע\"י גדולי הדור מרנן הגר\"ח קניבסקי והגרי\"ג אדלשטיין בעת פתיחת ההיכל בשבועות ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "126": {
+      "PrayersId": 126,
+      "PrayerName": "אור החיים- 40 יום ברציפות",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "127": {
+      "PrayersId": 127,
+      "PrayerName": "סגולת ר\"ח פלאג''י לכל צרה וצוקה ונגע ומחלה, וישועה בכל העניינים תרומה בסך 104 ש\"ח בערב שבועות ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "130": {
+      "PrayersId": 130,
+      "PrayerName": "עמוקה",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "131": {
+      "PrayersId": 131,
+      "PrayerName": "ללא הפסקה עד האירוסין",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "132": {
+      "PrayersId": 132,
+      "PrayerName": "תפילת מרן הגה\"צ רבי שמעון גלאי עבור חשוכי בנים בבית האשה השונמית ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "133": {
+      "PrayersId": 133,
+      "PrayerName": "תפילת 40 יום בבית האשה השונמית",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "134": {
+      "PrayersId": 134,
+      "PrayerName": "תפילת הגה\"צ ר\"ש גלאי שליט\"א + 40+40 יום בבית השונמית, עד הושענא רבא",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "135": {
+      "PrayersId": 135,
+      "PrayerName": "שמירה עילאה בבין הזמנים ולתפילת מרן הגר\"ח קניבסקי על ציון אביו ביום היארצייט ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "136": {
+      "PrayersId": 136,
+      "PrayerName": "התרת קללות ע\"י מרן הגרמ\"ש אדלשטין בציון אביו מרן הגר\"י אדלשטיין זצוק\"ל ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "137": {
+      "PrayersId": 137,
+      "PrayerName": "מובטחים לחיים ע\"י כל גדולי הדור בבית מרן הגר\"ח קניבסקי שליט\"א ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "138": {
+      "PrayersId": 138,
+      "PrayerName": "לתפילה בציון אדוננו הגר\"א בוילנא הח\"ח בראדין והגר\"ח סולובייצ'יק בוורשא",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "139": {
+      "PrayersId": 139,
+      "PrayerName": "התרת קללות בערב ראש השנה ע\"י מנין גדולי הדור בקבר מרן הגראי\"ל שטינמן זצוק\"ל ",
+      "ProjectItemId": 30,
+      "ProjectId": 3,
+      "Status": "MAPPED"
+    },
+    "141": {
+      "PrayersId": 141,
+      "PrayerName": "תפילת מרן הגר\"ח קניבסקי לתורמים שפ\"ה ש\"ח בתוך הסימנים בליל ר\"ה וביהי רצון לאחר אמירת התהילים בעשרת ימי תשובה ",
+      "ProjectItemId": 32,
+      "ProjectId": 2,
+      "Status": "MAPPED"
+    },
+    "142": {
+      "PrayersId": 142,
+      "PrayerName": "תפילת הצדיקים",
+      "ProjectItemId": 33,
+      "ProjectId": 2,
+      "Status": "MAPPED"
+    },
+    "143": {
+      "PrayersId": 143,
+      "PrayerName": "בתוך היהי רצון",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "144": {
+      "PrayersId": 144,
+      "PrayerName": "פדיון כפרות",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "145": {
+      "PrayersId": 145,
+      "PrayerName": "מי שברך",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "146": {
+      "PrayersId": 146,
+      "PrayerName": "שליח קופת העיר יצא לציון הרשב\"י במירון בערב יום הכפורים, להעתיר על תורמי קופת העיר בציון הק' לשנה טובה ומתוקה",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "147": {
+      "PrayersId": 147,
+      "PrayerName": "ברכת הצדיקים בהושענא רבא",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "148": {
+      "PrayersId": 148,
+      "PrayerName": "מרן הגרמ\"ש אדלשטין שליט\"א יעלה על ציונו של הסנדלר לרגל יום ההילולא ויתפלל ויעתיר על תורמי הקופה בדיוק כפי הסדר שתיקן אביו מרן הגר\"י אדשלטין זצוק\"ל ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "149": {
+      "PrayersId": 149,
+      "PrayerName": "נפש תחת מפש",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "150": {
+      "PrayersId": 150,
+      "PrayerName": "לתפילת מרן הגר\"ח קניבסקי בעש\"ק פר' נח ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "151": {
+      "PrayersId": 151,
+      "PrayerName": "בשב\"ק - יום היא\"צ י״א בחשוון ע\"י מרן הגר\"י פישהוף שליט\"א שיזכיר כל שם ושם בפרטות",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "152": {
+      "PrayersId": 152,
+      "PrayerName": "40 יום רצופים מיום היא\"צ - י\"א בחשוון תשע\"ח ע\"י שליח קופת העיר שיזכיר כל שם ושם עם בקשתו בפרטות",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "153": {
+      "PrayersId": 153,
+      "PrayerName": "כל השנה יום יום ברציפות  ע\"י שליח קופת העיר שיזכיר כל שם ושם עם בקשתו בפרטות 385 יום, החל מי״א בחשוון תשע״ט ועד י״א בחשוון תש״פ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "154": {
+      "PrayersId": 154,
+      "PrayerName": "תפילת מרן הגר\"ש גלאי שליט\"א  בקבר רחל בר\"ח כסלו  שהוא בבחינת יוה\"כ כל שם ושם בפרטות",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "155": {
+      "PrayersId": 155,
+      "PrayerName": "לראשונה: כל יום שישי, שנה שלמה בקבר רחל ע\"י גדולי הדור בעצמם",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "157": {
+      "PrayersId": 157,
+      "PrayerName": "לתפילת 48 גדולי וצדיקי הדור שליט\"א שיעתירו בשעה התשיעית על תורמי קופת העיר וכן יזכירו שלוחי קופת העיר כל שם ושם בפרטות בכותל המערבי",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "158": {
+      "PrayersId": 158,
+      "PrayerName": "לתפילת גדולי וצדיקי הדור שליט\"א, וכן תפילת שלוחי קופת העיר ב 18- מקומות קדושים בא\"י כל שם ושם בפרטות",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "159": {
+      "PrayersId": 159,
+      "PrayerName": "72 מקומות לא מוותרים על שום מקום שיכול להביא ישועה! - תפילת 48 גדולי וצדיקי הדור שליט\"א, וכן תפילת שלוחי קופת העיר כל שם ושם בפרטות ב 18- מקומות ק' בא\"י , וכן תפילת שלוחי קופת העיר בעוד 6 ציונים בכל רחבי תבל - כל שם ושם בפרטות",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "160": {
+      "PrayersId": 160,
+      "PrayerName": "ברכת הצדיקים אחרי הדלקת נרות חנוכה",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "161": {
+      "PrayersId": 161,
+      "PrayerName": "271 תפילות בכותל המערבי בחנוכה",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "162": {
+      "PrayersId": 162,
+      "PrayerName": "זאת חנוכה אצל ר' חיים קנייבסקי שליט''א",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "163": {
+      "PrayersId": 163,
+      "PrayerName": "תפילת רבנו ר' חיים קניבסקי באשמורת השלישית של ליל זאת חנוכה",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "164": {
+      "PrayersId": 164,
+      "PrayerName": "תפילה יום יום במשך שנה שלמה על ציון של מרן הגראי\"ל עד חנוכה תש\"פ ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "165": {
+      "PrayersId": 165,
+      "PrayerName": "לתפילת  \"זאת חנוכה  ב-20 שערי שמים\"  ע\"י שלוחי קופת העיר בכל מקום ומקום  שיזכירו ב-20 שערי שמים כל שם עם  בקשתו בפרטות",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "166": {
+      "PrayersId": 166,
+      "PrayerName": "פרשת המן",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "167": {
+      "PrayersId": 167,
+      "PrayerName": "4 מקומות",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "168": {
+      "PrayersId": 168,
+      "PrayerName": "רימינוב",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "169": {
+      "PrayersId": 169,
+      "PrayerName": "תפילת מרן הגה\"צ ר\"ש גלאי שליט\"א בסוף שובבי\"ם בקבר הבעל שם ממיכלשטט שם יעתיר בפרטות שם אחר שם ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "170": {
+      "PrayersId": 170,
+      "PrayerName": "לתפילה ביום המוסגל יום שישי האחרון של שובבי\"ם ב-16 מקומות הקדושים בא\"י:  בכותל המערבי, בקבר רחל, במערת המכפלה, אצל רבי שמעון בר יוחאי, בקבר שמעון הצדיק, בקבר שמואל הנביא, אצל בניהו בן יהוידע, רבי מאיר בעל הנס, בעמוקה  - המסוגלת לזיווג הגון, בציון רבי יוחנן הסנדלר, בציון רבי יהודה בר עילאי - המסוגל לפרנסה, בציון הרמב\"ם, והשל\"ה הק' בטבריה, בציון הבית יוסף, האר\"י הק' ורבי לייב בעל היסורים בצפת. ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "171": {
+      "PrayersId": 171,
+      "PrayerName": "לתפילה ביום המוסגל יום שישי האחרון של שובבים ב-16 מקומות הקדושים בארץ הקודש  וגם במקומות הקדושים בחו\"ל: בציון הבעש\"ט הק' במעזיבוז', ובציון הרה\"ק מברדיטשוב ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "172": {
+      "PrayersId": 172,
+      "PrayerName": "ספר תהילים ביום פורים",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "173": {
+      "PrayersId": 173,
+      "PrayerName": "עמי בבקשתי- 26 שערי שמים בפורים\"- שלוחי קופת העיר יתפללו בעיצומו של יום הפורים  ויזכירו כל שם ושם עם הבקשה בפרטות.",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "174": {
+      "PrayersId": 174,
+      "PrayerName": "נפשי בשאלתי- לזיווג הגון- בעיצומו של יום הפורים יגיעו שלוחי קופת העיר לציון החזון איש ויגידו בכוונה את כל ספר התהילים עבור המצפים לזיווג הגון, ואח\"כ יזכירו כל שם ושם בפרטות",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "175": {
+      "PrayersId": 175,
+      "PrayerName": "נפשי בשאלתי- לזש\"ק- בעיצומו של יום הפורים יגיעו שלוחי קופת העיר לקבר רחל, ושם יגידו בכוונה את כל ספר התהילים עבור המצפים לזש\"ק, ואח\"כ יזכירו כל שם ושם בפרטות",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "176": {
+      "PrayersId": 176,
+      "PrayerName": "נפשי בשאלתי - לרפו\"ש – בעיצומו של יום הפורים דמוקפין יגיעו שלוחי קופת העיר לציון המהרי\"ל מדיסקין, ושם יגידו שלוחי קופת העיר בכוונה את כל ספר התהילים עבור הנצרכים לרפואה, ואח\"כ יזכירו כל שם ושם בפרטות",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "177": {
+      "PrayersId": 177,
+      "PrayerName": "תפילת גדולי הדור בעיצומו של יום הפורים ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "178": {
+      "PrayersId": 178,
+      "PrayerName": "\"ער\"ח ניסן בציונים המסוגלים לפרנסה\"  - ביום שישי ער\"ח ניסן שכתב עליו השל\"ה הק' שהוא היום המסוגל להתפלל על הפרנסה - יעתירו שלוחי קופת העיר ויגידו את התפלה המיוחדת שחבר השל\"ה ליום זה בשערי הפרנסה, רבי יהודה בר עילאי, רבי מאיר בעל הנס ובציון השל\"ה הק' בטבריה",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "179": {
+      "PrayersId": 179,
+      "PrayerName": "ציונים המסוגלים לפרנסה-40 יום-\" החל מיום המסוגל ער\"ח ניסן, 40 יום רצופים  בכל ימות החול , עד יום המסוגל יום ירידת המן- ט\"ז אייר, יעתירו ויזכירו כל יום כל שם ובקשה בפרטות בשלשת הציונים: רבי מאיר בעל הנס, רבי יהודה בר אילעי,  השל\"ה הק'..  ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "180": {
+      "PrayersId": 180,
+      "PrayerName": "\"רבי לייב- ער\"ח שחל בער\"ש\" ביום ו' ער\"ש- ער\"ח ניסן- הזמן המסוגל - יעתיר  מרן הגרש\"א שטרן, בראשות שליחי קופת העיר, ויגיד ללא הפסק את כל ספר התהילים על הציון של רבי לייב בעל היסורים, בזמן המסוגל \"ער\"ח שחל בערב שבת\". ולאחר מכן יזכירו כל שם ושם עם בקשתו בפרטות.",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "181": {
+      "PrayersId": 181,
+      "PrayerName": "\"רבי לייב- כל יום ו'\"- שלוחי קופת העיר יגיעו לציון רבי לייב כל יום ו' אחר חצות ויזכירו כל שם ושם בפרטות- עד הישועה",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "182": {
+      "PrayersId": 182,
+      "PrayerName": "40 יום במירון",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "183": {
+      "PrayersId": 183,
+      "PrayerName": "רשכבה\"ג מרן שר התורה הגר\"ח קניבסקי שליט\"א יעתיר עליך חמש פעמים בימי הפסח לתורה, לשמירה, לפרנסה, לנחת, ולזיווגים הגונים, ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "184": {
+      "PrayersId": 184,
+      "PrayerName": "מרן שר התורה יעתיר עליכם בכותל המערבי ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "185": {
+      "PrayersId": 185,
+      "PrayerName": "מתברכים- בסיום הש\"ס- בעת סיום הש\"ס בבוקר י\"ד ניסן יעתיר מרן רשכבה\"ג על תורמי קופת העיר. תפלה זו מיוחדת להצלחה בתורה",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "186": {
+      "PrayersId": 186,
+      "PrayerName": "מובטחים- בקריאת האגרת בחצות י\"ד ניסן –לאחר קריאת אגרת הקודש שעליה נאמר וכל מי שיקרא באגרת זו ינצל מכל צרה ומיתה משונה -יעתיר מרן רשכבה\"ג על תורמי קופת העיר. תפלה זו מיוחדת לשמירה עילאה",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "187": {
+      "PrayersId": 187,
+      "PrayerName": "מושפעים- בליל הסדר לאחר ליל הסדר הקדוש, הזמן שכל ההשפעות מגיעות, יעתיר שוב מרן רשכבה\"ג על תורמי קופת העיר. תפלה זו מיוחדת לפרנסה בריוח",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "188": {
+      "PrayersId": 188,
+      "PrayerName": " זוכים –בכותל המערבי. באחד מימי חוה\"מ, בו יעלה מרן רשכבה\"ג שליט\"א לכותל המערבי, יעתיר שם  מרן רשכבה\"ג על תורמי קופת העיר. תפלה זו מיוחדת לנחת מהילדים",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "189": {
+      "PrayersId": 189,
+      "PrayerName": "נושעים- בליל שביעי של פסח בליל שביעי של פסח- בעת קריעת ים סוף, יעתיר שוב מרן רשכבה\"ג על תורמי קופת העיר. תפלה זו מיוחדת לזיווגים הגונים",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "190": {
+      "PrayersId": 190,
+      "PrayerName": "שביעי של פסח בחצות בכותל- שליחי קופת העיר יעתירו לפי הסדר של מרן הגרי אדלשטיין ואחר כך יגידו שם שם בפרטות",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "192": {
+      "PrayersId": 192,
+      "PrayerName": "\"מירון קראקא רימנוב-בימי ההילולא\"",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "193": {
+      "PrayersId": 193,
+      "PrayerName": "\"שבוע של פתיחת שערים- במקומות הק' - כותל –חברון- מירון- עמוקה- השל\"ה הק' - קבר רחל - בכל מקום יזכירו כל יום כל שם ושם.",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "194": {
+      "PrayersId": 194,
+      "PrayerName": "תפילת השלה",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "195": {
+      "PrayersId": 195,
+      "PrayerName": "8 מקומות הק' בער\"ח סיון - (בכותל המערבי, קבר רחל, חברון, מירון, עמוקה, רבי מאיר בעל הנס, רבי יהודה בר אילעי, השלה הק')בער\"ח סיון אחר אמירת תפלת השל\"ה שלוחי קופת העיר יזכירו כל שם עם הבקשה בפרטות.",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "196": {
+      "PrayersId": 196,
+      "PrayerName": "מעמד היסטורי! גזירת בית דין בראשות מרן רבי חיים קניבסקי שליט\"א על קברו של מרן הרב שטינמן זצוק\"ל שם יגזור ישועה לכל עם ישראל!!!   ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "198": {
+      "PrayersId": 198,
+      "PrayerName": "Rav Kaniewsky au Kotel Jeud 13 Juin",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "199": {
+      "PrayersId": 199,
+      "PrayerName": "החל ממוצאי יום ההילולא כ\"ו סיון- יגיעו שליחי קופת העיר, 40 יום כל יום ברציפות, לציון התנא הק' בעמוקה, להעתיר לזיווג הגון על תורמי קופת העיר. שלוחי קופת העיר יזכירו כל שם בפרטות.",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "200": {
+      "PrayersId": 200,
+      "PrayerName": "מרן רב חיים קנייבסקי שליט\"א: יזכו מידה כנגד מידה עד לראש השנה תש\"פ!",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "201": {
+      "PrayersId": 201,
+      "PrayerName": " עמוקה- 271 תפלות- עפ\"י הדרכת רשכבה\"ג מרן הגראי\"ל שטיינמן זצ\"ל- יתפללו שלוחי קופת העיר בעמוקה 271 תפלות , בכל פעם ופעם יוכרו השם והבקשה בפרטות",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "202": {
+      "PrayersId": 202,
+      "PrayerName": "עמוקה- 516 תפלות כמניין ואתחנן- שלוחי קופת העיר יתפללו בעמוקה 271 תפלות כנ\"ל, ועוד 49 יום במקומות הבאים: כותל, מערת המכפלה, קבר רחל, מירון, של\"ה הק', ס\"ה 516 תפלות כמנין ואתחנ\"ן",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "203": {
+      "PrayersId": 203,
+      "PrayerName": "מרן הגר\"ח קניבסקי יזכו מידה כנגד מידה להתארס עד לר\"ה תשפ\"א ותפילה ומעמד התרת קללות ע\"י מרן הגרמ\"ש אדלשטיין שליט\"א ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "204": {
+      "PrayersId": 204,
+      "PrayerName": "40 יום בכותל כולל ראש השנה יום כיפור והושענא רבא",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "205": {
+      "PrayersId": 205,
+      "PrayerName": "מנין שלוחי קופת העיר בראשות מרן הגר\"ש גלאי יעתירו בציונם של מרן החפץ חיים בראדין ביום היארצייט ובקבר הגר\"א מוילנא ויזכירו שם אחר שם בפרטות ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "206": {
+      "PrayersId": 206,
+      "PrayerName": "תפילה בקבר מרן ה\"חפץ חיים\" בראדין ביום היארצייט ע\"י מרן הגר\"ש גלאי, וכן בציוני הגרש\"ש שקופ, יסוד ושורש העבודה, ורבינו חיים מוואלזין ע\"י שלוחי קופת העיר שיזכירו שם אחר שם בפרטות ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "207": {
+      "PrayersId": 207,
+      "PrayerName": "​נכתבים לחיים תש\"פ - כל גדולי וצדיקי הדור יתכנסו למעמד מיוחד בו יתפללו ויעתירו עבור תורמי קופת העיר שיזכו לשנה טובה ומתוקה ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "208": {
+      "PrayersId": 208,
+      "PrayerName": "hh",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "209": {
+      "PrayersId": 209,
+      "PrayerName": "לתפילת מרן רשכבה\"ג שה\"ת שליט\"א בעת סדר הסימנים בליל ראש השנה, \"יהי רצון – שתחדש על כל תורמי קופת העיר הרשומים כאן , שתרמו שנ\"ה שח- שיהיה להם שנ\"ה ימים של שנה טובה ומתוקה\".",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "210": {
+      "PrayersId": 210,
+      "PrayerName": "מעמד נורא הוד של סדר התרת קללות בבית ובראשות רשכבה׳׳ג מרן שה׳׳ת הגר׳׳ח קניבסקי שליט׳׳א בער׳׳ה הבעל׳׳ט",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "211": {
+      "PrayersId": 211,
+      "PrayerName": "ר' חיים קנייבסקי בחול המועד סוכות",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "212": {
+      "PrayersId": 212,
+      "PrayerName": "תפילת מרן הגר\"ש גלאי בר\"ח כסלו בקבר רחל ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "213": {
+      "PrayersId": 213,
+      "PrayerName": "תפילת 48 גדולי הדור בשעה התשיעית ובנוסף תתקיים תפילה ב-18 מקומות הקד' בעולם- בכל מקום ומקום יזכירו את שמות תורמי קופת העיר בפרטות.",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "214": {
+      "PrayersId": 214,
+      "PrayerName": "\"תפלת הצדיקים בכל יום ויום\" - בכל יום ויום משמונת ימי החנוכה השם שלך יגיע ל-8 גדולי הדור שיעתירו עליך באופן אישי ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "215": {
+      "PrayersId": 215,
+      "PrayerName": "תפילת גדולי הדור בזמן המסוגל בשעת הדלקת נרות חנוכה ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "216": {
+      "PrayersId": 216,
+      "PrayerName": "לראשונה בהיסטוריה - מנין תלמידי חכמים יתכנסו בביתו של מרן רשכבה\"ג רבינו שר התורה רבי חיים קנייבסקי שליט\"א, באשמורת הבוקר של זאת חנוכה, שזה הזמן לעורר רחמים, ויעתירו יחדיו כל שם ושם בפרטות,",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "217": {
+      "PrayersId": 217,
+      "PrayerName": "בזאת חנוכה הזמן להביא ישועה מעל הטבע, קופת העיר שולחת שליחים למקומות המביאים ישועה מעל הטבע, וילנא, שונם, מיכלשטט.",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "218": {
+      "PrayersId": 218,
+      "PrayerName": "271  תפלות בימי השובבי\"ם במקומות המסוגלים - בכותל המערבי, במערת המכפלה, בקבר רחל, במירון בשל\"ה הק' ובציון רבי יונתן בן עוזיאל בעמוקה.",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "219": {
+      "PrayersId": 219,
+      "PrayerName": "La prière de Rav Galay à Michelstadt, mardi Parachat Bechala'h ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "220": {
+      "PrayersId": 220,
+      "PrayerName": "ג' בשלח במיכלשטט - מרן הגר\"ש גלאי ומרן הגר\"י פישהוף יגזרו יחדיו בגזירת בית דין על כל שם ושם בפרטות לפרנסה ברווח ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "221": {
+      "PrayersId": 221,
+      "PrayerName": "\"הזמן המסוגל סוף שובבי\"ם - ב-24 מקומות\"- שליחי קופת העיר יעתירו על כל שם ושם בפרטות ובמתינות ב-24 מקומות הק' בכל רחבי ארץ ישראל",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "222": {
+      "PrayersId": 222,
+      "PrayerName": " מנין גדולי הדור יתכנסו באשמורת הבוקר בפורים בבוקר בביתו של מרן שה\"ת הגר\"ח קניבסקי שליט\"א ויעתירו על כל שם ושם בפרטות",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "223": {
+      "PrayersId": 223,
+      "PrayerName": "מעמד אמירת פיטום הקטורת לעצירת מגיפת הקורונה ע\"י כל גדולי וצדיקי הדור במעמד קרובה ישועתי בבית מרן שה\"ת הגר\"ח קניבסקי שליט\"א",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "224": {
+      "PrayersId": 224,
+      "PrayerName": "התפילה שעל ידי מניין בכותל לאחר אמירת פיטום הכתורת כל יום בוקר וערב",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "225": {
+      "PrayersId": 225,
+      "PrayerName": "אמירת פיטום הקטורת כסגולה למניעת מגיפת הקורונה, בכותל המערבי בכל יום בוקר וערב ע\"י מנין תלמידי חכמים שיזכירו שם אחר שם בפרטות עד ל\"ג בעומר.",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "226": {
+      "PrayersId": 226,
+      "PrayerName": "Kadich",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "227": {
+      "PrayersId": 227,
+      "PrayerName": "כל התורמים ל\"קופת העיר\" סל מזון עבור אלמנה אחת בסך 500 ש\"ח יזכו לקבל עם שליח עד הבית מיין הסיומים המפורסם של מרן הגר\"ח קניבסקי זצוק\"ל אשר מסוגל לכל הישועות ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "228": {
+      "PrayersId": 228,
+      "PrayerName": "תפילה על קבר רבי יהודה בר עילאי כל יום חוץ משבת עד ל׳׳ג בעומר",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "229": {
+      "PrayersId": 229,
+      "PrayerName": "שנה שלמה במירון מל״ג בעומר תשפ״ב עד ל״ג בעומר תשפ״ג",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "230": {
+      "PrayersId": 230,
+      "PrayerName": "ל׳׳ג בעומר במירון-24 שעות ללא הפסקה",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "231": {
+      "PrayersId": 231,
+      "PrayerName": "על פי הוראת מרן הגר\"ח קניבסקי שליט\"א יסעו במיוחד חתניו מרנן הגר\"ש שטיינמן והגר\"י קולדצקי שליט\"א למערת הרשב\"י בפקיעין- שם קנית הודך והדרך, ויעתירו על כל שם ושם",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "233": {
+      "PrayersId": 233,
+      "PrayerName": "שליח בקבר השלה בשבת ערב ראש חודש סיון",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "234": {
+      "PrayersId": 234,
+      "PrayerName": "תפילת השל\"ה ע\"י מרן שר התורה הגר\"ח קניבסקי ו40 גדולי וצדיקי הדור שליט\"א אשר יעתירו עליך מביתם בזמן המסוגל ער\"ח סיון ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "236": {
+      "PrayersId": 236,
+      "PrayerName": "תפילה עולמית לעצירת המגיפה",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "237": {
+      "PrayersId": 237,
+      "PrayerName": "עמוקה ביום ההילולה",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "238": {
+      "PrayersId": 238,
+      "PrayerName": "jj",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "239": {
+      "PrayersId": 239,
+      "PrayerName": "40 ימי הרצון מר\"ח אלול ועד יום הכיפורים בכל יום ויום ובכל מקום ומקום במקומות הקדושים: הכותל המערבי,במערת המכפלה, בקבר רחל, בציון הרשב”י-מירון, עמוקה, בציון האר”י הק’, בקבר השל”ה, בציון האוה”ח הק’, בציון הרה”ק מזוועהיל ובקבר רבי לייב בעל הייסורים ע\"י שלוחי קופת העיר שיזכירו שם אחר שם בפרטות.",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "240": {
+      "PrayersId": 240,
+      "PrayerName": "1000 שעות ברציפות בכותל המערבי ללא הפסקה של רגע מליל ר\"ח אלול ועד מוצאי יום הכיפורים, בכל יום ויום יזכירו כל שם ושם בפרטות ובמתינות עם בקשתו האישית ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "241": {
+      "PrayersId": 241,
+      "PrayerName": "ביום המסוגל ער\"ח אלול יעתיר מרן שה\"ת הגר\"ח קניבסקי שליט\"א על תורמי קופת העיר לשנה טובה וכתיבה וחתימה טובה ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "242": {
+      "PrayersId": 242,
+      "PrayerName": "40 יום בכותל",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "243": {
+      "PrayersId": 243,
+      "PrayerName": "מובטחים לחיים",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "244": {
+      "PrayersId": 244,
+      "PrayerName": "בער\"ה יערך מעמד נורא הוד של התרת קללות, ע\"י מניין רבותנו בראשות מרן רשכבה\"ג הגר\"ח קניבסקי שליט\"א, ובהשתתפות מנין מרנן ורבנן גדולי ישראל, אשר יעתירו בסדר מיוחד של התרת קללות שנתקן ע\"י מרן הגר\"י אדלשטיין זצ\"ל, להביא את התפלות של עמך בית ישראל ולהסיר מהם כל קטרוג.",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "245": {
+      "PrayersId": 245,
+      "PrayerName": "מי שברך בהושענא רבא",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "246": {
+      "PrayersId": 246,
+      "PrayerName": "9 דקות צדיקים + כותל",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "247": {
+      "PrayersId": 247,
+      "PrayerName": "ברכת הצדיקים בחנוכה",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "248": {
+      "PrayersId": 248,
+      "PrayerName": "לראשונה בהיסטוריה!  מנין תלמידי חכמים – מרנן הגרב\"ד פוברסקי , הגר\"ש בעדני, כ\"ק האדמו\"ר ממודז'יץ, הגר\"ז ברלין, הגר\"ש גלאי, הגר\"ש שטיינמן, הגרש\"א שטרן, הגרמ\"ש אדלשטיין, הגר\"נ זוכובסקי, הגרי\"ש קניבסקי, הגרח\"י מישקובסקי, הגרי\"א דינר, והגרא\"ד אפשטיין, יתכנסו בבית הקדוש של מרן רשכבה\"ג רבינו שר התורה רבי חיים קנייבסקי שליט\"א, ביום שיש אחר חצות – ביום  הגדול זאת חנוכה, הזמן לעורר רחמים ויעתירו יחדיו כל שם בפרטות, לעורר ולהמשיך רחמי שמים בזמן המסוגל ביום המסוגל",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "249": {
+      "PrayersId": 249,
+      "PrayerName": "ישועה מעל הטבע - בזאת חנוכה - שליח קופת העיר יעתיר עבורך באופן אישי בבית האשה השונמית מקום המסוגל לישועה ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "250": {
+      "PrayersId": 250,
+      "PrayerName": "271 תפילות בימי השובבים בששת המקומות הקדושים ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "251": {
+      "PrayersId": 251,
+      "PrayerName": "לתפילתם של 48 גדולי הדור שליט\"א יעתירו עבור תורמי \"קופת העיר\" אחר אמירת פרשת המן לסגולה לפרנסה ברווח",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "252": {
+      "PrayersId": 252,
+      "PrayerName": "אירוע של פעם ב20שנה!!! המעמד ההיסטורי בבית רשכבה\"ג מרן הגר\"ח קניבסקי שליט\"א - אשר ביום המסוגל ערב ראש חודש אחה\"צ יכנס בביתו מנין גדולי הדור לתפלה מיוחדת.עליכם תורמי קופת העיר",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "253": {
+      "PrayersId": 253,
+      "PrayerName": "תפילת שלוחי קופת העיר בששה עשר המקומות הקדושים שם אחר שם בפרטות ביום המסוגל ערב ראש חודש אדר וסוף ימי השובבי''ם",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "254": {
+      "PrayersId": 254,
+      "PrayerName": "מניין מיוחד בפורים",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "255": {
+      "PrayersId": 255,
+      "PrayerName": "מנין מיוחד בביתו ובראשותו של רשכבה\"ג מרן שר התורה שליט\"א בעצם יום הפורים בערב שבת לאחר חצות היום להעתיר עבור תורמי 'קופת העיר'",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "256": {
+      "PrayersId": 256,
+      "PrayerName": "ער\"ח ניסן - בשלשת הציונים המסוגלים לפרנסה בר' יהודה ב\"ר עילאי, השל,ה הק', ר' מאיר בעל הנס. ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "257": {
+      "PrayersId": 257,
+      "PrayerName": "40 יום בשלושת הציונים המסוגלים לפרנסה ר יהודה ב\"ר עילאי, השל\"ה הק', ורבי מאיר בעל הנס.",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "258": {
+      "PrayersId": 258,
+      "PrayerName": "תפלת מרנן הגרב\"ד פוברסקי והגר\"ש גלאי בציון האשה השונמית עבור חשוכי בנים ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "259": {
+      "PrayersId": 259,
+      "PrayerName": "סיום הש׳׳ס",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "260": {
+      "PrayersId": 260,
+      "PrayerName": "המכתב של הרבי מאוסטרופולה",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "261": {
+      "PrayersId": 261,
+      "PrayerName": "5 לשונות של גאולה",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "262": {
+      "PrayersId": 262,
+      "PrayerName": "תפילת מנין גדולי וצדיקי הדור על תורמי קופת העיר וצאצאיהם בציון השל''ה הק' ביום היארצייט י''א ניסן ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "263": {
+      "PrayersId": 263,
+      "PrayerName": "שיזכו לישב באהלה של תורה בזמן הקיץ הבעל\"ט בלא מפריעים כלל, והם וכל בני ביתם יהיו מוגנים מכל צרה וצוקה ומכל נגע ומחלה ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "264": {
+      "PrayersId": 264,
+      "PrayerName": "תפילת מרן ראש הישיבה הגר\"ש שטינמן שליט\"א במערת הרשב\"י בפקיעין ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "265": {
+      "PrayersId": 265,
+      "PrayerName": "תפלת 60 גדולי הדור בער\"ח סיון",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "266": {
+      "PrayersId": 266,
+      "PrayerName": "תפלה ב-8 מקומות המסוגלים בערח סיון",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "267": {
+      "PrayersId": 267,
+      "PrayerName": "שנה שלמה בציון השל\"ה",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "268": {
+      "PrayersId": 268,
+      "PrayerName": "תפילת מרן רשכבה׳׳ג הרב חיים קניבסקי שליט׳׳א בהדלקת נרות של חג השבועות",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "269": {
+      "PrayersId": 269,
+      "PrayerName": "40 יום בעמוקה",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "270": {
+      "PrayersId": 270,
+      "PrayerName": "271 תפילות בעמוקה",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "273": {
+      "PrayersId": 273,
+      "PrayerName": "תפילות להתקבל לישיבות – ממרן הגר\"ח קניבסקי שליט\"א",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "274": {
+      "PrayersId": 274,
+      "PrayerName": "קרן \"וישמרך\" ולקבלת המתנה הנדירה: סידור עם הקדשה מרשכבה\"ג מרן שר התורה שליט\"א",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "275": {
+      "PrayersId": 275,
+      "PrayerName": "קרן ״תוספת שמירה״ למשך שנה, וקבלת הקמע המיוחד שנבחר ונתברך ע\"י רשכבה\"ג מרן שר התורה שליט\"א",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "276": {
+      "PrayersId": 276,
+      "PrayerName": "מסע תפילות נדיר בערב ראש חודש אלול \"מתעטפים בתפילה\"",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "277": {
+      "PrayersId": 277,
+      "PrayerName": "1000 שעות רצופות לילה ויום בימי האלול",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "278": {
+      "PrayersId": 278,
+      "PrayerName": "תפילות 40 יום ב-10 מקומות קדושים על ידי תלמידי חכמים",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "279": {
+      "PrayersId": 279,
+      "PrayerName": "עוללים: שטר שותפות עם מרן שה׳׳ת רבי חיים קנייבסק וגזירת מלך לפרנסה ברווח",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "280": {
+      "PrayersId": 280,
+      "PrayerName": "לזכות לשפ׳׳ד ימים של שנה טובה ומתוקה: הגזירה של רשכבה׳׳ג מרן שה׳׳ת הגר׳׳ח קניבסקי שליט׳׳א עבור כל הנענים לקריאתו לתרום 384 ש״ח לקופת העיר :״בודאי יצא זכאי בדין״",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "281": {
+      "PrayersId": 281,
+      "PrayerName": "ברכת הצדיקים בערב יום הכיפורים לפני כל נדרי",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "282": {
+      "PrayersId": 282,
+      "PrayerName": "פדיון כפרות: ״פדיון נפש״",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "283": {
+      "PrayersId": 283,
+      "PrayerName": "תפילת מרן שה׳׳ת בשעת תפילת ׳כל נדרי׳ כאשר ספר תורה מוחזק בידיו",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "284": {
+      "PrayersId": 284,
+      "PrayerName": "לזכות ל לגזירת רשכבה\"ג מרן שה׳׳ת \"בודאי שיצא זכאי בדין\", לתפילת מרן בתפילת 'כל נדרי, ולהיות כלול ב'יהי רצון' של רשכבה\"ג מרן שר התורה שליט\"א ביום הכיפורים אחר אמירת כל ספר התהילים.  ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "285": {
+      "PrayersId": 285,
+      "PrayerName": "במערת ה'חתם סופר' ביום היארצייט!",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "286": {
+      "PrayersId": 286,
+      "PrayerName": "להעברת שמות לתפילת  רשכבה\"ג מרן שר התורה שליט\"א",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "288": {
+      "PrayersId": 288,
+      "PrayerName": "תפילת 64 גדולי וצדיקי הדור בשעה התשיעית שב׳׳ק ט׳ כסלו תשפ׳׳ב",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "289": {
+      "PrayersId": 289,
+      "PrayerName": "התפילה הכפולה בשעה התשיעית: גם תפילת 64 גדולי וצדיקי הדור וגם תפילת שליחי קופת העירב-18 מקומות קדושים",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "290": {
+      "PrayersId": 290,
+      "PrayerName": "תפילת מרנן הגר׳׳ש גלאי והגר׳׳י פישהוף בציון הבעל שם במיכלשטט",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "291": {
+      "PrayersId": 291,
+      "PrayerName": "צדיק גוזר והקב\"ה מקיים-\"יזכו לילדים צדיקים ויראי שמים ותלמידי חכמים\"- התפילה המיוחדת בזאת חנוכה על ידי מניין גדולי הדור בבית מרן שה׳׳ת הגר׳׳ח קנייבסקי",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "292": {
+      "PrayersId": 292,
+      "PrayerName": "תפילת גדולי וצדיקי בדור שליט׳׳א  לאחר הדלקת נרות חנוכה",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "293": {
+      "PrayersId": 293,
+      "PrayerName": "מנין תפילה מיוחד בביתו ובראשותו של רשכבה\"ג מרן שר התורה שליט\"א בזאת חנוכה אחר חצות היום להעתיר עבור תורמי 'קופת העיר'",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "295": {
+      "PrayersId": 295,
+      "PrayerName": "תפילת 64 צדיקים לאחר אמירת פרשת המן שניים מקרא ואחד תרגום ביום ג׳ פרשת בשלח.",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "296": {
+      "PrayersId": 296,
+      "PrayerName": "התפילה על ציונו של רבי מנחם מנדל מרימינוב בעל הסגולה לאחר קריאת פרשת המן ביום ג׳ פרשת בשלח",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "297": {
+      "PrayersId": 297,
+      "PrayerName": "מגבית חודש העיבור תשפ׳׳ב: ספר ״דרך אמונה״ עם הקדשה אישית ממרן שה׳׳ת שליט׳׳א לתורמים סך 360 ש׳׳ח",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "298": {
+      "PrayersId": 298,
+      "PrayerName": "מגבית חודש העיבור תשפ׳׳ב: שטר שותפות בתורת רבינו מרן שה׳׳ת שליט׳׳א בחודש אדר א׳ לתורמים סך 3600ש׳׳ח",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "299": {
+      "PrayersId": 299,
+      "PrayerName": "מגבית חודש העיבור תשפ׳׳ב: חפץ מחפצי הקודש האישיים של מרן שה׳׳ת שליט׳׳א- טלית שהתפלל בה או גביע שקידש בו- לתורמים סך 36000 ש׳׳ח",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "300": {
+      "PrayersId": 300,
+      "PrayerName": "תפילת מרנן הגר\"ש גלאי והגר\"ש שטיינמן מירון ופקיעין במעמד סיום שובבים",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "301": {
+      "PrayersId": 301,
+      "PrayerName": "משלוח מנות מיוחד במינו, שאותו שולח רשכבה\"ג מרן שה\"ת רבנו הגר\"ח קנייבסקי שליט\"א למי שיוצא מגדרו ונותן כ'מתנות לאביונים' סכום של 3000 ש\"ח",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "302": {
+      "PrayersId": 302,
+      "PrayerName": "תפילת רשכבה׳׳ג הגר׳׳ח קנייבסקי שליט׳׳א ורבנו מרן רה׳׳י הגר׳׳ג אדלשטיין שליט׳׳א בעיצומו של יום הפורים",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "303": {
+      "PrayersId": 303,
+      "PrayerName": "מנין גדולי הדור נוסעים לטבריה לתפילה עבור התורמים בקבר השל׳׳ה הקדוש בי׳׳א ניסן, יום ההילולא",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "304": {
+      "PrayersId": 304,
+      "PrayerName": "\"מתברכים בערב פסח\"- בתפלת בני וחתני רשכבה\"ג מרן זצללה\"ה בעת סיום הש\"ס ע\"י בנו מרן הגרי\"ש קניבסקי שליט\"א- בתרומה של 280 ₪ עבור כל שם",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "305": {
+      "PrayersId": 305,
+      "PrayerName": "\"מובטחים בקריאת האגרת\"- מרנן הגר\"ש גלאי וכ\"ק מרן האדמו\"ר רא\"א בידרמן, יעתירו על תורמי קופת העיר אחר אמירת אגרת הקודש- בתרומה של 280 ₪ עבור כל שם",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "306": {
+      "PrayersId": 306,
+      "PrayerName": "\"זוכים ביום ביטול הגזירות\"- ביום י\"ז ניסן, יום המסוגל לביטול גזירות – יעתיר מרן הגר\"ש בעדני על תורמי קופת העיר מרן הגר\"ש בעדני שליט\"א- בתרומה של 260 ₪ לשם",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "307": {
+      "PrayersId": 307,
+      "PrayerName": "\"מושפעים בליל ער\"ש של פסח\"- בגזירת בית דין של מרנן הגר\"ש גלאי, הגר\"ש שטיינמן והגר\"ב פינקל, בכותל המערבי בלי ערב שביעי של פסח- לפרנסה ולזווגים הגונים- בתרומה של 360 ₪ לשם",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "308": {
+      "PrayersId": 308,
+      "PrayerName": "\"נושעים בליל שביעי של פסח\"- בתפלת מרן פוה\"ד הגר\"מ שטרנבוך על תורמי קופת העיר בחצות ליל שביעי של פסח , שם אחר שם בפרטות- בתרומה של 380 ₪ לשם",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "309": {
+      "PrayersId": 309,
+      "PrayerName": "הזדמנות של פעם בארבע שנים-מחר יום י\"ז ניסן- יעתיר מרן ראש הישבה הגדב\"ד פוברסקי שליט\"א בעת מעמד ביעור מעשרות , שעושה מידי שמיטה מזה שבעים שנה, כפי שנתבקש ממרן הרי\"ז  הלוי זיע\"א- שתתקייים בתורמי קופת העיר ברכת \"השקיפה ממעון קדשך מן השמים וברך את עמך את ישראל\" כפי שכתוב בתורה לאחר ביעור מעשרות",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "310": {
+      "PrayersId": 310,
+      "PrayerName": "תפילת שלוחי קופת העיר על קבר רבי מאיר בעל הנס ביום ההילולא",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "311": {
+      "PrayersId": 311,
+      "PrayerName": "תפילת כ״ק האדמור מרימנוב שליט׳׳א על תורמי קופת העיר בקראקא, רימינוב ומירון בימים י״ח-י״ט אייר ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "312": {
+      "PrayersId": 312,
+      "PrayerName": "התפילה בציון הגאון רבי חיים מוולוז׳ין ביום שישי י״ט אייר ערב שבת בחוקותי",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "313": {
+      "PrayersId": 313,
+      "PrayerName": "שבוע של פתיחת שערים-לכל התפילות: בקבר רבי מאיר בעל הנס בי״ד אייר, יום ההילולא, ברימנוב, בקראקא ובמירון בימים י״ח-י״ט אייר ובוולוז׳ין בעש״ק פרשת בחוקותי ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "314": {
+      "PrayersId": 314,
+      "PrayerName": "תפילת מרנן הגר״ש שטיינמן והגר״י קולדצקי שליט״א בפקיעין בל\"ג בעומר",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "315": {
+      "PrayersId": 315,
+      "PrayerName": "ל״ג בעומר 24 שעות ללא הפסקה",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "316": {
+      "PrayersId": 316,
+      "PrayerName": "מסע הקודש  של עמוד התפילה  מרן הגר\"ש גלאי שליט\"א להעתיר על תורמי קופת העיר  בציון הגאון מוילנא בער\"ח סיון -  שם אחר שם בפרטות!",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "317": {
+      "PrayersId": 317,
+      "PrayerName": "תפילת שלוחי קופת העיר בציון השל״ה הק׳ במשך שנה שלמה",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "318": {
+      "PrayersId": 318,
+      "PrayerName": "תפילת 64 גדולי הדור שיתפללו את תפילת השל״ה על תורמי קופת העיר בער״ח סיון",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "319": {
+      "PrayersId": 319,
+      "PrayerName": " מי שברך ע\"י רשכבה\"ג מרן ראש הישיבה שליט\"א- ועמו  גדולי הדור מרנן הגר\"מ שטרנבוך, הגר\"ש בעדני, הגר\"ש גלאי והאדמו\"ר מראחמיסטריווקא- שיערכו מי שברך מיוחד על תורמי קופת העיר בעת פתיחת ההיכל בחג השבועות",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "320": {
+      "PrayersId": 320,
+      "PrayerName": "40 יום רצופים של תחנונים בקברו של בעל ה'אור החיים' זיע\"א מערב שבועות ועד יום ההילולא בט״ו תמוז",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "322": {
+      "PrayersId": 322,
+      "PrayerName": "תפלת מרן  הגר\"צ דרבקין בשל\"ה ובציון הרשב\"י- שיתקבלו לישיבות הטובות ויעלו בתורה וירא\"ש",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "323": {
+      "PrayersId": 323,
+      "PrayerName": "40 יום רצופים בעמוקה ממוצאי יום ההילולא של התנא הקדוש כ״ו בסיון ע״י שולחי קופת העיר כמאמר הזוה״ק שבוודאי נענה. ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "324": {
+      "PrayersId": 324,
+      "PrayerName": "271 תפילות בעמוקה לישועה ניסית יום יום ברציפות ע״י שלוחי קופת העיר",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "325": {
+      "PrayersId": 325,
+      "PrayerName": "516 תפילות כמיניין ״ואתחנן״ : 271 תפילות בעמוקה, 49 יום בכותל, מערת המכפלה, מירון, קבר רחל וקבר השל״ה הקדוש  ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "326": {
+      "PrayersId": 326,
+      "PrayerName": "תפילת מרן הגר\"ש גלאי שליט\"א ער\"ח תמוז בציון מרן ה'חזון איש' זצוק\"ל על תורמי 'והסירותי מחלה מקרבך'",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "327": {
+      "PrayersId": 327,
+      "PrayerName": "תפילת 40 יום  בבית האשה השונמית כל שם ושם מוזכר בפרטות (כולל שבתות)",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "328": {
+      "PrayersId": 328,
+      "PrayerName": "תפילת מרן הגר\"ש גלאי שליט\"א ער\"ח אב על תורמי 'והסירותי מחלה מקרבך' ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "329": {
+      "PrayersId": 329,
+      "PrayerName": "תפילת מרן פוסק הדור הגר\"מ שטרנבוך שליט\"א בליל ראש השנה ובכל עשי\"ת ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "330": {
+      "PrayersId": 330,
+      "PrayerName": "סגולת הקדמונים בהושענא רבא  ע\"י גדולי הדור שליט\"א . לראשונה נעתר עמוד התפלה מרן הגר\"ש גלאי שליט\"א לקיים את סגולת הקדמונים, המובאת גם בספר סדר היום ומקובלת מגדול תלמידי האר\"י מהרח\"ו- לומר בהושענא רבא 7 פעמים עלינו לשבח בהתעוררות ובכוונה- עבור תורמי קופת העיר ולהעתיר עליהם אחר כך לטובה ולברכה",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "331": {
+      "PrayersId": 331,
+      "PrayerName": "מעמד התפילה שיתקיים בראש חודש כסלו בבית ובראשות מרן ראש הישיבה הגר\"ג אדלשטיין שליט\"א יחד עם הגה\"צ רבי שמעון גלאי שליט\"א והגה\"צ רבי אלימלך בידרמן שליט\"א",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "332": {
+      "PrayersId": 332,
+      "PrayerName": "תפילה ל 40 יום ב 6 מקומות קדושים",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "333": {
+      "PrayersId": 333,
+      "PrayerName": "תפילת מרן הגר\"ש שטיינמן במירון ופקיעין בסיום שובבי\"ם כל שם בפרטות",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "334": {
+      "PrayersId": 334,
+      "PrayerName": "תפילת שלוחי קופת העיר ב-24 מקומות המסוגלים בסיום שובבי\"ם",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "335": {
+      "PrayersId": 335,
+      "PrayerName": "תפלת 40 יום בציון האור החיים הקדוש מיום ההילולא לביטול כל הגזירות ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    },
+    "336": {
+      "PrayersId": 336,
+      "PrayerName": " למעמד פקידת עקרות ט\"ו באב. כל שם בתרומה של 768 ₪ כמניין \"זרע של קיימא\" ",
+      "ProjectItemId": null,
+      "ProjectId": null,
+      "Status": "NOT_FOUND"
+    }
+  }
+}
