@@ -55,8 +55,17 @@ async function resetForMapping(mappingName){
   return res.affectedRows;
 }
 
+// UI-facing reader: the shared target pool has no `timezone` config (left alone here —
+// other modules' write paths are tuned around it), so mysql2 would parse the DATETIME
+// columns (stored as UTC wall-clock via UTC_TIMESTAMP()) using the server's LOCAL zone,
+// shifting them on read. Format them SQL-side as explicit ISO-UTC strings instead, so the
+// UI gets unambiguous values regardless of server timezone.
 async function list(){
-  var [rows]=await targetDb.query("SELECT * FROM MigrationCheckpoint ORDER BY MappingName");
+  var [rows]=await targetDb.query(
+    "SELECT Id,MappingName,LastSourceId,Status,"+
+    "DATE_FORMAT(LastRunAt,'%Y-%m-%dT%H:%i:%SZ') AS LastRunAt,"+
+    "DATE_FORMAT(CompletedAt,'%Y-%m-%dT%H:%i:%SZ') AS CompletedAt,"+
+    "RowsMigrated FROM MigrationCheckpoint ORDER BY MappingName");
   return rows;
 }
 

@@ -72,7 +72,7 @@ const NAME="TEST_CP_Alpha";
   }finally{
     await cp.resetForMapping(NAME);
     await cp.resetForMapping("TEST_CP_Empty");
-    await targetDb.close&&targetDb.close();
+    if(targetDb.close) await targetDb.close();
   }
   process.exit(0);
 })().catch(function(e){console.error(e);process.exit(1);});
