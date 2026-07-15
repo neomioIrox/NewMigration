@@ -7,6 +7,7 @@ const {preloadFKCache}=require("./fk-resolver");
 const tz=require("./tz");
 const tracker=require("../services/tracker");
 const logger=require("../logger");
+const migrationCheckpoint=require("../services/migration-checkpoint");
 
 // Donation scope cutoff — single source of truth: the SAME file that freezes the product
 // scope (scope-products.json was built from "OrderFinished AND DateCreated >= cutoff").
@@ -28,6 +29,9 @@ class DonationEngine extends EventEmitter{
     super();
     this.batchSize=(options&&options.batchSize)||1000;
     this.dryRun=(options&&options.dryRun)||false;
+    this.startMode=(options&&options.startMode)||"continue";
+    if(this.startMode==="gapfill"){logger.warn("startMode gapfill not supported by DonationEngine - running as continue (built-in target skip covers gaps)");this.startMode="continue";}
+    this.checkpointReporter=migrationCheckpoint.createReporter("DonationMapping");
     this.runId=null;
     this.pauseRequested=false;
     this.isRunning=false;
@@ -166,8 +170,17 @@ class DonationEngine extends EventEmitter{
         }
         await tracker.updateRunStatus(resumeRunId,"running");
       }else{
+        if(!this.dryRun&&this.startMode==="fresh"){
+          await migrationCheckpoint.ensureTable();
+          await migrationCheckpoint.resetForMapping("DonationMapping");
+        }else if(this.startMode==="continue"){
+          await migrationCheckpoint.ensureTable();
+          var cpRow=await migrationCheckpoint.get("DonationMapping");
+          if(cpRow&&cpRow.LastSourceId!=null){lastId=cpRow.LastSourceId;logger.info("continue mode: seeding from checkpoint",{mapping:"DonationMapping",lastSourceId:lastId});}
+        }
         this.runId=await tracker.createRun("DonationMapping",sourceTable,targetTable,totalRows,this.batchSize);
       }
+      if(!this.dryRun) await this.checkpointReporter.init(this.counters.inserted);
 
       this.emit("started",{runId:this.runId,totalRows:totalRows,mapping:"DonationMapping"});
       logger.info("Donation migration started",{runId:this.runId,total:totalRows,resumeFrom:lastId});
@@ -180,6 +193,7 @@ class DonationEngine extends EventEmitter{
         if(this.pauseRequested){
           await tracker.updateRunStatus(this.runId,"paused",{last_processed_source_id:lastId});
           await tracker.updateRunCounters(this.runId,this.counters.processed,this.counters.inserted,this.counters.skipped,this.counters.errors,lastId);
+          if(!this.dryRun) await this.checkpointReporter.batch(lastId,this.counters.inserted);
           this.emit("paused",{runId:this.runId,counters:this.counters,totalRows:totalRows,stats:this.stats,mapping:"DonationMapping"});
           this.isRunning=false;
           return {status:"paused",runId:this.runId,counters:this.counters,stats:this.stats};
@@ -211,6 +225,7 @@ class DonationEngine extends EventEmitter{
 
         // Update counters after each batch
         await tracker.updateRunCounters(this.runId,this.counters.processed,this.counters.inserted,this.counters.skipped,this.counters.errors,lastId);
+        if(!this.dryRun) await this.checkpointReporter.batch(lastId,this.counters.inserted);
 
         // Emit progress after each batch
         this.emit("progress",{runId:this.runId,counters:this.counters,totalRows:totalRows,stats:this.stats,mapping:"DonationMapping"});
@@ -221,6 +236,7 @@ class DonationEngine extends EventEmitter{
       // Completed
       await tracker.updateRunStatus(this.runId,"completed");
       await tracker.updateRunCounters(this.runId,this.counters.processed,this.counters.inserted,this.counters.skipped,this.counters.errors,lastId);
+      if(!this.dryRun) await this.checkpointReporter.complete();
       this.emit("completed",{runId:this.runId,counters:this.counters,totalRows:totalRows,stats:this.stats,mapping:"DonationMapping"});
       logger.info("Donation migration completed",{runId:this.runId,counters:this.counters,stats:this.stats});
 

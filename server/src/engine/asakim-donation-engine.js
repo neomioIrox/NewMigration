@@ -7,6 +7,7 @@ const {processGetDate}=require("./expression-eval");
 const {ilWallToUtcString}=require("./tz");
 const tracker=require("../services/tracker");
 const logger=require("../logger");
+const migrationCheckpoint=require("../services/migration-checkpoint");
 
 // Scope: migrate ONLY Asakim records tied to an in-scope migrated donation.
 // AsakimDonations.DonationID == Orders.AsakimID, and the order must satisfy the SAME
@@ -32,6 +33,9 @@ class AsakimDonationEngine extends EventEmitter{
     super();
     this.batchSize=(options&&options.batchSize)||2000;
     this.dryRun=(options&&options.dryRun)||false;
+    this.startMode=(options&&options.startMode)||"continue";
+    if(this.startMode==="gapfill"){logger.warn("startMode gapfill not supported by AsakimDonationEngine - running as continue");this.startMode="continue";}
+    this.checkpointReporter=migrationCheckpoint.createReporter("AsakimDonationMapping");
     this.runId=null;
     this.pauseRequested=false;
     this.isRunning=false;
@@ -67,8 +71,17 @@ class AsakimDonationEngine extends EventEmitter{
         }
         await tracker.updateRunStatus(resumeRunId,"running");
       }else{
+        if(!this.dryRun&&this.startMode==="fresh"){
+          await migrationCheckpoint.ensureTable();
+          await migrationCheckpoint.resetForMapping("AsakimDonationMapping");
+        }else if(this.startMode==="continue"){
+          await migrationCheckpoint.ensureTable();
+          var cpRow=await migrationCheckpoint.get("AsakimDonationMapping");
+          if(cpRow&&cpRow.LastSourceId!=null){lastId=cpRow.LastSourceId;logger.info("continue mode: seeding from checkpoint",{mapping:"AsakimDonationMapping",lastSourceId:lastId});}
+        }
         this.runId=await tracker.createRun("AsakimDonationMapping",sourceTable,targetTable,totalRows,this.batchSize);
       }
+      if(!this.dryRun) await this.checkpointReporter.init(this.counters.inserted);
 
       this.emit("started",{runId:this.runId,totalRows:totalRows,mapping:"AsakimDonationMapping"});
       logger.info("AsakimDonation migration started",{runId:this.runId,total:totalRows,resumeFrom:lastId});
@@ -79,6 +92,7 @@ class AsakimDonationEngine extends EventEmitter{
         if(this.pauseRequested){
           await tracker.updateRunStatus(this.runId,"paused",{last_processed_source_id:lastId});
           await tracker.updateRunCounters(this.runId,this.counters.processed,this.counters.inserted,this.counters.skipped,this.counters.errors,lastId);
+          if(!this.dryRun) await this.checkpointReporter.batch(lastId,this.counters.inserted);
           this.emit("paused",{runId:this.runId,counters:this.counters,totalRows:totalRows,mapping:"AsakimDonationMapping"});
           this.isRunning=false;
           return {status:"paused",runId:this.runId,counters:this.counters};
@@ -95,6 +109,7 @@ class AsakimDonationEngine extends EventEmitter{
 
         lastId=rows[rows.length-1].Id;
         await tracker.updateRunCounters(this.runId,this.counters.processed,this.counters.inserted,this.counters.skipped,this.counters.errors,lastId);
+        if(!this.dryRun) await this.checkpointReporter.batch(lastId,this.counters.inserted);
         this.emit("progress",{runId:this.runId,counters:this.counters,totalRows:totalRows,mapping:"AsakimDonationMapping"});
 
         if(rows.length<this.batchSize) hasMore=false;
@@ -103,6 +118,7 @@ class AsakimDonationEngine extends EventEmitter{
       // Completed
       await tracker.updateRunStatus(this.runId,"completed");
       await tracker.updateRunCounters(this.runId,this.counters.processed,this.counters.inserted,this.counters.skipped,this.counters.errors,lastId);
+      if(!this.dryRun) await this.checkpointReporter.complete();
       this.emit("completed",{runId:this.runId,counters:this.counters,totalRows:totalRows,mapping:"AsakimDonationMapping"});
       logger.info("AsakimDonation migration completed",{runId:this.runId,counters:this.counters});
       this.isRunning=false;

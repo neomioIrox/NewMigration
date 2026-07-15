@@ -51,23 +51,23 @@ router.get("/:id/progress",async function(req,res){
 
 router.post("/start-donations",async function(req,res){
   try{
-    var {batchSize,dryRun}=req.body;
+    var {batchSize,dryRun,startMode}=req.body;
     var engine=manager.startDonationMigration(
-      {batchSize:batchSize||1000,dryRun:dryRun||false},
+      {batchSize:batchSize||1000,dryRun:dryRun||false,startMode:startMode||"continue"},
       req.app.get("io")
     );
-    res.json({message:"Donation migration started",dryRun:dryRun||false,batchSize:batchSize||1000});
+    res.json({message:"Donation migration started",dryRun:dryRun||false,batchSize:batchSize||1000,startMode:startMode||"continue"});
   }catch(err){res.status(500).json({error:err.message});}
 });
 
 router.post("/start-asakim-donations",async function(req,res){
   try{
-    var {batchSize,dryRun}=req.body;
+    var {batchSize,dryRun,startMode}=req.body;
     var engine=manager.startAsakimDonationMigration(
-      {batchSize:batchSize||2000,dryRun:dryRun||false},
+      {batchSize:batchSize||2000,dryRun:dryRun||false,startMode:startMode||"continue"},
       req.app.get("io")
     );
-    res.json({message:"AsakimDonation migration started",dryRun:dryRun||false,batchSize:batchSize||2000});
+    res.json({message:"AsakimDonation migration started",dryRun:dryRun||false,batchSize:batchSize||2000,startMode:startMode||"continue"});
   }catch(err){res.status(500).json({error:err.message});}
 });
 
@@ -83,12 +83,12 @@ router.post("/start-gallery",async function(req,res){
 
 router.post("/start-praynames",async function(req,res){
   try{
-    var {batchSize,dryRun}=req.body;
+    var {batchSize,dryRun,startMode}=req.body;
     var engine=manager.startPrayNameMigration(
-      {batchSize:batchSize||2000,dryRun:dryRun||false},
+      {batchSize:batchSize||2000,dryRun:dryRun||false,startMode:startMode||"continue"},
       req.app.get("io")
     );
-    res.json({message:"PrayName migration started",dryRun:dryRun||false,batchSize:batchSize||2000});
+    res.json({message:"PrayName migration started",dryRun:dryRun||false,batchSize:batchSize||2000,startMode:startMode||"continue"});
   }catch(err){res.status(500).json({error:err.message});}
 });
 
