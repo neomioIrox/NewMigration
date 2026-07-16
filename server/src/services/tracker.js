@@ -73,7 +73,9 @@ async function getErrors(runId,page,limit){
   var offset=(page-1)*limit;
   var where=runId?" WHERE run_id=?":"";
   var params=runId?[runId]:[];
-  var [rows]=await trackerDb.query("SELECT * FROM migration_errors"+where+" ORDER BY created_at DESC LIMIT ? OFFSET ?",params.concat([limit,offset]));
+  // ORDER BY id (PK, ~chronological): created_at forced a filesort over rows carrying
+  // fat row_data/stack columns and blew MySQL's sort buffer ("Out of sort memory").
+  var [rows]=await trackerDb.query("SELECT * FROM migration_errors"+where+" ORDER BY id DESC LIMIT ? OFFSET ?",params.concat([limit,offset]));
   var [cnt]=await trackerDb.query("SELECT COUNT(*) as c FROM migration_errors"+where,params);
   return {rows:rows,total:cnt[0].c,page:page,limit:limit};
 }
